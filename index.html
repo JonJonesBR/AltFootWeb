@@ -1508,7 +1508,28 @@ body {
       <div class="prep-club"><div class="name" id="prep-adv-name">RIVAL</div><div class="tag">VISITANTE</div></div>
     </div>
     <div id="prep-apresentacao" class="prep-note" style="margin: 8px 0 10px; text-align: left;"></div>
-    <div style="font-size: 0.68rem; font-weight: 900; letter-spacing: 1.5px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px;">ESTILO DE JOGO</div>
+
+    <div style="font-size: 0.68rem; font-weight: 900; letter-spacing: 1.5px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px;">🧩 FORMAÇÃO</div>
+    <div class="style-grid" id="prep-formacoes">
+      <button class="style-btn" data-formacao="4-4-2" onclick="app.setFormacaoPrep('4-4-2')">4-4-2</button>
+      <button class="style-btn" data-formacao="4-3-3" onclick="app.setFormacaoPrep('4-3-3')">4-3-3</button>
+      <button class="style-btn" data-formacao="3-5-2" onclick="app.setFormacaoPrep('3-5-2')">3-5-2</button>
+      <button class="style-btn" data-formacao="5-3-2" onclick="app.setFormacaoPrep('5-3-2')">5-3-2</button>
+    </div>
+
+    <div style="font-size: 0.68rem; font-weight: 900; letter-spacing: 1.5px; color: var(--text-muted); text-transform: uppercase; margin-top: 12px; margin-bottom: 6px;">🎽 CAMISA DO TIME</div>
+    <div id="prep-camisas" style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;"></div>
+
+    <div style="font-size: 0.68rem; font-weight: 900; letter-spacing: 1.5px; color: var(--text-muted); text-transform: uppercase; margin-top: 12px; margin-bottom: 6px;">🏟️ ESTÁDIO</div>
+    <div class="style-grid" id="prep-estadios"></div>
+
+    <div style="font-size: 0.68rem; font-weight: 900; letter-spacing: 1.5px; color: var(--text-muted); text-transform: uppercase; margin-top: 12px; margin-bottom: 6px;">⏱️ TEMPO DE JOGO</div>
+    <div class="style-grid" id="prep-tempos">
+      <button class="style-btn" data-tempo="45" onclick="app.escolherTempo(45)">1º TEMPO · 45'</button>
+      <button class="style-btn active" data-tempo="90" onclick="app.escolherTempo(90)">JOGO INTEIRO · 90'</button>
+    </div>
+
+    <div style="font-size: 0.68rem; font-weight: 900; letter-spacing: 1.5px; color: var(--text-muted); text-transform: uppercase; margin-top: 12px; margin-bottom: 6px;">ESTILO DE JOGO</div>
     <div class="style-grid">
       <button class="style-btn" data-estilo="ofensivo" onclick="app.escolherEstilo('ofensivo')"><span class="ib">🔥</span>OFENSIVO</button>
       <button class="style-btn active" data-estilo="equilibrado" onclick="app.escolherEstilo('equilibrado')"><span class="ib">⚖️</span>EQUILIBRADO</button>
@@ -2700,6 +2721,8 @@ class MatchSim {
         // para o INTRO PARA JOGOS DE FINAIS rodar por inteiro.
         this.minDurMs = (opts && opts.minDurMs) || 0;
         this._segurandoFim = false;
+        // Tempo de jogo (menu de pré-jogo): 45 = 1º tempo, 90 = jogo inteiro.
+        this.tempoMin = (opts && opts.tempoMin) || 90;
     }
     _rnd(a, b) { return a + this.rng() * (b - a); }
     _roll(p) { return this.rng() < p; }
@@ -2791,7 +2814,8 @@ class MatchSim {
 
     _minutosGols(n) {
         const out = [];
-        for (let i = 0; i < n; i++) out.push(Math.round(this._rnd(3, 88)));
+        const tMax = Math.max(5, (this.tempoMin || 90) - 2);
+        for (let i = 0; i < n; i++) out.push(Math.round(this._rnd(3, tMax)));
         return out.sort((x, y) => x - y);
     }
 
@@ -2813,13 +2837,14 @@ class MatchSim {
         const nDec = 3 + (this.estilo === 'ofensivo' ? 1 : 0) + (this.regra === 'torneio' ? 1 : 0);
         for (let i = 0; i < nDec; i++) {
             const side = this._roll(0.50) ? 0 : 1; // 50/50 neutro (era 55/45 pró-mandante)
-            R.push({ min: Math.round(this._rnd(5, 86)), tipo: 'decisao', side });
+            R.push({ min: Math.round(this._rnd(5, Math.max(6, (this.tempoMin || 90) - 4))), tipo: 'decisao', side });
         }
         const quente = this.regra === 'classico'; // clássico: mais faltas e cartões
-        for (let m = 1; m <= 90; m += Math.round(this._rnd(1, 3.2))) {
+        const tFim = this.tempoMin || 90;
+        for (let m = 1; m <= tFim; m += Math.round(this._rnd(1, 3.2))) {
             const roll = this.rng();
             const side = this._roll(0.5) ? 0 : 1;
-            if (m >= 86 && roll < 0.16) { R.push({ min: m, tipo: 'acrescimo', side }); continue; }
+            if (m >= tFim - 4 && roll < 0.16) { R.push({ min: m, tipo: 'acrescimo', side }); continue; }
             if (roll < 0.26) R.push({ min: m, tipo: 'lance', side });
             else if (roll < 0.40) R.push({ min: m, tipo: 'falta', side });
             else if (roll < 0.50) R.push({ min: m, tipo: 'lance', side });
@@ -3378,11 +3403,11 @@ class MatchSim {
         }
         this._segurandoFim = false;
         this.abortado = true;
-        this.minuto = 90;
+        this.minuto = this.tempoMin || 90;
         MatchUI.clearPrompt();
         const subModal = document.getElementById('modal-substituicao');
         if (subModal) subModal.classList.add('hidden');
-        MatchUI.clock(90);
+        MatchUI.clock(this.tempoMin || 90);
         MatchUI.status('FIM DE JOGO');
         if (typeof ui !== 'undefined') {
             ui.playSFX('sfx_whistle', 0.7);
@@ -3473,7 +3498,7 @@ const Engine = {
             const matchScorers = (this.activeMatch && this.activeMatch.matchScorers) || {};
             this.activeMatch = null;
             onFinish(h, a, xpBase, matchScorers);
-        }, { estilo, craque, seed, minDurMs: (typeof app !== 'undefined' && app._partidaMinDurMs) ? app._partidaMinDurMs() : 0 });
+        }, { estilo, craque, seed, minDurMs: (typeof app !== 'undefined' && app._partidaMinDurMs) ? app._partidaMinDurMs() : 0, tempoMin: (typeof app !== 'undefined' && app._tempoPartida) ? app._tempoPartida : 90 });
         this.activeMatch.start();
     },
 
@@ -3492,7 +3517,7 @@ const Engine = {
             const matchScorers = (this.activeMatch && this.activeMatch.matchScorers) || {};
             this.activeMatch = null;
             onFinish(h, a, xpBase, matchScorers, pen || null);
-        }, { estilo, craque, regra, seed, minDurMs: (typeof app !== 'undefined' && app._partidaMinDurMs) ? app._partidaMinDurMs() : 0 });
+        }, { estilo, craque, regra, seed, minDurMs: (typeof app !== 'undefined' && app._partidaMinDurMs) ? app._partidaMinDurMs() : 0, tempoMin: (typeof app !== 'undefined' && app._tempoPartida) ? app._tempoPartida : 90 });
         this.activeMatch.start();
     },
 
@@ -7022,16 +7047,109 @@ const app = {
     _renderApresentacao(adv) {
         const el = document.getElementById('prep-apresentacao');
         if (!el) return;
-        const est = (this.club && this.club.estadioNivel) || 1;
+        const est = this._estadioPartida || 'Estádio Municipal';
         const form = (this.club && this.club.formacao) || '4-4-2';
-        const camisa = this._camisaDoClube();
+        const camisa = (this.club && this.club.camisaNome) || this._camisaDoClube();
+        const tempo = this._tempoPartida || 90;
         const ehFinal = this._ehPartidaFinal();
-        let txt = '🏟️ Estádio Municipal · Nível ' + est
-            + '  ·  ⏱️ 90 minutos'
+        let txt = '🏟️ ' + est
+            + '  ·  ⏱️ ' + tempo + ' minutos'
             + '  ·  🎽 Camisa ' + camisa
             + '  ·  🧩 ' + form;
         if (ehFinal) txt += '  ·  🏆 FINAL — introdução de estreia';
         el.innerText = txt;
+    },
+    // ---- Escolhas do menu de pré-jogo ----
+    setFormacaoPrep(form) {
+        this.setFormacao(form);
+        document.querySelectorAll('#prep-formacoes .style-btn').forEach(b =>
+            b.classList.toggle('active', (b.dataset.formacao || '') === form));
+        this._renderApresentacao();
+        if (typeof ui !== 'undefined') ui.playSFX('sfx_click', 0.3);
+    },
+    escolherTempo(min) {
+        this._tempoPartida = (min === 45) ? 45 : 90;
+        document.querySelectorAll('#prep-tempos .style-btn').forEach(b =>
+            b.classList.toggle('active', String(b.dataset.tempo) === String(this._tempoPartida)));
+        this._renderApresentacao();
+        if (typeof ui !== 'undefined') ui.playSFX('sfx_click', 0.3);
+    },
+    escolherCamisa(nome) {
+        if (!this.club) return;
+        this.club.camisaNome = nome;
+        document.querySelectorAll('#prep-camisas .camisa-swatch').forEach(b =>
+            b.classList.toggle('active', b.dataset.camisa === nome));
+        this._renderApresentacao();
+        this.saveGame();
+        if (typeof ui !== 'undefined') ui.playSFX('sfx_click', 0.3);
+    },
+    escolherEstadio(nome) {
+        this._estadioPartida = nome;
+        document.querySelectorAll('#prep-estadios .style-btn').forEach(b =>
+            b.classList.toggle('active', (b.dataset.estadio || '') === nome));
+        this._renderApresentacao();
+        if (typeof ui !== 'undefined') ui.playSFX('sfx_click', 0.3);
+    },
+    _renderPrepEscolhas() {
+        // Formação atual
+        const form = (this.club && this.club.formacao) || '4-4-2';
+        document.querySelectorAll('#prep-formacoes .style-btn').forEach(b =>
+            b.classList.toggle('active', (b.dataset.formacao || '') === form));
+        // Camisas
+        const cores = [
+            { nome: 'Azul', hex: '#2563eb' },
+            { nome: 'Vermelha', hex: '#dc2626' },
+            { nome: 'Branca', hex: '#e5e7eb' },
+            { nome: 'Preta', hex: '#111827' },
+            { nome: 'Verde', hex: '#16a34a' },
+            { nome: 'Amarela', hex: '#eab308' },
+            { nome: 'Alvi-negra', hex: '#f8fafc' },
+            { nome: 'Rubro-negra', hex: '#7f1d1d' }
+        ];
+        const wrap = document.getElementById('prep-camisas');
+        if (wrap) {
+            wrap.innerHTML = '';
+            const atual = (this.club && this.club.camisaNome) || this._camisaDoClube();
+            cores.forEach(c => {
+                const b = document.createElement('button');
+                b.className = 'camisa-swatch' + (c.nome === atual ? ' active' : '');
+                b.dataset.camisa = c.nome;
+                b.title = c.nome;
+                b.style.cssText = 'width:36px;height:36px;border-radius:10px;border:2px solid '
+                    + (c.nome === atual ? 'var(--accent)' : 'var(--border)') + ';background:' + c.hex
+                    + ';cursor:pointer;box-shadow:' + (c.nome === atual ? '0 0 10px rgba(255,176,0,0.45)' : 'none') + ';';
+                b.setAttribute('aria-label', 'Camisa ' + c.nome);
+                b.onclick = () => this.escolherCamisa(c.nome);
+                wrap.appendChild(b);
+            });
+            if (this.club) this.club.camisaNome = atual;
+        }
+        // Estádios (o de maior nível é o padrão; final força Arena Nacional como opção extra)
+        const estadios = [
+            'Estádio Municipal',
+            'Arena da Capital',
+            'Campo do Bairro'
+        ];
+        if (this._ehPartidaFinal()) estadios.unshift('Arena Nacional');
+        const estWrap = document.getElementById('prep-estadios');
+        if (estWrap) {
+            estWrap.innerHTML = '';
+            if (!this._estadioPartida || estadios.indexOf(this._estadioPartida) < 0) {
+                this._estadioPartida = this._ehPartidaFinal() ? 'Arena Nacional' : 'Estádio Municipal';
+            }
+            estadios.forEach(nome => {
+                const b = document.createElement('button');
+                b.className = 'style-btn' + (nome === this._estadioPartida ? ' active' : '');
+                b.dataset.estadio = nome;
+                b.textContent = nome;
+                b.onclick = () => this.escolherEstadio(nome);
+                estWrap.appendChild(b);
+            });
+        }
+        // Tempo
+        if (!this._tempoPartida) this._tempoPartida = 90;
+        document.querySelectorAll('#prep-tempos .style-btn').forEach(b =>
+            b.classList.toggle('active', String(b.dataset.tempo) === String(this._tempoPartida)));
     },
 
     // ---- Preparação da partida (estilo + craque, 1 emprestado por dia real) ----
@@ -7057,6 +7175,7 @@ const app = {
             obs.innerText = txt;
         }
         // Apresentação do jogo (estádio / formação / camisa / tempo) + locução INTRO.
+        this._renderPrepEscolhas();
         this._renderApresentacao(adv);
         const ehFinal = this._ehPartidaFinal();
         if (typeof ui !== 'undefined' && ui.playNarracao) {
