@@ -1266,6 +1266,7 @@ body {
       <span style="font-size: 0.7rem; font-weight: 900; letter-spacing: 1px; color: var(--accent);">🕐 ESCALAÇÃO TITULAR <span id="escala-count" style="color: var(--text-muted);"></span></span>
       <button class="btn-secondary" style="padding: 3px 10px; font-size: 0.62rem;" onclick="app.escalacaoAuto()">⚡ AUTO</button>
     </div>
+    <button id="btn-voltar-prep" class="btn-secondary hidden" style="width: 100%; padding: 8px; font-size: 0.72rem; margin-bottom: 8px;" onclick="app.voltarPreparacao()">← VOLTAR À PREPARAÇÃO</button>
     <div id="escala-status" style="font-size: 0.62rem; color: var(--text-muted); margin-bottom: 6px; line-height: 1.4;">Toque nos jogadores para montar seus 11 titulares. Goleiro obrigatório.</div>
     <div id="escala-xi" style="display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px;"></div>
     <div id="escala-reserva" style="display: flex; flex-direction: column; gap: 4px;"></div>
@@ -5758,16 +5759,33 @@ const app = {
         this.club.escalacaoXI = this._xiIds.slice();
         this.saveGame();
         ui.showActionFeedback('Escalação salva! Vale para as próximas partidas.', 'success');
+        if (this._veioDaPreparacao) {
+            this._veioDaPreparacao = false;
+            const back = document.getElementById('btn-voltar-prep');
+            if (back) back.classList.add('hidden');
+            setTimeout(() => this._abrirPreparacao(), 350);
+        }
     },
 
     abrirEscalacaoPreparacao() {
         const m = document.getElementById('modal-preparacao');
         if (m) m.classList.add('hidden');
+        this._veioDaPreparacao = true;
         ui.showSubscreen('squad');
         this.renderEscalacao();
         const block = document.getElementById('escalacao-block');
         if (block) block.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        const back = document.getElementById('btn-voltar-prep');
+        if (back) back.classList.remove('hidden');
         if (typeof ui !== 'undefined') ui.playSFX('sfx_click', 0.3);
+    },
+
+    voltarPreparacao() {
+        this._veioDaPreparacao = false;
+        const back = document.getElementById('btn-voltar-prep');
+        if (back) back.classList.add('hidden');
+        // Reabre a preparação com as escolhas intactas (e o INTRO já tocado não repete).
+        this._abrirPreparacao();
     },
 
     // ---- Substituição manual em partida (2026-09-22) ----
@@ -7019,6 +7037,7 @@ const app = {
         this.recuperarFadiga();
         this.autosaveNow();
         this._registrarSessao();
+        this._introPrepTocado = false;
         // Antes de entrar em campo: estilo de jogo + craque da rodada
         this._abrirPreparacao();
     },
@@ -7178,7 +7197,9 @@ const app = {
         this._renderPrepEscolhas();
         this._renderApresentacao(adv);
         const ehFinal = this._ehPartidaFinal();
-        if (typeof ui !== 'undefined' && ui.playNarracao) {
+        // INTRO só na primeira abertura da preparação (voltar da escalação não repete).
+        if (!this._introPrepTocado && typeof ui !== 'undefined' && ui.playNarracao) {
+            this._introPrepTocado = true;
             // Final: só o INTRO PARA JOGOS DE FINAIS, por inteiro e exclusivo.
             // Outras partidas: um INTRO aleatório, exclusivo neste menu (sem repetir na partida).
             ui.playNarracao(ehFinal ? 'introFinal' : 'intro', 0.55, true);
