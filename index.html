@@ -3369,7 +3369,10 @@ class MatchSim {
         if (subModal) subModal.classList.add('hidden');
         MatchUI.clock(90);
         MatchUI.status('FIM DE JOGO');
-        if (typeof ui !== 'undefined') ui.playSFX('sfx_whistle', 0.7);
+        if (typeof ui !== 'undefined') {
+            ui.playSFX('sfx_whistle', 0.7);
+            if (ui.pararNarracao) ui.pararNarracao();
+        }
         const h = this.scoreH, a = this.scoreA;
         // Bordão de encerramento (1x por partida)
         const fimTxt = this._fraseContexto(h > a ? 'fimVitoria' : (h < a ? 'fimDerrota' : 'empateFinal'));
@@ -3722,17 +3725,51 @@ class UI {
     const pool = (typeof NARRACAO_SOUNDS !== 'undefined' && NARRACAO_SOUNDS[categoria]) || null;
     if (!pool || !pool.length) return;
     const file = pool[Math.floor(Math.random() * pool.length)];
-    // Rate-limit: não empilha locução a cada lance (~2,8s mín. entre clips).
-    const now = Date.now();
-    if (this._lastNarAt && (now - this._lastNarAt) < 2800) return;
-    this._lastNarAt = now;
+    // Fila serial: um clip por vez — o próximo só no 'ended' do anterior.
+    if (!this._narFila) this._narFila = [];
+    this._narFila.push({
+      url: encodeURI((typeof NARRACAO_DIR !== 'undefined' ? NARRACAO_DIR : '') + file),
+      volume: volume
+    });
+    // Evita backlog infinito: guarda no máx. 2 pendentes (descarta o mais antigo).
+    if (this._narFila.length > 2) this._narFila.splice(0, this._narFila.length - 2);
+    this._processarFilaNarracao();
+  }
+
+  _processarFilaNarracao() {
+    if (this._narTocando) return;
+    if (!this._narFila || !this._narFila.length) return;
+    const item = this._narFila.shift();
     try {
-      const url = encodeURI((typeof NARRACAO_DIR !== 'undefined' ? NARRACAO_DIR : '') + file);
-      const audio = new Audio(url);
       const sfxMaster = (typeof app !== 'undefined' && app.settings && typeof app.settings.sfxVol === 'number') ? app.settings.sfxVol : 1.0;
-      audio.volume = Math.max(0, Math.min(1, volume * sfxMaster));
-      audio.play().catch(() => {});
-    } catch (_) {}
+      const audio = new Audio(item.url);
+      audio.volume = Math.max(0, Math.min(1, (item.volume || 0.55) * sfxMaster));
+      this._narTocando = true;
+      this._narAudio = audio;
+      const fim = () => {
+        this._narTocando = false;
+        this._narAudio = null;
+        this._processarFilaNarracao();
+      };
+      audio.addEventListener('ended', fim, { once: true });
+      audio.addEventListener('error', fim, { once: true });
+      const p = audio.play();
+      if (p && p.catch) p.catch(fim);
+    } catch (_) {
+      this._narTocando = false;
+      this._narAudio = null;
+      this._processarFilaNarracao();
+    }
+  }
+
+  // Para a locução e limpa a fila (fim/aborto de partida, troca de tela).
+  pararNarracao() {
+    this._narFila = [];
+    if (this._narAudio) {
+      try { this._narAudio.pause(); this._narAudio.currentTime = 0; } catch (_) {}
+      this._narAudio = null;
+    }
+    this._narTocando = false;
   }
 
   playGoalSound() {
