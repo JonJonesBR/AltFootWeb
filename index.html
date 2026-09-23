@@ -1923,6 +1923,18 @@ const AUDIO_ASSETS = {
 
 
 
+// Locução humana (opção 3 — caminho relativo, pronto para GitHub Pages).
+// Pasta commitada junto do index.html; encodeURI cuida de espaços/acentos na URL.
+const NARRACAO_DIR = 'SONS DA NARRAÇÃO DO GAME/';
+const NARRACAO_SOUNDS = {
+  intro: ['INTRO 1.mp3', 'INTRO 2.mp3', 'INTRO 3.mp3', 'INTRO 4.mp3', 'INTRO 5.mp3'],
+  introFinal: ['INTRO PARA JOGOS DE FINAIS.mp3'],
+  passe: ['PASSE 1.mp3', 'PASSE 2.mp3', 'PASSE 3.mp3', 'PASSE 4.mp3', 'PASSE 5.mp3'],
+  drible: ['DRIBLE 1.mp3', 'DRIBLE 2.mp3', 'DRIBLE 3.mp3', 'DRIBLE 4.mp3'],
+  cruzamento: ['CRUZAMENTO 1.mp3', 'CRUZAMENTO 2.mp3'],
+  contra: ['CONTRA ATAQUE 1.mp3', 'CONTRA ATAQUE 2.mp3']
+};
+
 // data.js
 const GAME_DATA = {
     nomes: ["Pedro", "Lucas", "Gabriel", "Matheus", "Bruno", "Carlos", "Daniel", "Rafael", "Felipe", "Gustavo", "João", "Leonardo", "Diego", "André", "Fernando", "Ricardo", "Tiago", "Vitor", "Samuel", "Igor"],
@@ -2679,6 +2691,9 @@ class MatchSim {
         this._difA = 0; this._difD = 0;
         this._emCampo = null; // ids dos 11 titulares por lado ([0]=casa, [1]=fora)
         this._subIA = false;  // IA já fez a substituição automática no 2º tempo
+        this._ctxUsados = {};     // bordões contextuais já falados (1x / ocasiao)
+        this._viradaPendente = false;
+        this._golsMin = [];       // minutos dos últimos gols (sequência)
     }
     _rnd(a, b) { return a + this.rng() * (b - a); }
     _roll(p) { return this.rng() < p; }
@@ -2894,6 +2909,111 @@ class MatchSim {
         ]);
     }
 
+    // ---- Bordões contextuais (Rádio do Estádio 95.3) — só texto no feed ----
+    // Usa time da casa / time de fora (sem nome do clube do jogador).
+    // Uma linha por contexto por partida (_ctxUsados), chamado após eventos relevantes.
+    _fraseContexto(ocasiao) {
+        if (this._ctxUsados == null) this._ctxUsados = {};
+        const B = {
+            abertura: [
+                "Ajeita o dial do seu rádio na noventa e cinco vírgula três! A bola tá pronta pra rolar e a promessa é de jogão!",
+                "Tudo pronto no gramado, estádio fervendo e a noventa e cinco vírgula três entra em campo junto com você!",
+                "Apito na boca do árbitro! Começa a batalha aqui na sua emissora do futebol!"
+            ],
+            aberturaClassico: [
+                "Clássico é clássico! Aqui até cobrança de lateral é disputada com raiva nos olhos!",
+                "Ninguém tira o pé em clássico! Vale a liderança, a honra e a paz da semana inteira na cidade!",
+                "Clássico não se joga com a cabeça fria, se joga deixando a pele no gramado!",
+                "Jogo pegado, reclamação com o juiz e dividida estalando! Clássico de verdade aqui na noventa e cinco vírgula três!"
+            ],
+            goleadaCasa: [
+                "É chocolate, torcida! O time da casa tá jogando em ritmo de treino de quinta-feira!",
+                "O técnico do time de fora tá com aquela cara de quem se arrependeu de ter aceitado o cargo!",
+                "Vira três, acaba seis! O time da casa faz o que quer e a zaga adversária só assiste!",
+                "O goleiro do time de fora já tá com dor nas costas de tanto abaixar pra buscar bola no fundo da rede!",
+                "Se o juiz apitar o fim agora por misericórdia, o time de fora sai correndo e ainda agradece!"
+            ],
+            sofrendo: [
+                "A defesa do time da casa tá igual catraca de metrô na hora do rush: passa todo mundo!",
+                "O treinador berra na beira do campo, mas parece que o time entrou com o fone de ouvido ligado!",
+                "Se o time da casa não acordar agora, amanhã tem torcida organizada esperando no portão do CT!",
+                "Deixaram uma avenida aberta na marcação... se bobear passa até caminhão!"
+            ],
+            virada: [
+                "VIROU! VIROU! O time da casa buscou o resultado no peito e na raça! Que coisa espetacular!",
+                "Quem desligou o rádio antes da hora perdeu a história que tá sendo escrita aqui na noventa e cinco vírgula três!",
+                "Parecia caso perdido, mas o time da casa ressuscitou e virou o jogo com a força da torcida!",
+                "O time de fora achou que a vitória tava no bolso e levou o troco com juros e correção monetária!"
+            ],
+            empateFinal: [
+                "Reta final de desespero! Um pontinho pra cada lado não resolve a vida de ninguém na tabela!",
+                "Acréscimos dramáticos! Qualquer chute mascado agora pode consagrar um herói ou criar um vilão!",
+                "A bola tá queimando no pé! É bico pra alto da zaga e reza brava no banco de reservas!"
+            ],
+            expulsao: [
+                "É VERMELHO! {j} fez a falta que não podia, tomou o segundo amarelo e foi pro chuveiro mais cedo!",
+                "Inacreditável a irresponsabilidade de {j}! Deixou o time na fogueira com um jogador a menos!",
+                "O árbitro nem pensou duas vezes: cartão vermelho pra {j}! Desmanchou o esquema tático do time!",
+                "Pode descer a rampa pro vestiário, {j}! Uma entrada completamente desnecessária no meio-campo!"
+            ],
+            golAdv: [
+                "Gol do time de fora... uma ducha de água fria no caldeirão do time da casa!",
+                "Falha feia da zaga! O time de fora aproveitou o cochilo e não perdoou!",
+                "Silêncio ensurdecedor no estádio! O time de fora escapou no contra-ataque e castigou!"
+            ],
+            sequencia: [
+                "MAS JÁ?! Mal deu tempo de narrar o primeiro e o time da casa já guardou o segundo!",
+                "Que apagão do time de fora! Dois gols em sequência, a defesa deles nem sabe onde tá!",
+                "O time de fora nem conseguiu reiniciar a partida direito e já levou outro golpe! Que blitz!"
+            ],
+            penalti: [
+                "PÊNALTI MARCADO! O estádio prende a respiração e o cobrador tá sozinho contra o mundo!",
+                "Bola na marca da cal! É o momento de maior solidão do futebol: olho no olho entre o batedor e o goleiro!",
+                "Pênalti pro time da casa! É a chance de ouro do jogo... não pode tremer a perna uma hora dessas!"
+            ],
+            trave: [
+                "NA TRAVE! O estalo do ferro ecoou no estádio inteiro! Quase, quase o gol!",
+                "Caprichosamente no poste! O goleiro só olhou e a trave evitou o gol!",
+                "No travessão! Faltou um dedo pra bola entrar, a torcida chegou a gritar gol no estádio!"
+            ],
+            fimVitoria: [
+                "FIM DE PAPO! Três pontos suados na conta do time da casa e festa merecida da torcida!",
+                "Acabou! O time da casa soube controlar o jogo e garantiu um grande resultado hoje!",
+                "Apita o juiz! Vitória com autoridade do time da casa, pode soltar o grito!"
+            ],
+            fimDerrota: [
+                "Fim de jogo... derrota amarga do time da casa. Vai ter cobrança pesada durante a semana.",
+                "Acabou. Faltou pontaria e sobrou erro pro time da casa, que sai derrotado de campo.",
+                "Derrota dolorida do time da casa diante da sua torcida. Amanhã tem conversa séria no vestiário."
+            ]
+        };
+        const pool = B[ocasiao];
+        if (!pool || !pool.length) return null;
+        // goleada/sofrendo podem repetir 1x por partida; os demais, 1x só
+        const limite = (ocasiao === 'goleadaCasa' || ocasiao === 'sofrendo' || ocasiao === 'empateFinal') ? 2 : 1;
+        const usados = this._ctxUsados[ocasiao] || 0;
+        if (usados >= limite) return null;
+        this._ctxUsados[ocasiao] = usados + 1;
+        return this._pick(pool);
+    }
+
+    // Lê o placar/fase e decide qual bordão soltar (se algum).
+    _bordaoAutomatico(jogadorExpulso) {
+        if (jogadorExpulso) {
+            const t = this._fraseContexto('expulsao');
+            return t ? t.replace('{j}', jogadorExpulso) : null;
+        }
+        const diff = this.scoreH - this.scoreA;
+        if (this.minuto >= 80 && diff === 0) return this._fraseContexto('empateFinal');
+        if (diff >= 3) return this._fraseContexto('goleadaCasa');
+        if (diff <= -2) return this._fraseContexto('sofrendo');
+        if (this._viradaPendente && diff > 0) {
+            this._viradaPendente = false;
+            return this._fraseContexto('virada');
+        }
+        return null;
+    }
+
     // ---- Execução ----
     start() {
         this._emCampo = [
@@ -2902,6 +3022,13 @@ class MatchSim {
         ];
         this.roteiro = this._gerarRoteiro();
         this._idx = 0;
+        // Abertura narrada + locução INTRO (final/clássico usa intro especial)
+        const ehGrande = this.regra === 'classico' || this.regra === 'torneio';
+        const ab = this._fraseContexto(ehGrande ? 'aberturaClassico' : 'abertura');
+        if (ab) this._emit(ab, 'info');
+        if (typeof ui !== 'undefined' && ui.playNarracao) {
+            ui.playNarracao(ehGrande ? 'introFinal' : 'intro', 0.5);
+        }
         this._tick();
     }
     _xiDoTime(team) {
@@ -2958,10 +3085,18 @@ class MatchSim {
         this.posse = Math.max(38, Math.min(62, this.posse));
         let log = '';
         let tipoFeed = 'info';
+        let expulsoNome = null;
         if (t === 'lance') {
             log = this._roll(0.55) ? this._fraseLan(ev.side === 0 ? this.home : this.away) : this._fraseChance(ev.side === 0 ? this.home : this.away);
             if (log.indexOf('PERIGO') >= 0 || log.indexOf('Contra-ataque') >= 0) tipoFeed = 'warn';
             this.chutes[ev.side] += this._roll(0.5) ? 1 : 0;
+            // Locução por tipo de lance (opção 3)
+            if (typeof ui !== 'undefined' && ui.playNarracao) {
+                if (log.indexOf('Contra-ataque') >= 0) ui.playNarracao('contra');
+                else if (log.indexOf('cruza') >= 0 || log.indexOf('ponta') >= 0) ui.playNarracao('cruzamento');
+                else if (log.indexOf('drib') >= 0 || log.indexOf('limpa') >= 0 || log.indexOf('puxa') >= 0) ui.playNarracao('drible');
+                else ui.playNarracao('passe');
+            }
         } else if (t === 'falta') {
             log = this._fraseFalta(ev.side === 0 ? this.home : this.away);
             this.faltas[ev.side]++;
@@ -2971,7 +3106,9 @@ class MatchSim {
             this.cartoes[ev.side]++;
             // 20% chance of second yellow → red card
             if (this._roll(0.2)) {
-                log += " " + (ev.side === 0 ? this.home : this.away).nome + " expulso! Segunda falta.";
+                const expulso = (ev.side === 0 ? this._nomeHome('DEF') : this._nomeAdv('DEF'));
+                log += " " + expulso + " expulso! Segunda falta.";
+                expulsoNome = expulso;
                 this.chutes[ev.side] = Math.max(0, this.chutes[ev.side] - 1);
             }
             tipoFeed = 'foul';
@@ -2979,6 +3116,7 @@ class MatchSim {
             log = "Escanteio para o " + (ev.side === 0 ? "time da casa" : "visitante") + "!";
             this.escanteios[ev.side]++;
             this.chutes[ev.side]++;
+            if (typeof ui !== 'undefined' && ui.playNarracao) ui.playNarracao('cruzamento');
             // 5% chance of direct goal from corner
             if (this._roll(0.05)) {
                 log += "! GOOOOL! Cobrança de escanteio!"
@@ -3009,7 +3147,15 @@ class MatchSim {
             log = this._fraseLesao(ev.side === 0 ? this.home : this.away);
             tipoFeed = 'warn';
         }
+        // Trave: bordão no lugar da frase curta de erro
+        if (log && log.indexOf('trave') >= 0) {
+            const tb = this._fraseContexto('trave');
+            if (tb) log = tb;
+        }
         if (log) this._emit(log, tipoFeed);
+        // Bordão contextual pós-evento (expulsão / goleada / virada / etc.)
+        const ctx = this._bordaoAutomatico(expulsoNome);
+        if (ctx) this._emit(ctx, expulsoNome ? 'foul' : 'info');
     }
 
     _autorDoGol(isHome) {
@@ -3024,8 +3170,25 @@ class MatchSim {
         if (isHome) this.scoreH++; else this.scoreA++;
         if (autor && autor.id) this.matchScorers[autor.id] = (this.matchScorers[autor.id] || 0) + 1;
         if (autor) autor.gols = (autor.gols || 0) + 1;
-        // Assistência: ~55% dos gols têm um companheiro (não o autor) que criou o lance.
-        // Prefere MID/ATT; usa o elenco do mesmo time. RNG da partida (seed) — determinístico.
+        // Contexto pós-gol: virada / sequência / gol do adversário
+        this._golsMin = (this._golsMin || []).filter(m => this.minuto - m <= 5);
+        this._golsMin.push(this.minuto);
+        const diff = this.scoreH - this.scoreA;
+        if (!isHome) {
+            const tAdv = this._fraseContexto('golAdv');
+            if (tAdv) { /* emitido no fim de _marcar via return concat */ }
+            this._bordaoPosGol = tAdv;
+        }
+        if (isHome && this._golsMin.length >= 2 && diff > 0) {
+            const tSeq = this._fraseContexto('sequencia');
+            if (tSeq) this._bordaoPosGol = tSeq;
+        }
+        if (diff > 0 && this._perdiaPartida) {
+            this._viradaPendente = true;
+            this._perdiaPartida = false;
+        } else if (diff < 0) {
+            this._perdiaPartida = true;
+        }
         if (autor) {
             const el = isHome ? this.home.elenco : this.away.elenco;
             const camp = el.filter(p => p.id !== autor.id && (p.posicao === 'MID' || p.posicao === 'ATT'));
@@ -3042,9 +3205,14 @@ class MatchSim {
             ui.playGoalSound();
             ui.showGoalAnimation(isHome, autor, this.minuto, Math.abs(this.scoreH - this.scoreA) <= 1);
         }
-        return (autor && autor.gols >= 10 && autor.gols % 10 === 0)
+        let extra = (autor && autor.gols >= 10 && autor.gols % 10 === 0)
             ? ' ⭐ ' + autor.nome.toUpperCase() + ' CHEGA A ' + autor.gols + ' GOLS NA TEMPORADA!'
             : '';
+        if (this._bordaoPosGol) {
+            extra += ' ‖ ' + this._bordaoPosGol;
+            this._bordaoPosGol = null;
+        }
+        return extra;
     }
 
     _emit(log, tipo, statOnly) {
@@ -3203,8 +3371,13 @@ class MatchSim {
         MatchUI.status('FIM DE JOGO');
         if (typeof ui !== 'undefined') ui.playSFX('sfx_whistle', 0.7);
         const h = this.scoreH, a = this.scoreA;
+        // Bordão de encerramento (1x por partida)
+        const fimTxt = this._fraseContexto(h > a ? 'fimVitoria' : (h < a ? 'fimDerrota' : 'empateFinal'));
+        if (fimTxt) this._emit(fimTxt, 'info');
         // Fase 4: empate em mata-mata decide nos pênaltis (5 cobranças + morte súbita).
         if (this.regra === 'torneio' && h === a) {
+            const penB = this._fraseContexto('penalti');
+            if (penB) this._emit(penB, 'warn');
             this._disputaPenaltis(pen => {
                 if (this.onFinish) this.onFinish(h, a, pen);
             });
@@ -3539,6 +3712,26 @@ class UI {
           } catch (_) { audio.pause(); }
         }, maxDuration);
       }
+    } catch (_) {}
+  }
+
+  // Locução humana da pasta SONS DA NARRAÇÃO DO GAME/ (caminho relativo — GitHub Pages).
+  // categoria: intro | introFinal | passe | drible | cruzamento | contra
+  playNarracao(categoria, volume = 0.55) {
+    if (app && app.settings && !app.settings.sfx) return;
+    const pool = (typeof NARRACAO_SOUNDS !== 'undefined' && NARRACAO_SOUNDS[categoria]) || null;
+    if (!pool || !pool.length) return;
+    const file = pool[Math.floor(Math.random() * pool.length)];
+    // Rate-limit: não empilha locução a cada lance (~2,8s mín. entre clips).
+    const now = Date.now();
+    if (this._lastNarAt && (now - this._lastNarAt) < 2800) return;
+    this._lastNarAt = now;
+    try {
+      const url = encodeURI((typeof NARRACAO_DIR !== 'undefined' ? NARRACAO_DIR : '') + file);
+      const audio = new Audio(url);
+      const sfxMaster = (typeof app !== 'undefined' && app.settings && typeof app.settings.sfxVol === 'number') ? app.settings.sfxVol : 1.0;
+      audio.volume = Math.max(0, Math.min(1, volume * sfxMaster));
+      audio.play().catch(() => {});
     } catch (_) {}
   }
 
