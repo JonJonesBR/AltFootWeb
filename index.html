@@ -1507,6 +1507,7 @@ body {
       <div style="font-weight: 900; color: var(--accent);">VS</div>
       <div class="prep-club"><div class="name" id="prep-adv-name">RIVAL</div><div class="tag">VISITANTE</div></div>
     </div>
+    <div id="prep-apresentacao" class="prep-note" style="margin: 8px 0 10px; text-align: left;"></div>
     <div style="font-size: 0.68rem; font-weight: 900; letter-spacing: 1.5px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px;">ESTILO DE JOGO</div>
     <div class="style-grid">
       <button class="style-btn" data-estilo="ofensivo" onclick="app.escolherEstilo('ofensivo')"><span class="ib">🔥</span>OFENSIVO</button>
@@ -2694,6 +2695,11 @@ class MatchSim {
         this._ctxUsados = {};     // bordões contextuais já falados (1x / ocasiao)
         this._viradaPendente = false;
         this._golsMin = [];       // minutos dos últimos gols (sequência)
+        this._t0 = Date.now();
+        // Piso de tempo de parede (ms) — na final, o jogo dura ≥ 1min12s mesmo em 2×/4×,
+        // para o INTRO PARA JOGOS DE FINAIS rodar por inteiro.
+        this.minDurMs = (opts && opts.minDurMs) || 0;
+        this._segurandoFim = false;
     }
     _rnd(a, b) { return a + this.rng() * (b - a); }
     _roll(p) { return this.rng() < p; }
@@ -3022,13 +3028,12 @@ class MatchSim {
         ];
         this.roteiro = this._gerarRoteiro();
         this._idx = 0;
-        // Abertura narrada + locução INTRO (final/clássico usa intro especial)
+        this._t0 = Date.now();
+        // Abertura só em texto no feed — a locução INTRO roda no menu de preparação
+        // (ou INTRO PARA JOGOS DE FINAIS exclusivo na final; ver _abrirPreparacao).
         const ehGrande = this.regra === 'classico' || this.regra === 'torneio';
         const ab = this._fraseContexto(ehGrande ? 'aberturaClassico' : 'abertura');
         if (ab) this._emit(ab, 'info');
-        if (typeof ui !== 'undefined' && ui.playNarracao) {
-            ui.playNarracao(ehGrande ? 'introFinal' : 'intro', 0.5);
-        }
         this._tick();
     }
     _xiDoTime(team) {
@@ -3049,7 +3054,7 @@ class MatchSim {
         return Math.round(760 / this.speed);
     }
     _tick() {
-        if (this.abortado) return;
+        if (this.abortado || this._segurandoFim) return;
         // Fase 7: IA mexe no time uma vez no 2º tempo (com reservas).
         if (this._emCampo && this.minuto >= 46 && !this._subIA) {
             this._subIA = true;
@@ -3362,6 +3367,16 @@ class MatchSim {
 
     _finalizar() {
         if (this.abortado) return;
+        // Piso de tempo de parede (final: ≥ 72s): segura o apito até o intro de final
+        // terminar — vale em 1×, 2× ou 4×.
+        const decorrido = Date.now() - (this._t0 || Date.now());
+        if (this.minDurMs > 0 && decorrido < this.minDurMs) {
+            this._segurandoFim = true;
+            MatchUI.status('COMPENSANDO ACRESCIMO...');
+            this._timer = setTimeout(() => this._finalizar(), this.minDurMs - decorrido);
+            return;
+        }
+        this._segurandoFim = false;
         this.abortado = true;
         this.minuto = 90;
         MatchUI.clearPrompt();
@@ -3458,7 +3473,7 @@ const Engine = {
             const matchScorers = (this.activeMatch && this.activeMatch.matchScorers) || {};
             this.activeMatch = null;
             onFinish(h, a, xpBase, matchScorers);
-        }, { estilo, craque, seed });
+        }, { estilo, craque, seed, minDurMs: (typeof app !== 'undefined' && app._partidaMinDurMs) ? app._partidaMinDurMs() : 0 });
         this.activeMatch.start();
     },
 
@@ -3477,7 +3492,7 @@ const Engine = {
             const matchScorers = (this.activeMatch && this.activeMatch.matchScorers) || {};
             this.activeMatch = null;
             onFinish(h, a, xpBase, matchScorers, pen || null);
-        }, { estilo, craque, regra, seed });
+        }, { estilo, craque, regra, seed, minDurMs: (typeof app !== 'undefined' && app._partidaMinDurMs) ? app._partidaMinDurMs() : 0 });
         this.activeMatch.start();
     },
 
@@ -3720,19 +3735,28 @@ class UI {
 
   // Locução humana da pasta SONS DA NARRAÇÃO DO GAME/ (caminho relativo — GitHub Pages).
   // categoria: intro | introFinal | passe | drible | cruzamento | contra
-  playNarracao(categoria, volume = 0.55) {
+  playNarracao(categoria, volume = 0.55, exclusive = false) {
     if (app && app.settings && !app.settings.sfx) return;
     const pool = (typeof NARRACAO_SOUNDS !== 'undefined' && NARRACAO_SOUNDS[categoria]) || null;
     if (!pool || !pool.length) return;
     const file = pool[Math.floor(Math.random() * pool.length)];
+    const item = {
+      url: encodeURI((typeof NARRACAO_DIR !== 'undefined' ? NARRACAO_DIR : '') + file),
+      volume: volume,
+      exclusive: !!exclusive
+    };
     // Fila serial: um clip por vez — o próximo só no 'ended' do anterior.
     if (!this._narFila) this._narFila = [];
-    this._narFila.push({
-      url: encodeURI((typeof NARRACAO_DIR !== 'undefined' ? NARRACAO_DIR : '') + file),
-      volume: volume
-    });
-    // Evita backlog infinito: guarda no máx. 2 pendentes (descarta o mais antigo).
-    if (this._narFila.length > 2) this._narFila.splice(0, this._narFila.length - 2);
+    if (item.exclusive) {
+      // Exclusivo (INTRO / INTRO DE FINAL): corta o que toca e zera a fila —
+      // roda por inteiro; o resto só volta depois do 'ended'.
+      this.pararNarracao();
+      this._narFila = [item];
+    } else {
+      this._narFila.push(item);
+      // Evita backlog infinito: guarda no máx. 2 pendentes (descarta o mais antigo).
+      if (this._narFila.length > 2) this._narFila.splice(0, this._narFila.length - 2);
+    }
     this._processarFilaNarracao();
   }
 
@@ -6974,6 +6998,42 @@ const app = {
         this._abrirPreparacao();
     },
 
+    // ---- Timing da locução / final ----
+    // "Último jogo do game": final do Torneio Relâmpago ou última rodada do campeonato.
+    _ehPartidaFinal() {
+        if (this._isTorneio && this.league && this.league.torneio && this.league.torneio.fase === 'final') return true;
+        if (this.league && typeof this.league.getTotalRounds === 'function') {
+            const total = this.league.getTotalRounds();
+            if (total > 0 && this.league.rodada >= total) return true;
+        }
+        return false;
+    },
+    // Piso de parede da final: 1min12s (72000 ms) — vale em 2× e 4×.
+    _partidaMinDurMs() {
+        return this._ehPartidaFinal() ? 72000 : 0;
+    },
+    _camisaDoClube() {
+        const nome = (this.club && this.club.nome) || 'CLUBE';
+        let h = 0;
+        for (let i = 0; i < nome.length; i++) h = (h * 31 + nome.charCodeAt(i)) >>> 0;
+        const cores = ['Azul', 'Vermelha', 'Branca', 'Preta', 'Verde', 'Amarela', 'Alvi-negra', 'Rubro-negra'];
+        return cores[h % cores.length];
+    },
+    _renderApresentacao(adv) {
+        const el = document.getElementById('prep-apresentacao');
+        if (!el) return;
+        const est = (this.club && this.club.estadioNivel) || 1;
+        const form = (this.club && this.club.formacao) || '4-4-2';
+        const camisa = this._camisaDoClube();
+        const ehFinal = this._ehPartidaFinal();
+        let txt = '🏟️ Estádio Municipal · Nível ' + est
+            + '  ·  ⏱️ 90 minutos'
+            + '  ·  🎽 Camisa ' + camisa
+            + '  ·  🧩 ' + form;
+        if (ehFinal) txt += '  ·  🏆 FINAL — introdução de estreia';
+        el.innerText = txt;
+    },
+
     // ---- Preparação da partida (estilo + craque, 1 emprestado por dia real) ----
     _abrirPreparacao() {
         let adv = this.getNextOpponent();
@@ -6995,6 +7055,14 @@ const app = {
             else if (this._isTorneio) txt += ' ⚡ Torneio Relâmpago: vitória vale a vaga na próxima fase (' + this._torneioFaseNome() + ').';
             txt += ' Escolha o estilo de jogo e um craque emprestado (1 por dia) para reforçar o time só nesta partida.';
             obs.innerText = txt;
+        }
+        // Apresentação do jogo (estádio / formação / camisa / tempo) + locução INTRO.
+        this._renderApresentacao(adv);
+        const ehFinal = this._ehPartidaFinal();
+        if (typeof ui !== 'undefined' && ui.playNarracao) {
+            // Final: só o INTRO PARA JOGOS DE FINAIS, por inteiro e exclusivo.
+            // Outras partidas: um INTRO aleatório, exclusivo neste menu (sem repetir na partida).
+            ui.playNarracao(ehFinal ? 'introFinal' : 'intro', 0.55, true);
         }
         this._estiloPartida = 'equilibrado';
         this._craquePartida = null;
