@@ -928,6 +928,22 @@ body {
 
 /* --- Rodapé: velocidade / pular --- */
 .match-footer-row { flex: none; display: flex; align-items: center; gap: 6px; justify-content: center; }
+/* G1: Foco do Treinador + mão de cartas */
+.foco-wrap { display: flex; align-items: center; gap: 8px; }
+.foco-bar { flex: 1; height: 12px; border-radius: 999px; background: rgba(255,255,255,0.1); overflow: hidden; border: 1px solid var(--border); }
+.foco-bar-fill { height: 100%; width: 70%; border-radius: 999px; background: linear-gradient(90deg, #a78bfa, #c4b5fd); transition: width 0.35s ease; }
+.foco-bar-fill.bajo { background: linear-gradient(90deg, #f87171, #fca5a5); }
+.foco-pct { font-size: 0.78rem; font-weight: 900; color: #c4b5fd; font-family: ui-monospace, Consolas, 'Courier New', monospace; min-width: 40px; text-align: right; }
+.carta-mao-btn {
+    width: 100%; text-align: left; padding: 10px 12px; border-radius: 12px; cursor: pointer;
+    background: rgba(167, 139, 250, 0.12); border: 1px solid rgba(167, 139, 250, 0.45);
+    color: var(--text); font-weight: 700; transition: border-color 0.15s, transform 0.15s, opacity 0.15s;
+}
+.carta-mao-btn:hover { transform: translateY(-1px); border-color: #a78bfa; }
+.carta-mao-btn.disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+.carta-mao-btn .carta-nome { display: block; font-size: 0.82rem; font-weight: 900; color: #ddd6fe; }
+.carta-mao-btn .carta-desc { display: block; font-size: 0.68rem; font-weight: 600; color: var(--text-muted); margin-top: 2px; }
+.carta-mao-btn .carta-custo { float: right; font-size: 0.72rem; font-weight: 900; color: #c4b5fd; font-family: ui-monospace, Consolas, monospace; }
 .match-speed-btn {
     padding: 11px 14px; border-radius: 10px; border: 1px solid var(--border);
     background: rgba(255,255,255,0.05); color: var(--text-muted); font-weight: 900; font-size: 0.72rem;
@@ -1672,6 +1688,7 @@ body {
       <button class="match-speed-btn" data-speed="1" onclick="app.setMatchSpeed(1)">1×</button>
       <button class="match-speed-btn" data-speed="2" onclick="app.setMatchSpeed(2)">2×</button>
       <button class="match-speed-btn" data-speed="4" onclick="app.setMatchSpeed(4)">4×</button>
+      <button class="match-skip-btn" onclick="app.abrirCartasTaticas()" title="Cartas táticas do treinador" style="border-color: #a78bfa; color: #a78bfa;">🃏 CARTAS</button>
       <button class="match-skip-btn" onclick="app.abrirSubstituicao()" title="Substituir jogador" style="border-color: var(--secondary); color: var(--secondary);">⚤ SUB</button>
 
       <button class="match-skip-btn" onclick="app.setMatchSpeed(8)">⏭ PULAR</button>
@@ -1736,6 +1753,27 @@ body {
     <button class="btn-secondary" style="width: 100%; padding: 9px; font-size: 0.75rem;" onclick="app.abrirEscalacaoPreparacao()">🕐 Ajustar escalação titular</button>
     <div class="prep-note" id="prep-obs" style="margin-top: 8px;">Escolha um craque emprestado para reforçar o time SÓ nesta partida. O estilo define o equilíbrio entre ataque e defesa. A escalação titular vale para as próximas partidas.</div>
     <button class="btn-end-turn" style="width: 100%; margin-top: 12px; padding: 12px;" onclick="app.confirmarPreparacao()">⚽ ENTRAR EM CAMPO</button>
+  </div>
+</div>
+
+<!-- G1: cartas táticas em partida -->
+<div id="modal-cartas" class="modal hidden">
+  <div class="modal-content" style="padding: 20px; width: 94%; max-width: 420px; text-align: center; max-height: 90vh; overflow-y: auto;">
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-bottom: 10px;">
+      <h2 style="margin: 0; font-weight: 900; font-size: 1.15rem; color: var(--accent);">🃏 CARTAS TÁTICAS</h2>
+      <button onclick="app.fecharCartasTaticas()" style="background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; padding: 4px;">&times;</button>
+    </div>
+    <div style="text-align: left; margin-bottom: 8px;">
+      <div style="font-size: 0.68rem; font-weight: 900; letter-spacing: 1px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px;">FOCO DO TREINADOR</div>
+      <div class="foco-wrap">
+        <div class="foco-bar"><div class="foco-bar-fill" id="cartas-foco-fill"></div></div>
+        <span class="foco-pct" id="cartas-foco-pct">70%</span>
+      </div>
+    </div>
+    <div id="cartas-mao" style="display: flex; flex-direction: column; gap: 8px;"></div>
+    <div class="prep-note" style="margin-top: 10px; text-align: left;">
+      Cartas gastam <strong>Foco</strong> e valem por alguns minutos simulados. O Foco recarrega sozinho e a cada decisão respondida a tempo.
+    </div>
   </div>
 </div>
 
@@ -2039,6 +2077,7 @@ body {
         <li><strong>🎯 Decisões do técnico:</strong> 2 a 4 momentos por partida com timer de 8s — se atrasar, o assistente escolhe a opção do meio.</li>
         <li><strong>⏩ Velocidade:</strong> botões 1×/2×/4× e PULAR para acelerar.</li>
         <li><strong>⚤ SUB:</strong> o botão no rodapé troca o jogador mais cansado por um reserva da mesma posição.</li>
+        <li><strong>🃏 CARTAS:</strong> cartas táticas gastam Foco e mudam ataque/defesa por alguns minutos (Pressão, Cera, Chuveirinho…). O Foco recarrega sozinho e a cada decisão respondida a tempo.</li>
         <li><strong>⚡ Fôlego:</strong> cai durante o jogo; abaixo de 75 o rendimento em campo já é penalizado (abaixo de 40, bem pesado).</li>
         <li><strong>📜 Eventos:</strong> VAR anula gols, segundo amarelo expulsa, escanteio tem rara chance de gol direto, e o Torneio Relâmpago decide empate nos pênaltis.</li>
       </ul>
@@ -2203,14 +2242,24 @@ const GAME_DATA = {
     ],
     posicoes: ["GK", "DEF", "MID", "ATT"],
     taticas: [
-        { id: "t_passe", nome: "Passe Enfiado", desc: "+5 ATK no lance", custo: 1, raridade: "Bronze", efeito: { atk: 5, def: 0 } },
-        { id: "t_carrinho", nome: "Carrinho Preciso", desc: "+6 DEF no lance", custo: 1, raridade: "Bronze", efeito: { atk: 0, def: 6 } },
-        { id: "t_retranca", nome: "Retranca Total", desc: "+12 DEF, -4 ATK", custo: 2, raridade: "Prata", efeito: { atk: -4, def: 12 } },
-        { id: "t_contra", nome: "Contra-Ataque", desc: "+10 ATK se o inimigo atacar", custo: 2, raridade: "Prata", efeito: { atk: 10, def: 0 } },
-        { id: "t_grito", nome: "Grito do Treinador", desc: "+4 ATK e +4 DEF", custo: 2, raridade: "Prata", efeito: { atk: 4, def: 4 } },
-        { id: "t_tiki", nome: "Tiki-Taka", desc: "Multiplica ATK por 1.5", custo: 3, raridade: "Ouro", efeito: { multAtk: 1.5, def: 0 } },
-        { id: "t_muralha", nome: "Muralha Humana", desc: "Dobra sua DEF no turno", custo: 3, raridade: "Ouro", efeito: { atk: 0, multDef: 2.0 } },
-        { id: "t_bicicleta", nome: "Bicicleta Épica", desc: "+20 ATK", custo: 3, raridade: "Diamante", efeito: { atk: 20, def: 0 } }
+        // G1 (2026-09-24): cartas de partida — efeito em _difA/_difD por durMin simulados.
+        // custo = Foco do Treinador (×25 na barra 0–100). efeito legado {atk,def} ainda é aceito por saves antigos.
+        { id: "t_pressao", nome: "Pressão Sufocante", desc: "Marcação alta sufoca a saída do rival", custo: 2, raridade: "Prata",
+          efeito: { durMin: 8, difA: 3, difD: 1, flavor: "🔥 Pressão Sufocante! O time sobe a marcação e tranca a saída do rival." } },
+        { id: "t_cera", nome: "Cera / Catimba", desc: "Quebra o ritmo e protege a zaga", custo: 1, raridade: "Bronze",
+          efeito: { durMin: 6, difA: -1, difD: 4, flavor: "🛡️ Cera na área! O time controla o tempo e trava o jogo do rival." } },
+        { id: "t_chuveirinho", nome: "Chuveirinho na Área", desc: "Bolas altas e cabeceio na área", custo: 2, raridade: "Prata",
+          efeito: { durMin: 5, difA: 4, difD: -1, flavor: "🎯 Chuveirinho! A bola vive na área adversária." } },
+        { id: "t_impedimento", nome: "Linha de Impedimento", desc: "Linha alta com armadilha tática", custo: 1, raridade: "Bronze",
+          efeito: { durMin: 6, difA: 1, difD: 3, flavor: "📐 Linha de impedimento armada! O rival cai na armadilha." } },
+        { id: "t_grito", nome: "Grito do Treinador", desc: "Acelera e reanima o grupo", custo: 2, raridade: "Prata",
+          efeito: { durMin: 7, difA: 2, difD: 2, flavor: "📣 Grito do técnico! O time responde com mais intensidade." } },
+        { id: "t_muralha", nome: "Muralha na Área", desc: "Estaciona o ônibus na frente do gol", custo: 2, raridade: "Prata",
+          efeito: { durMin: 8, difA: -2, difD: 5, flavor: "🧱 Muralha na área! Nada passa pela nossa defesa." } },
+        { id: "t_contra", nome: "Contra-Ataque Mortal", desc: "Após defender, sai em velocidade", custo: 3, raridade: "Ouro",
+          efeito: { durMin: 6, difA: 5, difD: 0, flavor: "⚡ Contra-ataque mortal! O time explode na transição." } },
+        { id: "t_tiki", nome: "Tiki-Taka", desc: "Posse sufocante e cadência de passe", custo: 3, raridade: "Ouro",
+          efeito: { durMin: 8, difA: 3, difD: 2, flavor: "✨ Tiki-taka! Posse de bola e cadência no meio-campo." } }
     ]
 };
 
@@ -2806,6 +2855,7 @@ const MatchUI = {
         const st = this._el('match-status'); if (st) st.innerText = 'BOLA ROLANDO...';
         document.querySelectorAll('.match-speed-btn').forEach(b => b.classList.toggle('active', String(b.dataset.speed) === '1'));
         this.clearPrompt();
+        if (typeof ui !== 'undefined' && ui.atualizarFocoUI) ui.atualizarFocoUI({ _foco: 70 });
     },
     stats(arr) { // [posse, chH, chA, faH, faA, caH, caA, escH+escA]
         const set = (id, v) => { const el = this._el(id); if (el) el.innerText = v; };
@@ -2912,6 +2962,11 @@ class MatchSim {
         this.roteiro = [];
         this.regra = opts.regra || null;
         this._difA = 0; this._difD = 0;
+        // G1: cartas táticas in-match + Foco do Treinador (barra 0–100).
+        this._foco = 70;
+        this._buffs = [];   // {id, nome, difA, difD, fimMin}
+        this._mao = [];     // mão efêmera da partida (2–3 cartas)
+        this._cartasUsadas = 0;
         this._emCampo = null; // ids dos 11 titulares por lado ([0]=casa, [1]=fora)
         this._subIA = false;  // IA já fez a substituição automática no 2º tempo
         this._ctxUsados = {};     // bordões contextuais já falados (1x / ocasiao)
@@ -3008,6 +3063,16 @@ class MatchSim {
             else if (mental === 'defensiva') { d += 2; a -= 1; }
         }
         if (this.regra === 'classico') { a += 1.5; m += 0.5; d += 0.5; } // clássico quente
+        // G1: buffs de cartas táticas valem só para o usuário (lado de casa).
+        if (isHome && this._buffs && this._buffs.length) {
+            this._buffs.forEach(b => {
+                if (this.minuto <= (b.fimMin || 0)) {
+                    a += b.difA || 0;
+                    d += b.difD || 0;
+                    m += ((b.difA || 0) + (b.difD || 0)) * 0.25;
+                }
+            });
+        }
         return { atk: a, mid: m, def: d, gk: gkF };
     }
 
@@ -3264,6 +3329,7 @@ class MatchSim {
             this._xiDoTime(this.home),
             this._xiDoTime(this.away)
         ];
+        this._montarMao();
         this.roteiro = this._gerarRoteiro();
         this._idx = 0;
         this._t0 = Date.now();
@@ -3287,6 +3353,79 @@ class MatchSim {
         }
         return escalarTitularesXI(team.elenco || [], team.formacao).map(p => p.id);
     }
+
+    // ---- G1: cartas táticas de partida ----
+    _montarMao() {
+        this._foco = 70;
+        this._buffs = [];
+        this._cartasUsadas = 0;
+        const pool = (typeof GAME_DATA !== 'undefined' && Array.isArray(GAME_DATA.taticas)) ? GAME_DATA.taticas : [];
+        const baralho = pool.map(t => ({
+            id: t.id, nome: t.nome, desc: t.desc, raridade: t.raridade || 'Bronze',
+            custo: t.custo || 1, efeito: t.efeito || {}
+        }));
+        // Embaralha e pega 3 (mão efêmera — não grava em save).
+        for (let i = baralho.length - 1; i > 0; i--) {
+            const j = Math.floor(this.rng() * (i + 1));
+            const tmp = baralho[i]; baralho[i] = baralho[j]; baralho[j] = tmp;
+        }
+        this._mao = baralho.slice(0, 3);
+        if (typeof ui !== 'undefined' && ui.atualizarMaoCartas) ui.atualizarMaoCartas(this);
+    }
+
+    _buffsAtivos() {
+        return (this._buffs || []).filter(b => this.minuto <= (b.fimMin || 0));
+    }
+
+    _atualizarFoco(delta) {
+        this._foco = Math.max(0, Math.min(100, (this._foco || 0) + (delta || 0)));
+    }
+
+    _recalcDifs() {
+        const pH = this._poder(this.home, true);
+        const pA = this._poder(this.away, false);
+        this._difA = pH.atk - pA.def;
+        this._difD = pA.atk - pH.def;
+    }
+
+    focoCustoCarta(card) {
+        return ((card && card.custo) || 1) * 25;
+    }
+
+    // Jogar carta da mão: drena Foco, aplica buff por durMin e recalcula forças.
+    jogarCarta(cardId) {
+        if (this.abortado) return { ok: false, msg: 'A partida já terminou.' };
+        const dec = (typeof document !== 'undefined') ? document.getElementById('match-decision') : null;
+        if (dec && !dec.classList.contains('hidden')) {
+            return { ok: false, msg: 'Resolva a decisão do técnico antes!' };
+        }
+        const idx = (this._mao || []).findIndex(c => c.id === cardId);
+        if (idx < 0) return { ok: false, msg: 'Essa carta não está na mão.' };
+        const card = this._mao[idx];
+        const custo = this.focoCustoCarta(card);
+        if ((this._foco || 0) < custo) {
+            return { ok: false, msg: 'Foco insuficiente (' + Math.round(this._foco || 0) + '/' + custo + ').' };
+        }
+        this._foco = Math.max(0, this._foco - custo);
+        this._mao.splice(idx, 1);
+        const e = card.efeito || {};
+        // Compat: saves antigos trazem efeito {atk, def} do tabuleiro v2 → escala 0,6.
+        // Cartas novas (G1) já vêm com difA/difD prontos e valem 1:1.
+        const difA = e.difA != null ? e.difA : (e.atk || 0) * 0.6;
+        const difD = e.difD != null ? e.difD : (e.def || 0) * 0.6;
+        const dur = e.durMin || 6;
+        this._buffs.push({
+            id: card.id, nome: card.nome,
+            difA: difA, difD: difD,
+            fimMin: this.minuto + dur
+        });
+        this._cartasUsadas++;
+        this._recalcDifs();
+        this._emit('🃏 ' + (e.flavor || ('Carta jogada: ' + card.nome + ' (' + dur + ' min).')), 'info');
+        if (typeof ui !== 'undefined' && ui.atualizarMaoCartas) ui.atualizarMaoCartas(this);
+        return { ok: true, foco: this._foco };
+    }
+
     _gap() {
         // Ritmo por importância do jogo: amistoso mais lento, final mais denso.
         const base = (this.ritmo === 'lento') ? 1100 : (this.ritmo === 'intenso') ? 520 : 760;
@@ -3295,6 +3434,9 @@ class MatchSim {
     }
     _tick() {
         if (this.abortado || this._segurandoFim) return;
+        // G1: Foco recarrega levemente a cada evento (≈ +0,7/tick); nunca fica negativo.
+        this._atualizarFoco(0.7);
+        if (typeof ui !== 'undefined' && ui.atualizarFocoUI) ui.atualizarFocoUI(this);
         // Fase 7: IA mexe no time uma vez no 2º tempo (com reservas).
         if (this._emCampo && this.minuto >= 46 && !this._subIA) {
             this._subIA = true;
@@ -3503,6 +3645,9 @@ class MatchSim {
         MatchUI.prompt(desc, opts, (i) => {
             const eff = opts[i].eff;
             const p = Math.max(0.08, Math.min(0.72, pBase + eff.d));
+            // G1: decisão respondida antes do timer recarrega Foco (opção central = assistente, menos).
+            this._atualizarFoco(i === 1 ? 4 : 8);
+            if (typeof ui !== 'undefined' && ui.atualizarFocoUI) ui.atualizarFocoUI(this);
             // Substituição saiu das decisões (2026-09-22): botão dedicado "⚤ SUB"
             // no rodapé da partida — a chance pendente aqui sempre é resolvida.
             this._resolverChance(isHome, p);
@@ -4147,6 +4292,62 @@ class UI {
         this._bgmTarget = alvo;
         this.playBGM(alvo);
     }
+  }
+
+  // G1: barra de Foco + mão de cartas táticas
+  atualizarFocoUI(sim) {
+    const fill = document.getElementById('cartas-foco-fill');
+    const pct = document.getElementById('cartas-foco-pct');
+    const v = Math.max(0, Math.min(100, Math.round((sim && sim._foco) || 0)));
+    if (fill) {
+      fill.style.width = v + '%';
+      fill.classList.toggle('bajo', v < 30);
+    }
+    if (pct) pct.innerText = v + '%';
+  }
+
+  atualizarMaoCartas(sim) {
+    this.atualizarFocoUI(sim);
+    const box = document.getElementById('cartas-mao');
+    if (!box || !sim) return;
+    box.innerHTML = '';
+    const mao = sim._mao || [];
+    if (!mao.length) {
+      const vazio = document.createElement('div');
+      vazio.className = 'prep-note';
+      vazio.innerText = 'Mão vazia — todas as cartas já foram usadas nesta partida.';
+      box.appendChild(vazio);
+      return;
+    }
+    mao.forEach(card => {
+      const custo = sim.focoCustoCarta(card);
+      const pode = (sim._foco || 0) >= custo && !sim.abortado;
+      const btn = document.createElement('button');
+      btn.className = 'carta-mao-btn' + (pode ? '' : ' disabled');
+      btn.dataset.id = String(card.id);
+      const spNome = document.createElement('span');
+      spNome.className = 'carta-nome';
+      spNome.textContent = card.nome;
+      const spCusto = document.createElement('span');
+      spCusto.className = 'carta-custo';
+      spCusto.textContent = '⚡' + custo;
+      const spDesc = document.createElement('span');
+      spDesc.className = 'carta-desc';
+      spDesc.textContent = (card.desc || '') + (card.efeito && card.efeito.durMin ? ' · ' + card.efeito.durMin + ' min' : '');
+      btn.appendChild(spNome);
+      btn.appendChild(spCusto);
+      btn.appendChild(spDesc);
+      btn.onclick = () => {
+        if (!pode) {
+          if (typeof app !== 'undefined') {
+            ui.showActionFeedback((sim._foco || 0) < custo ? 'Foco insuficiente.' : 'Carta indisponível.', 'warning');
+          }
+          return;
+        }
+        if (typeof app !== 'undefined') app.jogarCartaPartida(card.id);
+      };
+      box.appendChild(btn);
+    });
   }
 
 
@@ -6081,6 +6282,42 @@ const app = {
         if (!sim || !this._subSel || this._subSel.sai == null || this._subSel.entra == null) return;
         sim.substituirUser(this._subSel.sai, this._subSel.entra);
         this.cancelarSubstituicao();
+    },
+
+    // ---- G1: cartas táticas em partida ----
+    abrirCartasTaticas() {
+        const m = document.getElementById('modal-cartas');
+        const sim = (typeof Engine !== 'undefined') ? Engine.activeMatch : null;
+        if (!m || !sim || sim.abortado) return;
+        const dec = document.getElementById('match-decision');
+        if (dec && !dec.classList.contains('hidden')) {
+            ui.showActionFeedback('Resolva a decisão do técnico antes!', 'warning');
+            return;
+        }
+        if (typeof ui !== 'undefined') ui.atualizarMaoCartas(sim);
+        m.classList.remove('hidden');
+        if (typeof ui !== 'undefined') ui.playSFX('sfx_click', 0.3);
+    },
+
+    fecharCartasTaticas() {
+        const m = document.getElementById('modal-cartas');
+        if (m) m.classList.add('hidden');
+    },
+
+    jogarCartaPartida(cardId) {
+        const sim = (typeof Engine !== 'undefined') ? Engine.activeMatch : null;
+        if (!sim) return;
+        const r = sim.jogarCarta(cardId);
+        if (!r.ok) {
+            if (typeof ui !== 'undefined') ui.showActionFeedback(r.msg || 'Não foi possível jogar a carta.', 'warning');
+            return;
+        }
+        if (typeof ui !== 'undefined') {
+            ui.showActionFeedback('Carta jogada! Foco: ' + Math.round(r.foco || sim._foco) + '%', 'success');
+            ui.atualizarMaoCartas(sim);
+            ui.atualizarFocoUI(sim);
+        }
+        if (sim._mao && sim._mao.length === 0) this.fecharCartasTaticas();
     },
 
     loadGame() {
