@@ -114,12 +114,181 @@ body {
     height: 100%;
     overflow: hidden;
 }
-#screen-match { 
-    z-index: 30; 
+#screen-match {
+    z-index: 30;
     display: flex;
     flex-direction: column;
     height: 100%;
     overflow: hidden;
+}
+
+/* ===== Estádio ao vivo (gramado + torcida + refletores) ===== */
+.estadio-bg {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    overflow: hidden;
+}
+.estadio-cceu {
+    position: absolute;
+    left: 0; right: 0; top: 0;
+    height: 38%;
+    background: linear-gradient(180deg, #050b18 0%, #0a1a33 55%, #123055 100%);
+}
+.estadio-arquibancada {
+    position: absolute;
+    left: 0; right: 0;
+    top: 28%;
+    height: 28%;
+    background:
+        radial-gradient(circle at 20% 40%, rgba(255,255,255,0.18) 0 1px, transparent 1.5px),
+        radial-gradient(circle at 70% 60%, rgba(255,255,255,0.14) 0 1px, transparent 1.5px),
+        radial-gradient(circle at 45% 30%, rgba(255,255,255,0.12) 0 1px, transparent 1.5px),
+        linear-gradient(180deg, #0b1220 0%, #1a2233 40%, #0e1524 100%);
+    background-size: 28px 22px, 34px 26px, 22px 18px, 100% 100%;
+    box-shadow: inset 0 12px 24px rgba(0,0,0,0.45);
+}
+.estadio-arquibancada::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+        90deg,
+        transparent 0 10px,
+        rgba(255,255,255,0.03) 10px 11px
+    );
+    opacity: 0.8;
+}
+.estadio-gramado {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    height: 48%;
+    background:
+        repeating-linear-gradient(
+            90deg,
+            #1a7a3a 0 28px,
+            #1f8f44 28px 56px
+        );
+    box-shadow: inset 0 18px 30px rgba(0,0,0,0.35);
+}
+.estadio-gramado::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(255,255,255,0.08), transparent 30%, rgba(0,0,0,0.25));
+}
+.estadio-refletor {
+    position: absolute;
+    top: 4%;
+    width: 70px;
+    height: 50px;
+    background: radial-gradient(ellipse at center, rgba(255,255,255,0.55), rgba(180,220,255,0.08) 60%, transparent 70%);
+    filter: blur(2px);
+}
+.estadio-refletor.e1 { left: 8%; }
+.estadio-refletor.e2 { left: 42%; }
+.estadio-refletor.e3 { right: 8%; }
+
+/* Temas por competição — a interface muda com o modo */
+#screen-match[data-tema="brasileirao"] .estadio-cceu {
+    background: linear-gradient(180deg, #061410 0%, #0b2a1a 60%, #145c32 100%);
+}
+#screen-match[data-tema="brasileirao"] .estadio-gramado {
+    background: repeating-linear-gradient(90deg, #1f8f32 0 28px, #24a33c 28px 56px);
+}
+#screen-match[data-tema="brasileirao"] {
+    --primary: #22c55e;
+    --primary-glow: rgba(34, 197, 94, 0.4);
+    --accent: #facc15;
+    --accent-glow: rgba(250, 204, 21, 0.35);
+    --border: rgba(34, 197, 94, 0.22);
+    --border-bright: rgba(250, 204, 21, 0.4);
+}
+#screen-match[data-tema="champions"] .estadio-cceu {
+    background: linear-gradient(180deg, #020617 0%, #0b1e4a 55%, #123a7a 100%);
+}
+#screen-match[data-tema="champions"] .estadio-gramado {
+    background: repeating-linear-gradient(90deg, #155e32 0 28px, #197a3d 28px 56px);
+}
+#screen-match[data-tema="champions"] {
+    --primary: #22d3ee;
+    --primary-glow: rgba(34, 211, 238, 0.45);
+    --primary-dark: #0891b2;
+    --accent: #60a5fa;
+    --accent-glow: rgba(96, 165, 250, 0.4);
+    --border: rgba(34, 211, 238, 0.22);
+    --border-bright: rgba(96, 165, 250, 0.45);
+}
+#screen-match[data-tema="final"] .estadio-cceu {
+    background: linear-gradient(180deg, #01040f 0%, #0a1638 50%, #1a2f6b 100%);
+}
+#screen-match[data-tema="final"] .estadio-arquibancada {
+    background:
+        radial-gradient(circle at 30% 40%, rgba(255,255,255,0.22) 0 1px, transparent 1.5px),
+        radial-gradient(circle at 80% 55%, rgba(255,255,255,0.18) 0 1px, transparent 1.5px),
+        linear-gradient(180deg, #050b1a 0%, #1c2748 45%, #0a1228 100%);
+    background-size: 20px 18px, 26px 22px, 100% 100%;
+}
+#screen-match[data-tema="final"] .estadio-gramado {
+    background: repeating-linear-gradient(90deg, #145c38 0 28px, #187a46 28px 56px);
+}
+#screen-match[data-tema="final"] {
+    --primary: #fbbf24;
+    --primary-glow: rgba(251, 191, 36, 0.45);
+    --accent: #38bdf8;
+    --accent-glow: rgba(56, 189, 248, 0.4);
+    --border: rgba(56, 189, 248, 0.25);
+    --border-bright: rgba(251, 191, 36, 0.45);
+}
+#screen-match[data-tema="classico"] .estadio-cceu {
+    background: linear-gradient(180deg, #12050a 0%, #3a0d18 55%, #5a1520 100%);
+}
+#screen-match[data-tema="classico"] {
+    --primary: #f43f5e;
+    --primary-glow: rgba(244, 63, 94, 0.4);
+    --accent: #fbbf24;
+    --border: rgba(244, 63, 94, 0.25);
+    --border-bright: rgba(251, 191, 36, 0.4);
+}
+#screen-match[data-tema="amistoso"] .estadio-cceu {
+    background: linear-gradient(180deg, #0c1a2e 0%, #2a5a8a 55%, #7eb6e8 100%);
+}
+#screen-match[data-tema="amistoso"] .estadio-gramado {
+    background: repeating-linear-gradient(90deg, #2f9e44 0 28px, #37b24d 28px 56px);
+}
+#screen-match[data-tema="amistoso"] {
+    --primary: #4ade80;
+    --primary-glow: rgba(74, 222, 128, 0.35);
+    --accent: #38bdf8;
+    --border: rgba(74, 222, 128, 0.2);
+    --border-bright: rgba(56, 189, 248, 0.35);
+}
+/* Painéis da partida ficam translúcidos para o estádio aparecer */
+#screen-match .match-board {
+    position: relative;
+    z-index: 1;
+}
+#screen-match .match-header-card,
+#screen-match .match-narrative-section {
+    background: rgba(6, 12, 24, 0.72) !important;
+    backdrop-filter: none;
+}
+#screen-match .estadio-selo {
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    z-index: 2;
+    font-family: ui-monospace, Consolas, monospace;
+    font-size: 0.62rem;
+    font-weight: 900;
+    letter-spacing: 1.5px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--border-bright, rgba(255,176,0,0.35));
+    color: var(--accent, #ffb000);
+    background: rgba(0,0,0,0.45);
+    text-transform: uppercase;
 }
 
 /* Modals */
@@ -1421,6 +1590,15 @@ body {
  <!-- BATTLE ARENA -->
 <!-- PARTIDA V3 — RÁDIO DO ESTÁDIO -->
 <div id="screen-match" class="screen hidden">
+  <div class="estadio-bg" aria-hidden="true">
+    <div class="estadio-cceu"></div>
+    <div class="estadio-arquibancada"></div>
+    <div class="estadio-refletor e1"></div>
+    <div class="estadio-refletor e2"></div>
+    <div class="estadio-refletor e3"></div>
+    <div class="estadio-gramado"></div>
+  </div>
+  <div class="estadio-selo" id="match-tema-selo">BRASILEIRÃO</div>
   <div class="match-board">
     <!-- Placar ao vivo -->
     <div class="match-header-card">
@@ -2724,6 +2902,10 @@ class MatchSim {
         this._segurandoFim = false;
         // Tempo de jogo (menu de pré-jogo): 45 = 1º tempo, 90 = jogo inteiro.
         this.tempoMin = (opts && opts.tempoMin) || 90;
+        // Ritmo/tom por modo: amistoso = narração lenta; final/clássico = intenso.
+        this.ritmo = (opts && opts.ritmo) || 'normal';
+        this.tom = (opts && opts.tom) || 'normal';
+        this.tema = (opts && opts.tema) || 'brasileirao';
     }
     _rnd(a, b) { return a + this.rng() * (b - a); }
     _roll(p) { return this.rng() < p; }
@@ -2866,6 +3048,14 @@ class MatchSim {
     // ---- Narração (templates estilo rádio) ----
     _fraseLan(team) {
         const j = team === this.home ? this._nomeHome('MID') : this._nomeAdv('MID');
+        if (this.tom === 'amistoso') {
+            return this._pick([
+                "Ritmo tranquilo, " + j + " troca passes sem pressa no meio.",
+                "Amistoso pede calma: " + j + " mantém a posse e a torcida aproveita o sol.",
+                "Jogo de coração leve, " + j + " só administra a bola.",
+                "Sem pressa no placar — " + j + " experimenta o passe longo."
+            ]);
+        }
         return this._pick([
             "{j} domina no meio e procura espaço.", "{j} puxa a marcação e gira o jogo.", "Trocas de passe na intermediária, time de " + (team === this.home ? "casa" : "fora") + " paciente.", "{j} tenta a ligação direta... a zaga corta.", "Boa troca de passes! " + (team === this.home ? "O mandante" : "O visitante") + " impõe ritmo.", "{j} cobra falta curta e encontra o companheiro livre.", "{j} aciona o contra-ataque com um lançamento longo."
         ]);
@@ -3076,8 +3266,10 @@ class MatchSim {
         return escalarTitularesXI(team.elenco || [], team.formacao).map(p => p.id);
     }
     _gap() {
-        if (this.speed <= 1) return 760 + Math.round(this._rnd(-120, 260));
-        return Math.round(760 / this.speed);
+        // Ritmo por importância do jogo: amistoso mais lento, final mais denso.
+        const base = (this.ritmo === 'lento') ? 1100 : (this.ritmo === 'intenso') ? 520 : 760;
+        if (this.speed <= 1) return base + Math.round(this._rnd(-120, 260));
+        return Math.round(base / this.speed);
     }
     _tick() {
         if (this.abortado || this._segurandoFim) return;
@@ -3499,7 +3691,7 @@ const Engine = {
             const matchScorers = (this.activeMatch && this.activeMatch.matchScorers) || {};
             this.activeMatch = null;
             onFinish(h, a, xpBase, matchScorers);
-        }, { estilo, craque, seed, minDurMs: (typeof app !== 'undefined' && app._partidaMinDurMs) ? app._partidaMinDurMs() : 0, tempoMin: (typeof app !== 'undefined' && app._tempoPartida) ? app._tempoPartida : 90 });
+        }, { estilo, craque, seed, minDurMs: (typeof app !== 'undefined' && app._partidaMinDurMs) ? app._partidaMinDurMs() : 0, tempoMin: (typeof app !== 'undefined' && app._tempoPartida) ? app._tempoPartida : 90, ritmo: (typeof app !== 'undefined' && app._climaPartida) ? app._climaPartida.ritmo : 'normal', tom: (typeof app !== 'undefined' && app._climaPartida) ? app._climaPartida.tom : 'normal', tema: (typeof app !== 'undefined' && app._climaPartida) ? app._climaPartida.tema : 'brasileirao' });
         this.activeMatch.start();
     },
 
@@ -3518,7 +3710,7 @@ const Engine = {
             const matchScorers = (this.activeMatch && this.activeMatch.matchScorers) || {};
             this.activeMatch = null;
             onFinish(h, a, xpBase, matchScorers, pen || null);
-        }, { estilo, craque, regra, seed, minDurMs: (typeof app !== 'undefined' && app._partidaMinDurMs) ? app._partidaMinDurMs() : 0, tempoMin: (typeof app !== 'undefined' && app._tempoPartida) ? app._tempoPartida : 90 });
+        }, { estilo, craque, regra, seed, minDurMs: (typeof app !== 'undefined' && app._partidaMinDurMs) ? app._partidaMinDurMs() : 0, tempoMin: (typeof app !== 'undefined' && app._tempoPartida) ? app._tempoPartida : 90, ritmo: (typeof app !== 'undefined' && app._climaPartida) ? app._climaPartida.ritmo : 'normal', tom: (typeof app !== 'undefined' && app._climaPartida) ? app._climaPartida.tom : 'normal', tema: (typeof app !== 'undefined' && app._climaPartida) ? app._climaPartida.tema : 'classico' });
         this.activeMatch.start();
     },
 
@@ -3889,11 +4081,15 @@ class UI {
     this.initAudio();
     this.playBGM('match');
     this.playSFX('sfx_whistle', 0.7);
+    const clima = (typeof app !== 'undefined' && app._aplicarTemaPartida) ? app._aplicarTemaPartida() : null;
     const adv = (typeof app !== 'undefined' && app.league && app.getNextOpponent) ? app.getNextOpponent() : null;
     const meuNome = (typeof app !== 'undefined' && app.club && app.club.nome) || 'MEC';
     const advNome = (adv && adv.nome) || 'ADV';
-    let competicao = 'CAMPEONATO · RODADA ' + ((typeof app !== 'undefined' && app.league && app.league.rodada) || 1);
-    if (typeof app !== 'undefined' && app._isDaily) competicao = '⚡ RODADA DO DIA';
+    let competicao = (clima && clima.rotulo) || 'CAMPEONATO';
+    if (clima && clima.tema === 'brasileirao') competicao = 'BRASILEIRÃO · RODADA ' + ((typeof app !== 'undefined' && app.league && app.league.rodada) || 1);
+    if (typeof app !== 'undefined' && app._isDaily) competicao = '⚡ AMISTOSO · DESAFIO DO DIA';
+    if (typeof app !== 'undefined' && app._isClassico) competicao = '🔥 CLÁSSICO DA SEMANA';
+    if (typeof app !== 'undefined' && app._isTorneio) competicao = '🏆 TORNEIO RELÂMPAGO';
     let forca = 'FORÇA ' + Math.round(((typeof app !== 'undefined' && app.club) ? app.club.getForcaTotal() : 0) * 10) / 10 +
                 '  ×  ' + Math.round((adv ? adv.getForcaTotal() : 0) * 10) / 10;
     if (typeof app !== 'undefined' && app._craquePartida && app._craquePartida.nome) {
@@ -7056,6 +7252,32 @@ const app = {
     _partidaMinDurMs() {
         return this._ehPartidaFinal() ? 72000 : 0;
     },
+    // Clima/tema/ritmo por modo — a interface e a narração mudam com a importância.
+    _climaCompeticao() {
+        if (this._ehPartidaFinal()) {
+            return { tema: 'final', ritmo: 'intenso', tom: 'final', rotulo: 'FINAL' };
+        }
+        if (this._isTorneio) {
+            return { tema: 'champions', ritmo: 'intenso', tom: 'intenso', rotulo: 'TORNEIO RELÂMPAGO' };
+        }
+        if (this._isClassico) {
+            return { tema: 'classico', ritmo: 'intenso', tom: 'quente', rotulo: 'CLÁSSICO' };
+        }
+        if (this._isDaily) {
+            // Amistoso: narração mais lenta, cara de jogo sem pressão.
+            return { tema: 'amistoso', ritmo: 'lento', tom: 'amistoso', rotulo: 'AMISTOSO' };
+        }
+        return { tema: 'brasileirao', ritmo: 'normal', tom: 'normal', rotulo: 'BRASILEIRÃO' };
+    },
+    _aplicarTemaPartida() {
+        const clima = this._climaCompeticao();
+        this._climaPartida = clima;
+        const tela = document.getElementById('screen-match');
+        if (tela && tela.dataset) tela.dataset.tema = clima.tema;
+        const selo = document.getElementById('match-tema-selo');
+        if (selo) selo.innerText = clima.rotulo;
+        return clima;
+    },
     _camisaDoClube() {
         const nome = (this.club && this.club.nome) || 'CLUBE';
         let h = 0;
@@ -7219,6 +7441,7 @@ const app = {
         if (this._craquePartida) this.club.lastCraqueDay = this._craqueKey();
         ui.showScreen('screen-match');
         ui.startMatchRender();
+        this._aplicarTemaPartida();
 
         const ehDesafio = this._isClassico || this._isTorneio;
         let adv = this.getNextOpponent();
