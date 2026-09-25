@@ -667,6 +667,18 @@ body {
 }
 .escala-chip .ovr, .sub-player-btn .ovr { font-weight: 900; color: var(--text-muted); }
 .sub-player-btn .fleg { font-size: 0.62rem; color: var(--cyan); font-weight: 800; }
+/* G3: fôlego + sugestão de rodízio na escalação */
+.escala-chip .fleg { font-size: 0.62rem; font-weight: 800; color: var(--cyan); font-family: ui-monospace, Consolas, monospace; }
+.escala-chip .fleg.fleg-bajo { color: var(--danger); }
+.escala-chip .fleg.fleg-medio { color: #f59e0b; }
+.escala-chip.rodizio-ok { border-color: #34d399; box-shadow: 0 0 10px rgba(52, 211, 153, 0.2); }
+.escala-chip.rodizio-precisa { border-color: #f87171; }
+.escala-chip .rodizio-tag {
+    font-size: 0.55rem; font-weight: 900; letter-spacing: 0.5px;
+    color: #34d399; border: 1px solid rgba(52, 211, 153, 0.5); border-radius: 6px;
+    padding: 1px 4px;
+}
+.escala-chip .rodizio-tag.cansado { color: #f87171; border-color: rgba(248, 113, 113, 0.5); }
 .sub-player-btn.selected {
     border-color: var(--secondary);
     background: rgba(59, 130, 246, 0.16);
@@ -2977,6 +2989,8 @@ class MatchSim {
         this._cartasUsadas = 0;
         this._emCampo = null; // ids dos 11 titulares por lado ([0]=casa, [1]=fora)
         this._subIA = false;  // IA já fez a substituição automática no 2º tempo
+        // G3: quem entrou em campo nesta partida (para o drain pós-jogo não punir o banco).
+        this._usados = { 0: {}, 1: {} };
         this._ctxUsados = {};     // bordões contextuais já falados (1x / ocasiao)
         this._viradaPendente = false;
         this._golsMin = [];       // minutos dos últimos gols (sequência)
@@ -3347,6 +3361,11 @@ class MatchSim {
             this._xiDoTime(this.home),
             this._xiDoTime(this.away)
         ];
+        // G3: registra os titulares como "usados" (dreno pós-jogo).
+        for (let side = 0; side <= 1; side++) {
+            if (!this._usados[side]) this._usados[side] = {};
+            (this._emCampo[side] || []).forEach(id => { this._usados[side][id] = true; });
+        }
         this._montarMao();
         this.roteiro = this._gerarRoteiro();
         this._idx = 0;
@@ -3406,6 +3425,32 @@ class MatchSim {
         this._foco = Math.max(0, Math.min(100, (this._foco || 0) + (delta || 0)));
     }
 
+    // G3: fôlego cai dentro dos 90' — só quem está em campo; estilo ofensivo e lama cansam mais.
+    _drenarFolego() {
+        const base = this.estilo === 'ofensivo' ? 1.15 : this.estilo === 'retranca' ? 0.75 : 0.95;
+        const campo = (this.condicao === 'lama') ? 1.3 : (this.condicao === 'chuva' ? 1.12 : 1);
+        const porEvento = 0.52 * base * campo;
+        for (let side = 0; side <= 1; side++) {
+            const team = side === 0 ? this.home : this.away;
+            const em = (this._emCampo && this._emCampo[side]) || [];
+            if (!em.length || !team || !team.elenco) continue;
+            if (!this._usados[side]) this._usados[side] = {};
+            team.elenco.forEach(p => {
+                if (em.indexOf(p.id) < 0) return;
+                this._usados[side][p.id] = true;
+                const peso = p.posicao === 'ATT' ? 1.2 : p.posicao === 'MID' ? 1.1 : p.posicao === 'DEF' ? 0.9 : 0.55;
+                const f = p.folego == null ? 100 : p.folego;
+                p.folego = Math.max(5, f - porEvento * peso);
+            });
+        }
+    }
+
+    // Ids do lado do usuário que entraram em campo (para o drain pós-jogo).
+    usadosDoUsuario() {
+        const side = this._userSide();
+        return Object.keys((this._usados && this._usados[side]) || {});
+    }
+
     _recalcDifs() {
         const pH = this._poder(this.home, true);
         const pA = this._poder(this.away, false);
@@ -3462,6 +3507,8 @@ class MatchSim {
         // G1: Foco recarrega levemente a cada evento (≈ +0,7/tick); nunca fica negativo.
         this._atualizarFoco(0.7);
         if (typeof ui !== 'undefined' && ui.atualizarFocoUI) ui.atualizarFocoUI(this);
+        // G3: fôlego cai durante a partida — só quem está em campo (reserva fica intacto).
+        this._drenarFolego();
         // Fase 7: IA mexe no time uma vez no 2º tempo (com reservas).
         if (this._emCampo && this.minuto >= 46 && !this._subIA) {
             this._subIA = true;
@@ -3702,6 +3749,8 @@ class MatchSim {
         if (!entra) entra = banco.sort((a, b) => (b.overall || 0) - (a.overall || 0))[0];
         if (!entra) { this._emit("Sem reservas disponíveis.", 'info'); return; }
         em[em.indexOf(sai.id)] = entra.id;
+        if (!this._usados[isHome ? 0 : 1]) this._usados[isHome ? 0 : 1] = {};
+        this._usados[isHome ? 0 : 1][entra.id] = true;
         this._emit('⚤ Substituição: sai ' + sai.nome + ' (fôlego ' + Math.round(saiF) + '%), entra ' + entra.nome + '.', 'info');
         // Recalcula forças — efeito imediato nas próximas chances e decisões.
         const pH = this._poder(this.home, true);
@@ -3733,6 +3782,7 @@ class MatchSim {
         const entra = elenco.find(p => p.id === entraId);
         if (!sai || !entra || em.indexOf(entraId) >= 0) return;
         em[em.indexOf(saiId)] = entraId;
+        this._usados[side][entraId] = true;
         this._emit('⚤ Substituição: sai ' + sai.nome + ', entra ' + entra.nome + '.', 'info');
         const pH = this._poder(this.home, true);
         const pA = this._poder(this.away, false);
@@ -3881,6 +3931,8 @@ const Engine = {
             this.simulateAIMatches(league, userClub);
 
             const matchScorers = (this.activeMatch && this.activeMatch.matchScorers) || {};
+            // G3: guarda quem jogou para o drain pós-jogo não punir o banco.
+            try { Engine._ultimosUsados = (this.activeMatch && this.activeMatch.usadosDoUsuario) ? this.activeMatch.usadosDoUsuario() : []; } catch (e) { Engine._ultimosUsados = []; }
             this.activeMatch = null;
             onFinish(h, a, xpBase, matchScorers);
         }, { estilo, craque, regra, seed, condicao: (typeof app !== 'undefined' && app._condicaoJogo) ? app._condicaoJogo : 'normal', minDurMs: (typeof app !== 'undefined' && app._partidaMinDurMs) ? app._partidaMinDurMs() : 0, tempoMin: (typeof app !== 'undefined' && app._tempoPartida) ? app._tempoPartida : 90, ritmo: (typeof app !== 'undefined' && app._climaPartida) ? app._climaPartida.ritmo : 'normal', tom: (typeof app !== 'undefined' && app._climaPartida) ? app._climaPartida.tom : 'normal', tema: (typeof app !== 'undefined' && app._climaPartida) ? app._climaPartida.tema : 'brasileirao' });
@@ -3900,6 +3952,7 @@ const Engine = {
             const xpBase = Math.round((20 + (h * 10)) * (typeof app !== 'undefined' && app.diffXPMult != null ? app.diffXPMult : 1));
             userClub.elenco.forEach(p => p.ganharXP(xpBase));
             const matchScorers = (this.activeMatch && this.activeMatch.matchScorers) || {};
+            try { Engine._ultimosUsados = (this.activeMatch && this.activeMatch.usadosDoUsuario) ? this.activeMatch.usadosDoUsuario() : []; } catch (e) { Engine._ultimosUsados = []; }
             this.activeMatch = null;
             onFinish(h, a, xpBase, matchScorers, pen || null);
         }, { estilo, craque, regra, seed, condicao: (typeof app !== 'undefined' && app._condicaoJogo) ? app._condicaoJogo : 'normal', minDurMs: (typeof app !== 'undefined' && app._partidaMinDurMs) ? app._partidaMinDurMs() : 0, tempoMin: (typeof app !== 'undefined' && app._tempoPartida) ? app._tempoPartida : 90, ritmo: (typeof app !== 'undefined' && app._climaPartida) ? app._climaPartida.ritmo : 'normal', tom: (typeof app !== 'undefined' && app._climaPartida) ? app._climaPartida.tom : 'normal', tema: (typeof app !== 'undefined' && app._climaPartida) ? app._climaPartida.tema : 'classico' });
@@ -6143,28 +6196,42 @@ const app = {
         const elenco = this.club.elenco || [];
         const xi = this._xiIds.map(id => elenco.find(p => p.id === id)).filter(Boolean);
         const fora = elenco.filter(p => this._xiIds.indexOf(p.id) < 0);
-        const draw = (el, list) => {
+        const draw = (el, list, ehReserva) => {
             if (!el) return;
             el.innerHTML = '';
             list.forEach(p => {
+                const f = Math.round(p.folego == null ? 100 : p.folego);
                 const chip = document.createElement('button');
                 chip.className = 'escala-chip';
+                // G3: fôlego visível + destaque de rodízio (reserva pronto / titular cansado).
+                let cls = '';
+                if (f < 50) cls = 'fleg-bajo';
+                else if (f < 70) cls = 'fleg-medio';
+                if (ehReserva && f >= 80 && !p.machucado) cls += ' rodizio-ok';
+                if (!ehReserva && f < 60) cls += ' rodizio-precisa';
                 chip.innerHTML = '<span class="pos">' + this.subPosLabel(p) + '</span>'
                     + '<span class="nome">' + p.nome + '</span>'
-                    + '<span class="ovr">' + (p.overall || 0) + '</span>';
+                    + '<span class="ovr">' + (p.overall || 0) + '</span>'
+                    + '<span class="fleg ' + cls + '">' + f + '%</span>'
+                    + (ehReserva && f >= 80 && !p.machucado ? '<span class="rodizio-tag">RODÍZIO</span>' : '')
+                    + (!ehReserva && f < 60 ? '<span class="rodizio-tag cansado">CANSADO</span>' : '');
                 chip.onclick = () => this.toggleXI(p.id);
                 el.appendChild(chip);
             });
         };
-        draw(document.getElementById('escala-xi'), xi);
-        draw(document.getElementById('escala-reserva'), fora);
+        draw(document.getElementById('escala-xi'), xi, false);
+        draw(document.getElementById('escala-reserva'), fora, true);
         const count = document.getElementById('escala-count');
         if (count) count.textContent = '(' + xi.length + '/11)';
         const status = document.getElementById('escala-status');
         if (status) {
             const gks = xi.filter(p => p.posicao === 'GK').length;
+            const cansados = xi.filter(p => (p.folego == null ? 100 : p.folego) < 60).length;
+            const prontos = fora.filter(p => (p.folego == null ? 100 : p.folego) >= 80 && !p.machucado).length;
             if (xi.length < 11) status.textContent = '⚠ ' + (11 - xi.length) + ' jogador(es) faltando.' + (gks ? '' : ' Falta goleiro.');
             else if (!gks) status.textContent = '⚠ Falta um goleiro no time titular.';
+            else if (cansados > 0 && prontos > 0) status.textContent = '🔄 ' + cansados + ' titular(es) cansado(s) — ' + prontos + ' reserva(s) pronto(s) para rodízio.';
+            else if (cansados > 0) status.textContent = '⚠ ' + cansados + ' titular(es) com fôlego baixo e sem reserva pronto no banco.';
             else status.textContent = '✓ Escalação completa (11 titulares, goleiro definido).';
         }
     },
@@ -6698,12 +6765,20 @@ const app = {
     },
 
     // Fadiga ao longo das rodadas (drain pós-partida / recuperação pré-jogo).
+    // G3: o desgaste pesado já aconteceu DURANTE a partida (_drenarFolego em quem jogou);
+    // aqui só o residual — e o banco que não entrou quase não é penalizado.
     aplicarFadiga() {
         if (!this.club) return;
+        const usados = (typeof Engine !== 'undefined' && Array.isArray(Engine._ultimosUsados))
+            ? new Set(Engine._ultimosUsados.map(String)) : null;
         this.club.elenco.forEach(p => {
-            const drain = (p.staminaConsumption || 6) * 2;
+            const jogou = usados ? usados.has(String(p.id)) : true;
+            const drain = jogou
+                ? Math.round((p.staminaConsumption || 6) * 0.9)
+                : Math.round((p.staminaConsumption || 6) * 0.25);
             p.folego = Math.max(5, (p.folego == null ? 100 : p.folego) - drain);
         });
+        if (typeof Engine !== 'undefined') Engine._ultimosUsados = null;
     },
     recuperarFadiga() {
         if (!this.club) return;
@@ -7077,6 +7152,10 @@ const app = {
         p.ganharXP(30);
         if (bonus && p.stats && p.stats[bonus] < 99) p.stats[bonus]++;
         if (typeof p.recalcularOverall === 'function') p.recalcularOverall();
+        // G3: treino físico recupera fôlego de verdade (não só XP).
+        if (tipo === 'fisico') {
+            p.folego = Math.min(100, (p.folego == null ? 100 : p.folego) + 18);
+        }
         // Risco pequeno de lesão.
         if (Math.random() < 0.1) {
             p.machucado = true;
@@ -7939,11 +8018,16 @@ const app = {
         const diasBonus = this._streakBonus ? this._streakBonus() : 0;
         const xpTotal = xpBase * this.club.elenco.length;
 
-        // Fôlego projetado após a rodada (mesma fórmula de aplicarFadiga; não muta o estado).
+        // Fôlego projetado após a rodada (mesma fórmula de aplicarFadiga G3; não muta o estado).
         const CRITICO = 40;
         let critico = 0;
+        const usados = (typeof Engine !== 'undefined' && Array.isArray(Engine._ultimosUsados))
+            ? new Set(Engine._ultimosUsados.map(String)) : null;
         this.club.elenco.forEach(p => {
-            const drain = (p.staminaConsumption || 6) * 2;
+            const jogou = usados ? usados.has(String(p.id)) : true;
+            const drain = jogou
+                ? Math.round((p.staminaConsumption || 6) * 0.9)
+                : Math.round((p.staminaConsumption || 6) * 0.25);
             const f = Math.max(5, (p.folego == null ? 100 : p.folego) - drain);
             if (f < CRITICO) critico++;
         });
