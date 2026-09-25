@@ -762,6 +762,51 @@ body {
 .player-card.rarity-Diamante:hover {
     box-shadow: 0 14px 28px rgba(0, 0, 0, 0.65), 0 0 20px rgba(125, 211, 252, 0.55);
 }
+/* C4: holográfico (tilt 3D + foil) só em Ouro/Diamante — Bronze fica estável.
+   Sem backdrop-filter; GPU-friendly (transform/opacity). Tilt só em hover real. */
+.player-card.rarity-Ouro,
+.player-card.rarity-Diamante {
+    transform-style: preserve-3d;
+    will-change: transform;
+    --rx: 0deg;
+    --ry: 0deg;
+    --foil: 0;
+    /* transform ativo sempre (vars em 0 = neutro); JS só preenche --rx/--ry em hover real */
+    transform: perspective(620px) rotateX(var(--rx)) rotateY(var(--ry));
+}
+.player-card.rarity-Ouro::after,
+.player-card.rarity-Diamante::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 12px;
+    pointer-events: none;
+    opacity: var(--foil);
+    transition: opacity 0.25s ease;
+    background: linear-gradient(
+        125deg,
+        rgba(255, 255, 255, 0) 20%,
+        rgba(255, 255, 255, 0.35) 42%,
+        rgba(255, 215, 120, 0.18) 50%,
+        rgba(125, 211, 252, 0.22) 58%,
+        rgba(255, 255, 255, 0) 80%
+    );
+    mix-blend-mode: screen;
+    z-index: 5;
+}
+@media (hover: hover) and (pointer: fine) {
+    .player-card.rarity-Ouro:hover,
+    .player-card.rarity-Diamante:hover {
+        --foil: 1;
+        transform: perspective(620px) rotateX(var(--rx)) rotateY(var(--ry)) translateY(-6px) scale(1.06);
+        z-index: 12;
+    }
+}
+/* Bronze/Prata: hover simples permanece (sem foil) */
+.player-card.rarity-Bronze:hover,
+.player-card.rarity-Prata:hover {
+    transform: translateY(-4px) scale(1.03);
+}
 
 /* Position Badge */
 .pos-badge {
@@ -4314,6 +4359,26 @@ class UI {
   }
 
   setupGlobalListeners() {
+    // C4: tilt holográfico em cartas Ouro/Diamante (só hover real — sem lutar com o scroll no toque).
+    if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
+      document.addEventListener('pointermove', (e) => {
+        const card = e.target && e.target.closest ? e.target.closest('.player-card.rarity-Ouro, .player-card.rarity-Diamante') : null;
+        if (!card) return;
+        const r = card.getBoundingClientRect();
+        const px = (e.clientX - r.left) / Math.max(1, r.width);
+        const py = (e.clientY - r.top) / Math.max(1, r.height);
+        const ry = (px - 0.5) * 16;   // graus
+        const rx = (0.5 - py) * 12;
+        card.style.setProperty('--rx', rx.toFixed(2) + 'deg');
+        card.style.setProperty('--ry', ry.toFixed(2) + 'deg');
+      }, { passive: true });
+      document.addEventListener('pointerout', (e) => {
+        const card = e.target && e.target.closest ? e.target.closest('.player-card.rarity-Ouro, .player-card.rarity-Diamante') : null;
+        if (!card) return;
+        card.style.setProperty('--rx', '0deg');
+        card.style.setProperty('--ry', '0deg');
+      }, { passive: true });
+    }
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         if (typeof TutorialManager !== 'undefined') {
