@@ -1781,9 +1781,9 @@ body {
       <button onclick="app.cancelarPreparacao()" style="background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; padding: 4px;">&times;</button>
     </div>
     <div class="prep-clubs">
-      <div class="prep-club"><div class="name" id="prep-my-name">VOCÊ</div><div class="tag">MANDANTE</div></div>
+      <div class="prep-club"><div class="name" id="prep-my-name">VOCÊ</div><div class="tag" id="prep-my-tag">MANDANTE</div></div>
       <div style="font-weight: 900; color: var(--accent);">VS</div>
-      <div class="prep-club"><div class="name" id="prep-adv-name">RIVAL</div><div class="tag">VISITANTE</div></div>
+      <div class="prep-club"><div class="name" id="prep-adv-name">RIVAL</div><div class="tag" id="prep-adv-tag">VISITANTE</div></div>
     </div>
     <div id="prep-apresentacao" class="prep-note" style="margin: 8px 0 10px; text-align: left;"></div>
 
@@ -2205,7 +2205,7 @@ body {
         <li><strong>Equilibrado:</strong> neutro; a diferença de elenco decide.</li>
         <li><strong>Retranca:</strong> +3.5 defesa, −2.5 ataque — fecha o jogo sem anular o ataque.</li>
       </ul>
-      <p style="margin:0;"><strong>Fatores de partida:</strong> mando de casa +1 (no clássico +0.5, torcida dividida), Craque da Rodada em casa +6 de ataque, moral do clube ≥ 85 dá +1 e &lt; 30 tira −3. Cada rival da IA tem formação e mentalidade próprias — leia o adversário no pré-jogo.</p>
+      <p style="margin:0;"><strong>Fatores de partida:</strong> mando de casa +1 (no clássico +0.5, torcida dividida), Craque da Rodada +6 de ataque (em qualquer mando), moral do clube ≥ 85 dá +1 e &lt; 30 tira −3. Cada rival da IA tem formação e mentalidade próprias — leia o adversário no pré-jogo.</p>
     </div>
 
           <div style="margin-top: 15px; display: flex; gap: 8px;">
@@ -2996,6 +2996,12 @@ class League {
     return this.calendario.length || Math.max(0, this.clubes.length - 1);
   }
   getUserOpponent(userClub) {
+    const fx = this.getUserFixture(userClub);
+    return fx ? fx.adv : null;
+  }
+
+  // Mandos alternados: devolve o adversário E se o usuário joga em casa nesta rodada.
+  getUserFixture(userClub) {
     const div = this.divisaoUser;
     const clubes = this.getClubesAtuais();
     const userIdx = clubes.indexOf(userClub);
@@ -3003,7 +3009,7 @@ class League {
     const fixtures = this.getFixturesForRound(this.rodada, div);
     const fx = fixtures.find(([h, a]) => h === userIdx || a === userIdx);
     if (fx === undefined) return null;
-    return clubes[fx[0] === userIdx ? fx[1] : fx[0]];
+    return { adv: clubes[fx[0] === userIdx ? fx[1] : fx[0]], userHome: fx[0] === userIdx };
   }
 
   getTabela(div) {
@@ -3061,13 +3067,13 @@ const MatchUI = {
         const esc = this._el('match-escala'); if (esc) esc.innerText = forcaTexto || '';
         const log = this._el('match-log'); if (log) log.innerText = 'Bola rolando!';
         const feed = this._el('ui-match-feed'); if (feed) feed.innerHTML = '';
-        this.stats([50, 0, 0, 0, 0, 0, 0, 0]);
+        this.stats([50, 0, 0, 0, 0, 0, 0, 0, 0]);
         const st = this._el('match-status'); if (st) st.innerText = 'BOLA ROLANDO...';
         document.querySelectorAll('.match-speed-btn').forEach(b => b.classList.toggle('active', String(b.dataset.speed) === '1'));
         this.clearPrompt();
         if (typeof ui !== 'undefined' && ui.atualizarFocoUI) ui.atualizarFocoUI({ _foco: 70 });
     },
-    stats(arr) { // [posse, chH, chA, faH, faA, caH, caA, escH+escA]
+    stats(arr) { // [posse, chH, chA, faH, faA, caH, caA, escH, escA]
         const set = (id, v) => { const el = this._el(id); if (el) el.innerText = v; };
         const posse = Math.round(arr[0]);
         set('stat-posse', posse + '%');
@@ -3076,7 +3082,7 @@ const MatchUI = {
         set('stat-chutes', arr[1] + ' – ' + arr[2]);
         set('stat-faltas', arr[3] + ' – ' + arr[4]);
         set('stat-cartoes', arr[5] + ' – ' + arr[6]);
-        set('stat-escanteios', arr[7] + '');
+        set('stat-escanteios', arr[7] + ' – ' + arr[8]);
     },
     score(h, a) {
         const el = this._el('match-score');
@@ -3212,6 +3218,7 @@ class MatchSim {
         this.minuto = 0; this.posse = 50;
         this.chutes = [0, 0]; this.noAlvo = [0, 0]; this.faltas = [0, 0];
         this.cartoes = [0, 0]; this.escanteios = [0, 0];
+        this._expulsos = [0, 0]; // G6: expulsões por lado (efeito em _poder)
         this.matchScorers = {};
         this.speed = 1;
         this.abortado = false;
@@ -3322,8 +3329,10 @@ class MatchSim {
         const mb = moral < 30 ? -3 : (moral >= 85 ? 1 : 0);
         const casa = (this.regra === 'classico') ? 0.5 : 1; // clássico: torcida dividida
         a += mb + (isHome ? casa : 0) + bonusFormacao.a; m += mb + bonusFormacao.m; d += mb + bonusFormacao.d;
-        if (this.craque && isHome) { a += 6; m += 2.5; d += 1; }
-        if (isHome) {
+        // Mandos alternados: craque/estilo/buffs são do USUÁRIO, não do mandante.
+        const isUser = this._userSide() === (isHome ? 0 : 1);
+        if (this.craque && isUser) { a += 6; m += 2.5; d += 1; }
+        if (isUser) {
             // Balanceamento 2026-09-22 (feedback de testadores): "equilibrada ganha tudo" e
             // "ofensiva é certo levar gol". Medição empírica: mando +2 e decisões 55/45 inflavam
             // o mandante; ofensivo cedia +0.7 gols para +0.4 marcados; retranca não reduzia o
@@ -3347,8 +3356,8 @@ class MatchSim {
             const q = bonusQuimica(el);
             a += q.atk; m += q.mid; d += q.def;
         } catch (e) { /* sinergia nunca pode derrubar o _poder */ }
-        // G1: buffs de cartas táticas valem só para o usuário (lado de casa).
-        if (isHome && this._buffs && this._buffs.length) {
+        // G1: buffs de cartas táticas valem só para o usuário (em casa ou fora).
+        if (isUser && this._buffs && this._buffs.length) {
             this._buffs.forEach(b => {
                 if (this.minuto <= (b.fimMin || 0)) {
                     a += b.difA || 0;
@@ -3356,6 +3365,12 @@ class MatchSim {
                     m += ((b.difA || 0) + (b.difD || 0)) * 0.25;
                 }
             });
+        }
+        // G6: expulsão (time reduzido) derruba o rendimento em campo.
+        const exp = (this._expulsos && this._expulsos[isHome ? 0 : 1]) || 0;
+        if (exp > 0) {
+            const pen = exp === 1 ? 3.5 : 3.5 + (exp - 1) * 2.5;
+            a -= pen; m -= pen * 1.1; d -= pen * 0.9;
         }
         return { atk: a, mid: m, def: d, gk: gkF };
     }
@@ -3856,12 +3871,15 @@ class MatchSim {
         } else if (t === 'cartao') {
             log = this._fraseCartao(ev.side === 0 ? this.home : this.away);
             this.cartoes[ev.side]++;
-            // 20% chance of second yellow → red card
-            if (this._roll(0.2)) {
+            // G6: 2ª amarela → expulsão com efeito real em _poder (A8).
+            // Chance base 12%, sobe com o acumulo de cartoes do time.
+            const pExp = 0.12 + Math.min(0.18, this.cartoes[ev.side] * 0.03);
+            if (this._roll(pExp)) {
                 const expulso = (ev.side === 0 ? this._nomeHome('DEF') : this._nomeAdv('DEF'));
-                log += " " + expulso + " expulso! Segunda falta.";
+                log += " " + expulso + " expulso! Segundo amarelo.";
                 expulsoNome = expulso;
-                this.chutes[ev.side] = Math.max(0, this.chutes[ev.side] - 1);
+                this._expulsos[ev.side]++;
+                this._recalcDifs();
             }
             tipoFeed = 'foul';
         } else if (t === 'escanteio') {
@@ -3955,7 +3973,8 @@ class MatchSim {
         MatchUI.score(this.scoreH, this.scoreA);
         if (typeof ui !== 'undefined') {
             ui.playGoalSound();
-            ui.showGoalAnimation(isHome, autor, this.minuto, Math.abs(this.scoreH - this.scoreA) <= 1);
+            const userScored = ((isHome ? 0 : 1) === this._userSide());
+            ui.showGoalAnimation(userScored, autor, this.minuto, Math.abs(this.scoreH - this.scoreA) <= 1);
         }
         let extra = (autor && autor.gols >= 10 && autor.gols % 10 === 0)
             ? ' ⭐ ' + autor.nome.toUpperCase() + ' CHEGA A ' + autor.gols + ' GOLS NA TEMPORADA!'
@@ -3970,7 +3989,7 @@ class MatchSim {
     _emit(log, tipo, statOnly) {
         if (typeof ui !== 'undefined' && log) ui.narrate(log, this.minuto);
         MatchUI.score(this.scoreH, this.scoreA);
-        MatchUI.stats([this.posse, this.chutes[0], this.chutes[1], this.faltas[0], this.faltas[1], this.cartoes[0], this.cartoes[1], this.escanteios[0] + this.escanteios[1]]);
+        MatchUI.stats([this.posse, this.chutes[0], this.chutes[1], this.faltas[0], this.faltas[1], this.cartoes[0], this.cartoes[1], this.escanteios[0], this.escanteios[1]]);
         if (this.onTick) {
             this.onTick({
                 minuto: this.minuto, scoreH: this.scoreH, scoreA: this.scoreA, posse: Math.round(this.posse),
@@ -3985,9 +4004,10 @@ class MatchSim {
 
     _mostrarDecisao(ev) {
         const isHome = ev.side === 0;
+        const isUserAttack = (ev.side === this._userSide());
         if (typeof ui !== 'undefined') ui.narrate(isHome ? this._fraseChance(this.home) : this._fraseChance(this.away), this.minuto);
         let desc, opts;
-        if (isHome) {
+        if (isUserAttack) {
             desc = "Chance clara do seu ataque! Como você orienta a finalização?";
             opts = [
                 { label: '🎯 Colocado', hint: 'mais precisão', eff: { p: 0.42, d: 0.06 } },
@@ -4004,7 +4024,7 @@ class MatchSim {
         }
         // Escala pela diferença de força: time superior converte mais, time fraco erra mais.
         const dif = isHome ? (this._difA || 0) : (this._difD || 0);
-        const pBase = isHome
+        const pBase = isUserAttack
             ? Math.max(0.14, Math.min(0.60, 0.26 + dif * 0.008))
             : Math.max(0.16, Math.min(0.66, 0.30 + dif * 0.010));
         MatchUI.prompt(desc, opts, (i) => {
@@ -4090,11 +4110,12 @@ class MatchSim {
     _resolverChance(isHome, p) {
         const jp = this._pickXI(isHome ? 0 : 1, 'ATT'); // Fase 1: atacante real em campo
         const j = jp ? jp.nome : (isHome ? this._nomeHome('ATT') : this._nomeAdv('ATT'));
+        const userScored = ((isHome ? 0 : 1) === this._userSide());
         try {
             if (this._roll(p)) {
                 const autor = jp || null;
                 const rec = this._marcar(isHome, autor);
-                this._emit((isHome ? "GOL! " + j + " converte a chance e explode a torcida!" : "GOL DO RIVAL! " + j + " não perdoa!") + rec, 'goal');
+                this._emit((userScored ? "GOL! " + j + " converte a chance e explode a torcida!" : "GOL DO RIVAL! " + j + " não perdoa!") + rec, 'goal');
             } else if (this._roll(0.30)) {
                 this._emit(this._fraseDef(isHome ? this.home : this.away), 'def');
                 this.chutes[isHome ? 0 : 1]++;
@@ -4210,19 +4231,27 @@ const Engine = {
     simulateRound(league, userClub, onTick, onFinish) {
         this.processAITransfers(league);
 
-        const adv = league.getUserOpponent(userClub) || league.getClubesAtuais().find(c => c !== userClub);
+        const fx = (league.getUserFixture ? league.getUserFixture(userClub) : null);
+        const adv = (fx && fx.adv) || league.getUserOpponent(userClub) || league.getClubesAtuais().find(c => c !== userClub);
         if (!adv) { if (onFinish) onFinish(0, 0, 0, {}); return; }
 
         const estilo = (typeof app !== 'undefined' && app._estiloPartida) ? app._estiloPartida : 'equilibrado';
         const craque = (typeof app !== 'undefined' && app._craquePartida) ? app._craquePartida : null;
         const regra = (typeof app !== 'undefined' && app._regraPartida) ? app._regraPartida : null;
         const seed = (league.seed || 1) * 31 + (league.rodada || 1) * 7919;
+        // Mandos alternados: o usuário pode jogar fora de casa (fixture do calendário).
+        const userHome = fx ? fx.userHome : true;
+        const homeTeam = userHome ? userClub : adv;
+        const awayTeam = userHome ? adv : userClub;
 
-        this.activeMatch = new MatchSim(userClub, adv, onTick, (h, a) => {
-            userClub.registrarResultado(h, a);
-            adv.registrarResultado(a, h);
+        this.activeMatch = new MatchSim(homeTeam, awayTeam, onTick, (h, a) => {
+            // h = gols do mandante, a = gols do visitante — converter p/ perspectiva do usuário.
+            const ug = userHome ? h : a;
+            const ag = userHome ? a : h;
+            userClub.registrarResultado(ug, ag);
+            adv.registrarResultado(ag, ug);
 
-            const xpBase = Math.round((20 + (h * 10)) * (typeof app !== 'undefined' && app.diffXPMult ? app.diffXPMult() : 1));
+            const xpBase = Math.round((20 + (ug * 10)) * (typeof app !== 'undefined' && app.diffXPMult ? app.diffXPMult() : 1));
             userClub.elenco.forEach(p => p.ganharXP(xpBase));
 
             this.simulateAIMatches(league, userClub);
@@ -4231,7 +4260,7 @@ const Engine = {
             // G3: guarda quem jogou para o drain pós-jogo não punir o banco.
             try { Engine._ultimosUsados = (this.activeMatch && this.activeMatch.usadosDoUsuario) ? this.activeMatch.usadosDoUsuario() : []; } catch (e) { Engine._ultimosUsados = []; }
             this.activeMatch = null;
-            onFinish(h, a, xpBase, matchScorers);
+            onFinish(ug, ag, xpBase, matchScorers);
         }, { estilo, craque, regra, seed, condicao: (typeof app !== 'undefined' && app._condicaoJogo) ? app._condicaoJogo : 'normal', minDurMs: (typeof app !== 'undefined' && app._partidaMinDurMs) ? app._partidaMinDurMs() : 0, tempoMin: (typeof app !== 'undefined' && app._tempoPartida) ? app._tempoPartida : 90, ritmo: (typeof app !== 'undefined' && app._climaPartida) ? app._climaPartida.ritmo : 'normal', tom: (typeof app !== 'undefined' && app._climaPartida) ? app._climaPartida.tom : 'normal', tema: (typeof app !== 'undefined' && app._climaPartida) ? app._climaPartida.tema : 'brasileirao' });
         this.activeMatch.start();
     },
@@ -4447,30 +4476,43 @@ class UI {
     if (navBtn) navBtn.classList.add('active');
   }
 
+  // C6: lazy-load — os 3 BGM não são decodificados no boot; cada track vira
+  // Audio só na primeira reprodução (o base64 continua inline, mas o media
+  // decoder do browser só é acionado quando a faixa é pedida).
   initAudio() {
     if (!this.bgm) {
-      this.bgm = {
-        menu: new Audio(AUDIO_ASSETS.music_menu),
-        match: new Audio(AUDIO_ASSETS.music_match),
-        tension: new Audio(AUDIO_ASSETS.music_tension)
-      };
-      const defaultBgmVol = (typeof app !== 'undefined' && app.settings && typeof app.settings.bgmVol === 'number') ? app.settings.bgmVol : 0.12;
-      Object.values(this.bgm).forEach(a => { a.loop = true; a.volume = defaultBgmVol; });
+      this.bgm = {};
       this.currentBGM = null;
     }
+  }
+
+  _getBgm(track) {
+    if (!this.bgm) this.initAudio();
+    if (!this.bgm[track]) {
+      const src = AUDIO_ASSETS['music_' + track] || '';
+      if (!src) return null;
+      const a = new Audio(src);
+      a.loop = true;
+      const vol = (typeof app !== 'undefined' && app.settings && typeof app.settings.bgmVol === 'number') ? app.settings.bgmVol : 0.12;
+      a.volume = vol;
+      this.bgm[track] = a;
+    }
+    return this.bgm[track];
   }
 
   playBGM(track) {
     if (!this.bgm) this.initAudio();
     if (app && app.settings && !app.settings.music) return;
     const defaultBgmVol = (typeof app !== 'undefined' && app.settings && typeof app.settings.bgmVol === 'number') ? app.settings.bgmVol : 0.12;
-    if (this.currentBGM && this.currentBGM !== this.bgm[track]) {
+    const audio = this._getBgm(track);
+    if (!audio) return;
+    if (this.currentBGM && this.currentBGM !== audio) {
         this.currentBGM.pause();
     }
-    if (this.bgm[track] && this.currentBGM !== this.bgm[track]) {
-        this.bgm[track].volume = defaultBgmVol;
-        this.bgm[track].play().catch(() => {});
-        this.currentBGM = this.bgm[track];
+    if (this.currentBGM !== audio) {
+        audio.volume = defaultBgmVol;
+        audio.play().catch(() => {});
+        this.currentBGM = audio;
     }
   }
 
@@ -4664,11 +4706,20 @@ class UI {
     const adv = (typeof app !== 'undefined' && app.league && app.getNextOpponent) ? app.getNextOpponent() : null;
     const meuNome = (typeof app !== 'undefined' && app.club && app.club.nome) || 'MEC';
     const advNome = (adv && adv.nome) || 'ADV';
+    // Mandos alternados: quem é mandante no fixture desta rodada.
+    let userHome = true;
+    if (typeof app !== 'undefined' && app.league && app.club && app.league.getUserFixture) {
+        const fx = app.league.getUserFixture(app.club);
+        if (fx) userHome = fx.userHome;
+    }
+    const nomeMandante = userHome ? meuNome : advNome;
+    const nomeVisitante = userHome ? advNome : meuNome;
     let competicao = (clima && clima.rotulo) || 'CAMPEONATO';
     if (clima && clima.tema === 'brasileirao') competicao = 'BRASILEIRÃO · RODADA ' + ((typeof app !== 'undefined' && app.league && app.league.rodada) || 1);
     if (typeof app !== 'undefined' && app._isDaily) competicao = '⚡ AMISTOSO · DESAFIO DO DIA';
     if (typeof app !== 'undefined' && app._isClassico) competicao = '🔥 CLÁSSICO DA SEMANA';
     if (typeof app !== 'undefined' && app._isTorneio) competicao = '🏆 TORNEIO RELÂMPAGO';
+    if (!userHome) competicao += ' · 🚌 FORA DE CASA';
     let forca = 'FORÇA ' + Math.round(((typeof app !== 'undefined' && app.club) ? app.club.getForcaTotal() : 0) * 10) / 10 +
                 '  ×  ' + Math.round((adv ? adv.getForcaTotal() : 0) * 10) / 10;
     if (typeof app !== 'undefined' && app._craquePartida && app._craquePartida.nome) {
@@ -4679,7 +4730,7 @@ class UI {
         const ci = (typeof CONDICOES_JOGO !== 'undefined' && CONDICOES_JOGO[app._condicaoJogo]) ? CONDICOES_JOGO[app._condicaoJogo] : null;
         if (ci) forca += ' · 🌡️ ' + ci.rotulo;
     }
-    MatchUI.init(meuNome, advNome, competicao, forca, (typeof app !== 'undefined' && app._craquePartida) ? app._craquePartida.nome : null);
+    MatchUI.init(nomeMandante, nomeVisitante, competicao, forca, (typeof app !== 'undefined' && app._craquePartida) ? app._craquePartida.nome : null);
   }
 
 
@@ -8564,15 +8615,26 @@ const app = {
         let adv = this.getNextOpponent();
         if (this._isClassico) adv = this._classicoRival() || adv;
         else if (this._isTorneio) adv = this._torneioAdversario() || adv;
+        // Mandos alternados: tags MANDANTE/VISITANTE conforme o fixture da rodada.
+        let userHome = true;
+        if (!this._isClassico && !this._isTorneio && !this._isDaily && this.league && this.league.getUserFixture) {
+            const fx = this.league.getUserFixture(this.club);
+            if (fx) userHome = fx.userHome;
+        }
         const myEl = document.getElementById('prep-my-name');
         if (myEl) myEl.innerText = (this.club.nome || 'VOCÊ').toUpperCase();
+        const myTag = document.getElementById('prep-my-tag');
+        if (myTag) myTag.innerText = userHome ? 'MANDANTE' : 'VISITANTE';
         const advEl = document.getElementById('prep-adv-name');
         if (advEl) advEl.innerText = (adv ? adv.nome.toUpperCase() : 'RIVAL');
+        const advTag = document.getElementById('prep-adv-tag');
+        if (advTag) advTag.innerText = userHome ? 'VISITANTE' : 'MANDANTE';
         const obs = document.getElementById('prep-obs');
         if (obs) {
             const pf = Math.round(this.club.getForcaTotal() * 10) / 10;
             const af = adv ? Math.round(adv.getForcaTotal() * 10) / 10 : 0;
             let txt = 'Força do seu time: ' + pf + '  ×  Rival: ' + af + '.';
+            if (!userHome) txt += ' 🚌 Você joga FORA DE CASA — sem mando, sem bilheteria.';
             if (adv && adv.formacao) {
                 txt += ` Rival no ${adv.formacao}` + (adv.mentalidade && adv.mentalidade !== 'equilibrada' ? ` (${adv.mentalidade})` : '') + '.';
             }
@@ -8775,10 +8837,12 @@ const app = {
 
     // Monta os dados exibidos no recibo pós-jogo, sem alterar a lógica financeira/XP/fadiga.
     buildMatchSummary(h, a, xpBase, scorers) {
-        const gate = this.stadiumRevenue();
+        const fxRodada = (this.league && this.league.getUserFixture) ? this.league.getUserFixture(this.club) : null;
+        const userHome = fxRodada ? fxRodada.userHome : true;
+        const gate = userHome ? this.stadiumRevenue() : 0;
         const folha = this.club.elenco.reduce((s, p) => s + (p.salario || 0), 0);
         const net = gate - folha;
-        const streakGateBonus = ((this.club.consecVitorias || 0) >= 3 && h > a) ? Math.round(gate * 0.15) : 0;
+        const streakGateBonus = (userHome && (this.club.consecVitorias || 0) >= 3 && h > a) ? Math.round(gate * 0.15) : 0;
         const diasBonus = this._streakBonus ? this._streakBonus() : 0;
         const xpTotal = xpBase * this.club.elenco.length;
 
@@ -8986,10 +9050,12 @@ const app = {
         }
         if (expirando.length) this.saveGame();
 
-        // Renda de bilheteria do estádio (inclui fixo do patrocínio C1)
-        const gate = this.stadiumRevenue();
+        // Renda de bilheteria do estádio (inclui fixo do patrocínio C1) — só em jogo em casa.
+        const fxRodada = (this.league && this.league.getUserFixture) ? this.league.getUserFixture(this.club) : null;
+        const userHome = fxRodada ? fxRodada.userHome : true;
+        const gate = userHome ? this.stadiumRevenue() : 0;
         // Bônus de sequência (3+ vitórias seguidas, apenas em vitória) e de dias jogados (streak sem punição).
-        const streakGateBonus = ((this.club.consecVitorias || 0) >= 3 && this.lastResult && this.lastResult.h > this.lastResult.a)
+        const streakGateBonus = (userHome && (this.club.consecVitorias || 0) >= 3 && this.lastResult && this.lastResult.h > this.lastResult.a)
             ? Math.round(gate * 0.15) : 0;
         const diasBonus = this._streakBonus ? this._streakBonus() : 0;
         this.club.orcamento += gate + streakGateBonus + diasBonus;
