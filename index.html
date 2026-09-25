@@ -2702,6 +2702,7 @@ class League {
     this.divisaoUser = 1;   // 1 = Série A, 2 = Série B
     // Mesma convenção de Club.saveVersion: incremente ao mudar o formato e migre em _restoreFromRaw.
     this.saveVersion = 1;
+    this.climaRodada = null; // G2: {rodada, condicao} — clima estável da rodada atual
   }
 
   inicializar() {
@@ -2941,6 +2942,13 @@ function escalarTitularesXI(elenco, formacao) {
 }
 
 // --- Simulador de partida completo (90 min em eventos) ---
+// G2: condições de jogo (clima). NÃO confundir com _climaPartida (tema visual do modo).
+const CONDICOES_JOGO = {
+    normal: { rotulo: 'TEMPO BOM', lambdaMul: 1.00, atk: 0, def: 0, faltaBias: 0, flavor: 'Tempo bom, gramado seco — bola leve e jogo aberto.' },
+    sol:    { rotulo: 'SOL FORTE', lambdaMul: 1.12, atk: 0.5, def: -0.5, faltaBias: -0.02, flavor: 'Sol forte no estádio! Gramado seco e a bola correndo rápido.' },
+    chuva:  { rotulo: 'CHUVA', lambdaMul: 0.92, atk: -0.5, def: 0.3, faltaBias: 0.03, flavor: 'Chuva no estádio! Passe escorregadio e a bola pesando um pouco.' },
+    lama:   { rotulo: 'LAMA — bola pesada', lambdaMul: 0.82, atk: -1.5, def: 1, faltaBias: 0.06, flavor: 'Lama! O gramado está pesado e a bola não corre — jogo truncado.' }
+};
 class MatchSim {
     constructor(home, away, onTick, onFinish, opts = {}) {
         this.home = home;
@@ -2983,6 +2991,8 @@ class MatchSim {
         this.ritmo = (opts && opts.ritmo) || 'normal';
         this.tom = (opts && opts.tom) || 'normal';
         this.tema = (opts && opts.tema) || 'brasileirao';
+        // G2: clima de jogo (sol/chuva/lama/normal) — separado do tema visual (this.tema).
+        this.condicao = (opts && opts.condicao && CONDICOES_JOGO[opts.condicao]) ? opts.condicao : 'normal';
     }
     _rnd(a, b) { return a + this.rng() * (b - a); }
     _roll(p) { return this.rng() < p; }
@@ -3063,6 +3073,10 @@ class MatchSim {
             else if (mental === 'defensiva') { d += 2; a -= 1; }
         }
         if (this.regra === 'classico') { a += 1.5; m += 0.5; d += 0.5; } // clássico quente
+        // G2: clima afeta os dois lados igualmente (mesma condição de campo).
+        const cond = CONDICOES_JOGO[this.condicao] || CONDICOES_JOGO.normal;
+        a += cond.atk || 0;
+        d += cond.def || 0;
         // G1: buffs de cartas táticas valem só para o usuário (lado de casa).
         if (isHome && this._buffs && this._buffs.length) {
             this._buffs.forEach(b => {
@@ -3097,8 +3111,11 @@ class MatchSim {
         this._difA = difA; this._difD = difD;
         // Calibração: base perto de 1 gol, vantagem cresce com a diferença, teto impede goleadas irreais.
         // 2026-09-22: lambdas base 1.00/0.85 (eram 1.05/0.80) — mando não deve decidir sozinho.
-        const golsH = this._poisson(Math.max(0.28, Math.min(4.6, 1.00 + difA * 0.045)));
-        const golsA = this._poisson(Math.max(0.18, Math.min(4.4, 0.85 + difD * 0.045)));
+        // G2: clima multiplica o lambda (lama < chuva < normal < sol).
+        const cond = CONDICOES_JOGO[this.condicao] || CONDICOES_JOGO.normal;
+        const mulC = cond.lambdaMul || 1;
+        const golsH = this._poisson(Math.max(0.22, Math.min(4.6, (1.00 + difA * 0.045) * mulC)));
+        const golsA = this._poisson(Math.max(0.15, Math.min(4.4, (0.85 + difD * 0.045) * mulC)));
         const R = [];
         this._minutosGols(golsH).forEach(min => this._roll(0.10)
             ? R.push({ min, tipo: 'var', side: 0 }) : R.push({ min, tipo: 'autoGol', side: 0 }));
@@ -3111,17 +3128,18 @@ class MatchSim {
         }
         const quente = this.regra === 'classico'; // clássico: mais faltas e cartões
         const tFim = this.tempoMin || 90;
+        const fBias = cond.faltaBias || 0; // G2: lama/chuva geram mais faltas
         for (let m = 1; m <= tFim; m += Math.round(this._rnd(1, 3.2))) {
             const roll = this.rng();
             const side = this._roll(0.5) ? 0 : 1;
             if (m >= tFim - 4 && roll < 0.16) { R.push({ min: m, tipo: 'acrescimo', side }); continue; }
             if (roll < 0.26) R.push({ min: m, tipo: 'lance', side });
-            else if (roll < 0.40) R.push({ min: m, tipo: 'falta', side });
-            else if (roll < 0.50) R.push({ min: m, tipo: 'lance', side });
-            else if (roll < 0.58) R.push({ min: m, tipo: 'cartao', side });
-            else if (roll < 0.69) R.push({ min: m, tipo: 'escanteio', side });
-            else if (roll < 0.80) R.push({ min: m, tipo: 'defesa', side });
-            else if (roll < 0.86) R.push({ min: m, tipo: 'lesao', side });
+            else if (roll < 0.40 + fBias) R.push({ min: m, tipo: 'falta', side });
+            else if (roll < 0.50 + fBias) R.push({ min: m, tipo: 'lance', side });
+            else if (roll < 0.58 + fBias) R.push({ min: m, tipo: 'cartao', side });
+            else if (roll < 0.69 + fBias) R.push({ min: m, tipo: 'escanteio', side });
+            else if (roll < 0.80 + fBias) R.push({ min: m, tipo: 'defesa', side });
+            else if (roll < 0.86 + fBias) R.push({ min: m, tipo: 'lesao', side });
             else R.push({ min: m, tipo: 'lance', side });
             if (quente && this._roll(0.18)) {
                 R.push({ min: Math.min(90, m + Math.round(this._rnd(1, 2))),
@@ -3338,6 +3356,13 @@ class MatchSim {
         const ehGrande = this.regra === 'classico' || this.regra === 'torneio';
         const ab = this._fraseContexto(ehGrande ? 'aberturaClassico' : 'abertura');
         if (ab) this._emit(ab, 'info');
+        // G2: o rádio anuncia a condição do campo ao menos 1× por partida.
+        const cinfo = CONDICOES_JOGO[this.condicao] || CONDICOES_JOGO.normal;
+        if (this.condicao && this.condicao !== 'normal') {
+            this._emit('🌡️ ' + cinfo.rotulo + ' — ' + cinfo.flavor, 'info');
+        } else {
+            this._emit('🌤️ ' + cinfo.flavor, 'info');
+        }
         this._tick();
     }
     _xiDoTime(team) {
@@ -3858,7 +3883,7 @@ const Engine = {
             const matchScorers = (this.activeMatch && this.activeMatch.matchScorers) || {};
             this.activeMatch = null;
             onFinish(h, a, xpBase, matchScorers);
-        }, { estilo, craque, regra, seed, minDurMs: (typeof app !== 'undefined' && app._partidaMinDurMs) ? app._partidaMinDurMs() : 0, tempoMin: (typeof app !== 'undefined' && app._tempoPartida) ? app._tempoPartida : 90, ritmo: (typeof app !== 'undefined' && app._climaPartida) ? app._climaPartida.ritmo : 'normal', tom: (typeof app !== 'undefined' && app._climaPartida) ? app._climaPartida.tom : 'normal', tema: (typeof app !== 'undefined' && app._climaPartida) ? app._climaPartida.tema : 'brasileirao' });
+        }, { estilo, craque, regra, seed, condicao: (typeof app !== 'undefined' && app._condicaoJogo) ? app._condicaoJogo : 'normal', minDurMs: (typeof app !== 'undefined' && app._partidaMinDurMs) ? app._partidaMinDurMs() : 0, tempoMin: (typeof app !== 'undefined' && app._tempoPartida) ? app._tempoPartida : 90, ritmo: (typeof app !== 'undefined' && app._climaPartida) ? app._climaPartida.ritmo : 'normal', tom: (typeof app !== 'undefined' && app._climaPartida) ? app._climaPartida.tom : 'normal', tema: (typeof app !== 'undefined' && app._climaPartida) ? app._climaPartida.tema : 'brasileirao' });
         this.activeMatch.start();
     },
 
@@ -3877,7 +3902,7 @@ const Engine = {
             const matchScorers = (this.activeMatch && this.activeMatch.matchScorers) || {};
             this.activeMatch = null;
             onFinish(h, a, xpBase, matchScorers, pen || null);
-        }, { estilo, craque, regra, seed, minDurMs: (typeof app !== 'undefined' && app._partidaMinDurMs) ? app._partidaMinDurMs() : 0, tempoMin: (typeof app !== 'undefined' && app._tempoPartida) ? app._tempoPartida : 90, ritmo: (typeof app !== 'undefined' && app._climaPartida) ? app._climaPartida.ritmo : 'normal', tom: (typeof app !== 'undefined' && app._climaPartida) ? app._climaPartida.tom : 'normal', tema: (typeof app !== 'undefined' && app._climaPartida) ? app._climaPartida.tema : 'classico' });
+        }, { estilo, craque, regra, seed, condicao: (typeof app !== 'undefined' && app._condicaoJogo) ? app._condicaoJogo : 'normal', minDurMs: (typeof app !== 'undefined' && app._partidaMinDurMs) ? app._partidaMinDurMs() : 0, tempoMin: (typeof app !== 'undefined' && app._tempoPartida) ? app._tempoPartida : 90, ritmo: (typeof app !== 'undefined' && app._climaPartida) ? app._climaPartida.ritmo : 'normal', tom: (typeof app !== 'undefined' && app._climaPartida) ? app._climaPartida.tom : 'normal', tema: (typeof app !== 'undefined' && app._climaPartida) ? app._climaPartida.tema : 'classico' });
         this.activeMatch.start();
     },
 
@@ -4275,6 +4300,11 @@ class UI {
                 '  ×  ' + Math.round((adv ? adv.getForcaTotal() : 0) * 10) / 10;
     if (typeof app !== 'undefined' && app._craquePartida && app._craquePartida.nome) {
         forca += ' · 🌟 CRAQUE: ' + app._craquePartida.nome;
+    }
+    // G2: clima de jogo no cabeçalho do rádio.
+    if (typeof app !== 'undefined' && app._condicaoJogo) {
+        const ci = (typeof CONDICOES_JOGO !== 'undefined' && CONDICOES_JOGO[app._condicaoJogo]) ? CONDICOES_JOGO[app._condicaoJogo] : null;
+        if (ci) forca += ' · 🌡️ ' + ci.rotulo;
     }
     MatchUI.init(meuNome, advNome, competicao, forca, (typeof app !== 'undefined' && app._craquePartida) ? app._craquePartida.nome : null);
   }
@@ -6419,6 +6449,8 @@ const app = {
 
         const league = Object.assign(new League(), leagueRaw);
         if (league.saveVersion == null) league.saveVersion = 1;
+        // G2: clima por rodada — saves antigos não tinham o campo.
+        if (league.climaRodada == null || typeof league.climaRodada !== 'object') league.climaRodada = null;
         league.clubes = league.clubes.map(c => {
             if (!c || typeof c !== 'object') return null;
             const cl = Object.assign(new Club(), c);
@@ -7551,6 +7583,26 @@ const app = {
         if (selo) selo.innerText = clima.rotulo;
         return clima;
     },
+    // G2: condição de campo (clima de jogo). Estável por rodada via league.climaRodada —
+    // NÃO confundir com _climaPartida (tema visual do modo: brasileirao/champions/final…).
+    _sortearCondicao() {
+        const L = this.league;
+        const rodada = (L && L.rodada) || 1;
+        if (L && L.climaRodada && L.climaRodada.rodada === rodada && L.climaRodada.condicao) {
+            this._condicaoJogo = L.climaRodada.condicao;
+            return this._condicaoJogo;
+        }
+        // Normal é o mais comum; sol/chuva/lama aparecem como tempero.
+        const pool = ['normal', 'normal', 'normal', 'sol', 'chuva', 'lama'];
+        const c = pool[Math.floor(Math.random() * pool.length)];
+        this._condicaoJogo = c;
+        if (L) L.climaRodada = { rodada: rodada, condicao: c };
+        return c;
+    },
+    _condicaoInfo() {
+        const c = this._condicaoJogo || 'normal';
+        return (typeof CONDICOES_JOGO !== 'undefined' && CONDICOES_JOGO[c]) ? CONDICOES_JOGO[c] : { rotulo: 'TEMPO BOM', flavor: '', lambdaMul: 1 };
+    },
     _camisaDoClube() {
         const nome = (this.club && this.club.nome) || 'CLUBE';
         let h = 0;
@@ -7570,6 +7622,9 @@ const app = {
             + '  ·  ⏱️ ' + tempo + ' minutos'
             + '  ·  🎽 Camisa ' + camisa
             + '  ·  🧩 ' + form;
+        // G2: condição do campo na apresentação do pré-jogo.
+        const cinfo = this._condicaoInfo();
+        if (this._condicaoJogo) txt += '  ·  🌡️ ' + cinfo.rotulo;
         if (ehFinal) txt += '  ·  🏆 FINAL — introdução de estreia';
         el.innerText = txt;
     },
@@ -7683,6 +7738,13 @@ const app = {
             if (adv && adv.formacao) {
                 txt += ` Rival no ${adv.formacao}` + (adv.mentalidade && adv.mentalidade !== 'equilibrada' ? ` (${adv.mentalidade})` : '') + '.';
             }
+            // G2: clima do jogo na preparação — força adaptação de estilo.
+            this._sortearCondicao();
+            const cinfo = this._condicaoInfo();
+            txt += ' 🌡️ ' + cinfo.rotulo + '.';
+            if (this._condicaoJogo === 'lama') txt += ' Gramado pesado: prefira retranca ou bola longa.';
+            else if (this._condicaoJogo === 'chuva') txt += ' Cuidado com passes curtos — bola escorrega.';
+            else if (this._condicaoJogo === 'sol') txt += ' Gramado seco: jogo aberto e mais gols.';
             if (this._isClassico) txt += ' 🏟️ Clássico da Semana: rival mais forte, jogo pegado (mais faltas e cartões).';
             else if (this._isTorneio) txt += ' ⚡ Torneio Relâmpago: vitória vale a vaga na próxima fase (' + this._torneioFaseNome() + ').';
             txt += ' Escolha o estilo de jogo e um craque emprestado (1 por dia) para reforçar o time só nesta partida.';
