@@ -2445,6 +2445,8 @@ class Player {
 // sem campo novo nem sorteio no load (que mudaria a cada carregamento).
 const _FORMACOES_IA = ['4-4-2', '4-3-3', '3-5-2', '5-3-2'];
 const _MENTALIDADES_IA = ['equilibrada', 'ofensiva', 'defensiva'];
+// G5: perfil de JOGO (comportamento em campo, não só bônus de _poder).
+const _PERFIS_JOGO = ['posse', 'contra_ataque', 'retranca_copeira'];
 function _perfilTatico(nome) {
   let h = 0;
   const s = String(nome || '');
@@ -2453,11 +2455,8 @@ function _perfilTatico(nome) {
   const x = (h ^ (h >>> 13)) >>> 0;
   return {
     formacao: _FORMACOES_IA[x % _FORMACOES_IA.length],
-    mentalidade: _MENTALIDADES_IA[(x >>> 5) % _MENTALIDADES_IA.length]
-  };
-  return {
-    formacao: _FORMACOES_IA[(h >>> 29) % _FORMACOES_IA.length],
-    mentalidade: _MENTALIDADES_IA[(h >>> 5) % _MENTALIDADES_IA.length]
+    mentalidade: _MENTALIDADES_IA[(x >>> 5) % _MENTALIDADES_IA.length],
+    perfilJogo: _PERFIS_JOGO[(x >>> 10) % _PERFIS_JOGO.length]
   };
 }
 
@@ -2480,6 +2479,8 @@ class Club {
     const perfil = isUser ? null : _perfilTatico(nome);
     this.formacao = perfil ? perfil.formacao : "4-4-2";
     this.mentalidade = perfil ? perfil.mentalidade : "equilibrada";
+    // G5: como o time joga em campo (posse / contra_ataque / retranca_copeira).
+    this.perfilJogo = perfil ? perfil.perfilJogo : null;
     this.pontos = 0;
     this.vitorias = 0;
     this.empates = 0;
@@ -3071,6 +3072,19 @@ class MatchSim {
     _nomeAdv(pos) { return this._nomeXI(1, pos); }
     _nomeHome(pos) { return this._nomeXI(0, pos); }
 
+    // G5: perfil de jogo de um time (IA). Usuário e saves antigos → null (sem viés).
+    _perfilDe(team) {
+        return (team && team.perfilJogo) || null;
+    }
+
+    _rotuloPerfil(perfil) {
+        return {
+            posse: 'posse de bola',
+            contra_ataque: 'contra-ataque',
+            retranca_copeira: 'retranca copeira'
+        }[perfil] || '';
+    }
+
     _poder(team, isHome) {
         // Fase 7: só os 11 em campo contam; fôlego baixo penaliza o rendimento.
         let el = team.elenco || [];
@@ -3191,16 +3205,27 @@ class MatchSim {
         const quente = this.regra === 'classico'; // clássico: mais faltas e cartões
         const tFim = this.tempoMin || 90;
         const fBias = cond.faltaBias || 0; // G2: lama/chuva geram mais faltas
+        // G5: o perfil de jogo da IA muda a MESCLA de eventos (não só bônus de força).
+        // posse = mais lances curtos · contra_ataque = mais transição · retranca_copeira = mais falta/defesa.
+        const perfilA = this._perfilDe(this.away); // rival (IA)
+        const perfilH = this._perfilDe(this.home);
+        const biasDe = (perfil) => {
+            if (perfil === 'posse') return { lance: 0.10, falta: -0.02, defesa: -0.03, cartao: -0.02 };
+            if (perfil === 'contra_ataque') return { lance: 0.06, falta: -0.04, defesa: 0.02, cartao: 0 };
+            if (perfil === 'retranca_copeira') return { lance: -0.10, falta: 0.06, defesa: 0.08, cartao: 0.03 };
+            return { lance: 0, falta: 0, defesa: 0, cartao: 0 };
+        };
         for (let m = 1; m <= tFim; m += Math.round(this._rnd(1, 3.2))) {
             const roll = this.rng();
             const side = this._roll(0.5) ? 0 : 1;
+            const bias = biasDe(side === 0 ? perfilH : perfilA);
             if (m >= tFim - 4 && roll < 0.16) { R.push({ min: m, tipo: 'acrescimo', side }); continue; }
-            if (roll < 0.26) R.push({ min: m, tipo: 'lance', side });
-            else if (roll < 0.40 + fBias) R.push({ min: m, tipo: 'falta', side });
-            else if (roll < 0.50 + fBias) R.push({ min: m, tipo: 'lance', side });
-            else if (roll < 0.58 + fBias) R.push({ min: m, tipo: 'cartao', side });
+            if (roll < 0.26 + bias.lance) R.push({ min: m, tipo: 'lance', side });
+            else if (roll < 0.40 + fBias + bias.falta) R.push({ min: m, tipo: 'falta', side });
+            else if (roll < 0.50 + fBias + bias.lance * 0.5) R.push({ min: m, tipo: 'lance', side });
+            else if (roll < 0.58 + fBias + bias.cartao) R.push({ min: m, tipo: 'cartao', side });
             else if (roll < 0.69 + fBias) R.push({ min: m, tipo: 'escanteio', side });
-            else if (roll < 0.80 + fBias) R.push({ min: m, tipo: 'defesa', side });
+            else if (roll < 0.80 + fBias + bias.defesa) R.push({ min: m, tipo: 'defesa', side });
             else if (roll < 0.86 + fBias) R.push({ min: m, tipo: 'lesao', side });
             else R.push({ min: m, tipo: 'lance', side });
             if (quente && this._roll(0.18)) {
@@ -3221,6 +3246,32 @@ class MatchSim {
                 "Amistoso pede calma: " + j + " mantém a posse e a torcida aproveita o sol.",
                 "Jogo de coração leve, " + j + " só administra a bola.",
                 "Sem pressa no placar — " + j + " experimenta o passe longo."
+            ]);
+        }
+        // G5: o rádio descreve o perfil de quem está com a bola.
+        const perfil = this._perfilDe(team);
+        if (perfil === 'posse') {
+            return this._pick([
+                "O " + (team === this.home ? "mandante" : "visitante") + " segura a bola e trabalha a posse com paciência.",
+                j + " gira o jogo e ninguém tira a bola do pé — posse sufocante.",
+                "Sequência de passes curtos do " + (team === this.home ? "time da casa" : "time de fora") + " no meio-campo.",
+                "Cadência alta: " + j + " dita o ritmo e a torcida pede velocidade."
+            ]);
+        }
+        if (perfil === 'contra_ataque') {
+            return this._pick([
+                "Bola recuperada! O " + (team === this.home ? "mandante" : "visitante") + " já sai em velocidade.",
+                j + " ajeita de primeira e lança o contra-ataque — perigo na área!",
+                "Transição rápida! A defesa se divide para acompanhar o " + (team === this.home ? "time da casa" : "time de fora") + ".",
+                "Recuo proposital e a resposta vem em um passe: " + j + " acelera."
+            ]);
+        }
+        if (perfil === 'retranca_copeira') {
+            return this._pick([
+                "Linha baixa do " + (team === this.home ? "mandante" : "visitante") + " — a bola vive longe da área.",
+                j + " segura a falta e o " + (team === this.home ? "time da casa" : "time de fora") + " administra o tempo.",
+                "Bloco compacto: " + j + " fecha o espaço e não dá linha de passe.",
+                "Cera e controle: o " + (team === this.home ? "time da casa" : "time de fora") + " sabe o que quer do jogo."
             ]);
         }
         return this._pick([
@@ -4724,9 +4775,14 @@ class UI {
     if (myNameEl) myNameEl.innerText = app.club.nome;
     if (advNameEl) advNameEl.innerText = adv ? adv.nome : "Rival";
     const advFormEl = document.getElementById('ui-adv-formation');
-    if (advFormEl) advFormEl.innerText = adv && adv.formacao
-        ? adv.formacao + (adv.mentalidade && adv.mentalidade !== 'equilibrada' ? ' · ' + adv.mentalidade : '')
+    if (advFormEl) {
+        const perfilTxt = (adv && adv.perfilJogo)
+            ? ' · ' + ({ posse: 'posse', contra_ataque: 'contra-ataque', retranca_copeira: 'retranca' }[adv.perfilJogo] || adv.perfilJogo)
+            : '';
+        advFormEl.innerText = adv && adv.formacao
+        ? adv.formacao + (adv.mentalidade && adv.mentalidade !== 'equilibrada' ? ' · ' + adv.mentalidade : '') + perfilTxt
         : '';
+    }
 
     // Rodada do Dia: card visível apenas se ainda não foi disputada hoje.
     const dailyEl = document.getElementById('daily-challenge-card');
@@ -6803,6 +6859,10 @@ const app = {
             club.formacao = perfil.formacao;
             club.mentalidade = perfil.mentalidade;
         }
+        // G5: perfil de jogo da IA (estável por nome). Save antigo → preenche via hash.
+        if (!club.isUser && club.perfilJogo == null) {
+            club.perfilJogo = _perfilTatico(club.nome).perfilJogo;
+        }
     },
 
     stadiumRevenue() { return this.club ? this.club.stadiumRevenue() : 15000; },
@@ -7893,6 +7953,11 @@ const app = {
             let txt = 'Força do seu time: ' + pf + '  ×  Rival: ' + af + '.';
             if (adv && adv.formacao) {
                 txt += ` Rival no ${adv.formacao}` + (adv.mentalidade && adv.mentalidade !== 'equilibrada' ? ` (${adv.mentalidade})` : '') + '.';
+            }
+            // G5: como o rival joga de verdade (posse / contra-ataque / retranca).
+            if (adv && adv.perfilJogo) {
+                const rot = { posse: 'gosta de posse e troca de passes', contra_ataque: 'sai em contra-ataque', retranca_copeira: 'joga de retranca e cera' }[adv.perfilJogo] || '';
+                if (rot) txt += ' 📖 Rival: ' + rot + ' — adapte o estilo.';
             }
             // G2: clima do jogo na preparação — força adaptação de estilo.
             this._sortearCondicao();
