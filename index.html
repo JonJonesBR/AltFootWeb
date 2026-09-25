@@ -3905,8 +3905,11 @@ class MatchSim {
                 this._emit(this._fraseDef(isHome ? this.home : this.away), 'def');
                 this.chutes[isHome ? 0 : 1]++;
             } else {
-                this._emit(this._fraseMiss(isHome ? this.home : this.away), 'info');
+                const missTxt = this._fraseMiss(isHome ? this.home : this.away);
+                this._emit(missTxt, 'info');
                 this.chutes[isHome ? 0 : 1]++;
+                // C5: batida na trave quando a narração cita a trave.
+                if (typeof ui !== 'undefined' && missTxt && missTxt.indexOf('trave') >= 0) ui.synthTrave();
             }
             MatchUI.clock(this.minuto);
             MatchUI.status('BOLA ROLANDO...');
@@ -3945,6 +3948,7 @@ class MatchSim {
         MatchUI.status('FIM DE JOGO');
         if (typeof ui !== 'undefined') {
             ui.playSFX('sfx_whistle', 0.7);
+            ui.synthApito(true); // C5: apito final procedural
             if (ui.pararNarracao) ui.pararNarracao();
         }
         const h = this.scoreH, a = this.scoreA;
@@ -4206,6 +4210,8 @@ class UI {
       screen.classList.remove('hidden');
       this.currentScreen = screenId;
     }
+    // C5: estática de sintonia de rádio ao trocar de tela (sutil, com cooldown).
+    this.synthEstatica();
   }
 
   showSubscreen(subscreenId) {
@@ -4439,6 +4445,7 @@ class UI {
     this.initAudio();
     this.playBGM('match');
     this.playSFX('sfx_whistle', 0.7);
+    this.synthApito(false); // C5: apito procedural no início
     const clima = (typeof app !== 'undefined' && app._aplicarTemaPartida) ? app._aplicarTemaPartida() : null;
     const adv = (typeof app !== 'undefined' && app.league && app.getNextOpponent) ? app.getNextOpponent() : null;
     const meuNome = (typeof app !== 'undefined' && app.club && app.club.nome) || 'MEC';
@@ -4536,6 +4543,7 @@ class UI {
   showGoalAnimation(isPlayerGoal, autor, minuto, dramatico) {
     const notif = document.getElementById('ui-goal-notification');
     if (!notif) return;
+    this.synthGolEstouro(); // C5: estouro de gol (distinto do click)
     const h1 = notif.querySelector('h1');
     const titulo = isPlayerGoal ? 'GOOOOL!!' : 'GOL SOFRIDO';
     const sub = autor ? (autor.nome + (minuto ? ' aos ' + minuto + "'" : '')) : null;
@@ -5416,6 +5424,155 @@ class UI {
       g2.gain.value = vol * 0.3;
       osc2.connect(g2); g2.connect(master);
       osc2.start(t0); osc2.stop(t0 + dur + 0.02);
+    } catch (_) {}
+  }
+
+  // ---- C5: áudio procedural (Web Audio, zero arquivo novo) ----
+  // Respeita settings.sfx / sfxVol; guarda para browsers sem AudioContext (como synthBip).
+  _synthCtx() {
+    try {
+      if (typeof app !== 'undefined' && app.settings && !app.settings.sfx) return null;
+      if (!this.audioContext) {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return null;
+        this.audioContext = new AC();
+      }
+      const ctx = this.audioContext;
+      if (ctx.state === 'suspended') ctx.resume();
+      return ctx;
+    } catch (_) { return null; }
+  }
+  _synthVol(base) {
+    const master = (typeof app !== 'undefined' && app.settings && typeof app.settings.sfxVol === 'number') ? app.settings.sfxVol : 1;
+    return Math.max(0, Math.min(1, base * master));
+  }
+
+  // Apito do árbitro: ruído filtrado + envelope (início e fim de jogo).
+  synthApito(fim) {
+    try {
+      const ctx = this._synthCtx();
+      if (!ctx) return;
+      const t0 = ctx.currentTime;
+      const vol = this._synthVol(fim ? 0.28 : 0.22);
+      const dur = fim ? 0.55 : 0.38;
+      const len = Math.floor(ctx.sampleRate * dur);
+      const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+      const data = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) {
+        const t = i / ctx.sampleRate;
+        // ruído + dois parciais de assobio
+        data[i] = (Math.random() * 2 - 1) * 0.35
+          + Math.sin(2 * Math.PI * (fim ? 2100 : 2350) * t) * 0.55
+          + Math.sin(2 * Math.PI * (fim ? 3150 : 3520) * t) * 0.25;
+      }
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      const master = ctx.createGain();
+      master.gain.setValueAtTime(0.0001, t0);
+      master.gain.linearRampToValueAtTime(vol, t0 + 0.02);
+      master.gain.setValueAtTime(vol, t0 + dur * 0.55);
+      master.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.value = fim ? 2400 : 2700;
+      bp.Q.value = 2.2;
+      src.connect(bp); bp.connect(master); master.connect(ctx.destination);
+      src.start(t0); src.stop(t0 + dur + 0.02);
+    } catch (_) {}
+  }
+
+  // Estática de sintonia de rádio (troca de tela) — sutil e curta.
+  synthEstatica() {
+    try {
+      const ctx = this._synthCtx();
+      if (!ctx) return;
+      // cooldown para não poluir em navegação rápida
+      const agora = Date.now();
+      if (this._ultimaEstatica && agora - this._ultimaEstatica < 900) return;
+      this._ultimaEstatica = agora;
+      const t0 = ctx.currentTime;
+      const vol = this._synthVol(0.055);
+      const dur = 0.16;
+      const len = Math.floor(ctx.sampleRate * dur);
+      const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+      const data = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1);
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      const master = ctx.createGain();
+      master.gain.setValueAtTime(vol, t0);
+      master.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.value = 1800;
+      bp.Q.value = 0.9;
+      src.connect(bp); bp.connect(master); master.connect(ctx.destination);
+      src.start(t0); src.stop(t0 + dur + 0.02);
+    } catch (_) {}
+  }
+
+  // Estouro de gol: pitch drop + harmônico curto (distinto do click).
+  synthGolEstouro() {
+    try {
+      const ctx = this._synthCtx();
+      if (!ctx) return;
+      const t0 = ctx.currentTime;
+      const vol = this._synthVol(0.32);
+      const dur = 0.42;
+      const osc = ctx.createOscillator();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(220, t0);
+      osc.frequency.exponentialRampToValueAtTime(55, t0 + dur);
+      const master = ctx.createGain();
+      master.gain.setValueAtTime(0.0001, t0);
+      master.gain.linearRampToValueAtTime(vol, t0 + 0.02);
+      master.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      const lp = ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = 900;
+      osc.connect(lp); lp.connect(master); master.connect(ctx.destination);
+      osc.start(t0); osc.stop(t0 + dur + 0.02);
+      // estalo de "impacto"
+      const len = Math.floor(ctx.sampleRate * 0.05);
+      const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+      const noise = ctx.createBufferSource();
+      noise.buffer = buf;
+      const ng = ctx.createGain();
+      ng.gain.value = this._synthVol(0.2);
+      noise.connect(ng); ng.connect(ctx.destination);
+      noise.start(t0);
+    } catch (_) {}
+  }
+
+  // Batida na trave: sine curto ~180Hz + click.
+  synthTrave() {
+    try {
+      const ctx = this._synthCtx();
+      if (!ctx) return;
+      const t0 = ctx.currentTime;
+      const vol = this._synthVol(0.3);
+      const osc = ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(185, t0);
+      osc.frequency.exponentialRampToValueAtTime(120, t0 + 0.28);
+      const master = ctx.createGain();
+      master.gain.setValueAtTime(0.0001, t0);
+      master.gain.linearRampToValueAtTime(vol, t0 + 0.008);
+      master.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.32);
+      osc.connect(master); master.connect(ctx.destination);
+      osc.start(t0); osc.stop(t0 + 0.35);
+      const len = Math.floor(ctx.sampleRate * 0.02);
+      const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+      const click = ctx.createBufferSource();
+      click.buffer = buf;
+      const cg = ctx.createGain();
+      cg.gain.value = this._synthVol(0.18);
+      click.connect(cg); cg.connect(ctx.destination);
+      click.start(t0);
     } catch (_) {}
   }
 
