@@ -2347,6 +2347,8 @@ class Player {
     }
     
     this.raridade = this.calcularRaridade(this.overall);
+    // C3: tier de coleção (sticky — sobe por marcos, não desce com o OVR).
+    this.tier = this.raridade;
     this.custoEnergia = this.calcularCustoEnergia(this.raridade);
     this.staminaConsumption = Math.max(2, 12 - Math.floor(this.overall / 10));
     this.stats = this.gerarStatsPorPosicao(this.posicao, this.overall);
@@ -2431,6 +2433,37 @@ class Player {
       this.subirNivel();
     }
   }
+
+  // C3: promoção de tier por marcos de carreira (partidas / gols / assistências).
+  // Sobe NO MÁXIMO um degrau por chamada (sem loop); tier é sticky (não desce com o OVR).
+  avaliarPromocaoTier() {
+    const ordem = ['Bronze', 'Prata', 'Ouro', 'Diamante'];
+    const marcos = {
+      'Prata':    { partidas: 8,  gols: 4,  assistencias: 4 },
+      'Ouro':     { partidas: 20, gols: 12, assistencias: 8 },
+      'Diamante': { partidas: 40, gols: 25, assistencias: 15 }
+    };
+    const atual = this.tier || this.raridade || 'Bronze';
+    const idx = ordem.indexOf(atual);
+    if (idx < 0 || idx >= ordem.length - 1) return false;
+    const prox = ordem[idx + 1];
+    const m = marcos[prox];
+    if (!m) return false;
+    const ok = (this.partidas || 0) >= m.partidas
+      || (this.gols || 0) >= m.gols
+      || (this.assistencias || 0) >= m.assistencias;
+    if (!ok) return false;
+    this.tier = prox;
+    if (typeof ui !== 'undefined') {
+      ui.playSFX('sfx_notify', 0.7);
+      if (ui.burstParticles) {
+        const cores = { 'Prata': ['#cbd5e1', '#94a3b8'], 'Ouro': ['#fbbf24', '#f59e0b'], 'Diamante': ['#38bdf8', '#7dd3fc'] }[prox] || ['#22d3ee', '#3b82f6'];
+        ui.burstParticles(window.innerWidth / 2, window.innerHeight / 2, 32, cores.concat(['#f8fafc']));
+      }
+      ui.showActionFeedback(`⭐ ${this.nome} evoluiu para o tier ${prox}!`, 'success');
+    }
+    return true;
+  }
   // Overall efetivo: moral individual pesa no rendimento (Fase 5).
   // Padrão do clube (getForcaTotal): moral < 30 → −3, ≥ 85 → +1, meio termo neutro.
   // Champ: insatisfeito rende menos em campo — fonte de variação: resultado, salário, contrato curto.
@@ -2459,6 +2492,8 @@ class Player {
     const s = this.stats;
     this.overall = Math.floor((s.GK + s.DEF + s.MID + s.ATT + s.VEL + s.PAS + s.FIN) / 7);
     this.raridade = this.calcularRaridade(this.overall);
+    // C3: tier é sticky — recalcularOverall NÃO derruba a promoção por marcos.
+    if (this.tier == null) this.tier = this.raridade;
     this.custoEnergia = this.calcularCustoEnergia(this.raridade);
     this.staminaConsumption = Math.max(2, 12 - Math.floor(this.overall / 10));
     this.valor = this.overall * this.overall * 100;
@@ -5061,7 +5096,8 @@ class UI {
 
     players.forEach(p => {
         const el = document.createElement('div');
-        el.className = `player-card rarity-${p.raridade}`;
+        // C3: a borda/brilho segue o tier de coleção (sticky), não a faixa de OVR.
+        el.className = `player-card rarity-${p.tier || p.raridade}`;
         el.innerHTML = `
             <div class="card-top-row">
               ${this.posBadge(p.posicao)}
@@ -5103,7 +5139,7 @@ class UI {
     this.currentPlayerId = id;
     document.getElementById('player-modal').classList.remove('hidden');
     document.getElementById('modal-player-name').innerText = p.nome;
-    document.getElementById('modal-player-rarity').innerText = `${p.raridade} • Nível ${p.nivel}`;
+    document.getElementById('modal-player-rarity').innerText = `${p.tier || p.raridade} • Nível ${p.nivel}`;
     
     this.renderPlayerXP(p);
     this.renderPlayerRadar(p);
@@ -5260,7 +5296,7 @@ class UI {
     list.innerHTML = '';
     (app.marketPlayers || []).forEach(p => {
         const el = document.createElement('div');
-        el.className = `player-card rarity-${p.raridade}`;
+        el.className = `player-card rarity-${p.tier || p.raridade}`;
         el.innerHTML = `
             <div class="card-top-row">
               ${this.posBadge(p.posicao)}
@@ -5287,7 +5323,7 @@ class UI {
   openPackAnimation(reward) {
     const overlay = document.getElementById('pack-opening-overlay');
     if (!overlay) return;
-    const tier = this.packTier(reward.raridade);
+    const tier = this.packTier(reward.tier || reward.raridade);
 
     this.playBGM('tension');
     const rc = document.getElementById('pack-reveal-card');
@@ -5302,7 +5338,7 @@ class UI {
   revealCard(card, tier) {
     const overlay = document.getElementById('pack-opening-overlay');
     if (!overlay) return;
-    tier = tier || this.packTier(card.raridade);
+    tier = tier || this.packTier(card.tier || card.raridade);
 
     const title = document.getElementById('pack-title');
     if (title) title.innerText = 'REVELAÇÃO!';
@@ -5313,7 +5349,7 @@ class UI {
     if (rc) {
       rc.style.display = 'flex';
       rc.innerHTML = `
-        <div class="player-card rarity-${card.raridade || 'Bronze'} pack-flip" style="width:115px; height:155px; padding:8px; border-color:${tier.color}; box-shadow:0 0 34px ${tier.color}55;">
+        <div class="player-card rarity-${card.tier || card.raridade || 'Bronze'} pack-flip" style="width:115px; height:155px; padding:8px; border-color:${tier.color}; box-shadow:0 0 34px ${tier.color}55;">
           ${this.posBadge(card.posicao || (isTactic ? 'TAC' : 'RES'))}
           ${ovr ? `<div class="card-ovr" style="font-size:1.4rem;">${ovr}</div>` : ''}
           <div class="card-name">${card.nome}</div>
@@ -7262,6 +7298,8 @@ const app = {
             if (p.origem == null) p.origem = 'mercado';
             // C2: save antigo já exibia o potencial → mantém visível; novos contratos às cegas ficam ocultos.
             if (p.potencialRevelado == null) p.potencialRevelado = (p.potencial != null);
+            // C3: tier de coleção — save antigo herda a raridade atual.
+            if (p.tier == null) p.tier = p.raridade || 'Bronze';
             if (p.stats == null || typeof p.stats !== 'object') {
                 p.stats = typeof p.gerarStatsPorPosicao === 'function'
                     ? p.gerarStatsPorPosicao(p.posicao, p.overall || 55) : {};
@@ -8845,6 +8883,10 @@ const app = {
         this.club.elenco.forEach(p => {
             p.contratoRodadas = Math.max(0, (p.contratoRodadas == null ? 8 : p.contratoRodadas) - 1);
             p.partidas = (p.partidas || 0) + 1;
+            // C3: avalia promoção de tier por marcos (sobe 1 degrau, sem loop).
+            if (typeof p.avaliarPromocaoTier === 'function') {
+                try { p.avaliarPromocaoTier(); } catch (e) { /* promoção nunca quebra o fecho */ }
+            }
             p.treinoRodada = false; // novo limite de treino pago (Fase 6)
             // Moral individual (Fase 5): resultado + salário defasado do overall + ausência por lesão.
             let d = deltaMoral;
