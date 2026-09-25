@@ -1421,6 +1421,15 @@ body {
    <div id="ui-fan-msg" style="font-size: 0.72rem; color: var(--text-muted); margin-top: 6px;">—</div>
  </div>
 
+ <!-- C1: Patrocínio -->
+ <div class="card" style="margin-bottom: 14px;">
+   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+     <span style="font-size: 0.72rem; font-weight: 900; letter-spacing: 1px; color: var(--text);">💼 PATROCÍNIO</span>
+     <button class="deck-filter-btn" style="font-size: 0.65rem; padding: 3px 8px; cursor: pointer;" onclick="app.abrirPatrocinio()">TROCAR</button>
+   </div>
+   <div id="ui-patrocinio-msg" style="font-size: 0.72rem; color: var(--text-muted);">—</div>
+ </div>
+
  <!-- Rodada do Dia -->
  <div id="daily-challenge-card" style="display: none; margin-bottom: 14px; text-align: center; padding: 12px; border: 1px solid var(--accent); border-radius: 14px; background: rgba(245,158,11,0.08);">
   <div style="font-size: 0.72rem; font-weight: 900; letter-spacing: 2px; color: var(--accent); margin-bottom: 6px;">⚡ RODADA DO DIA</div>
@@ -1786,6 +1795,20 @@ body {
     <div class="prep-note" style="margin-top: 10px; text-align: left;">
       Cartas gastam <strong>Foco</strong> e valem por alguns minutos simulados. O Foco recarrega sozinho e a cada decisão respondida a tempo.
     </div>
+  </div>
+</div>
+
+<!-- C1: escolha de patrocínio -->
+<div id="modal-patrocinio" class="modal hidden">
+  <div class="modal-content" style="padding: 20px; width: 94%; max-width: 440px; text-align: center; max-height: 90vh; overflow-y: auto;">
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-bottom: 10px;">
+      <h2 style="margin: 0; font-weight: 900; font-size: 1.15rem; color: var(--accent);">💼 PATROCINADORES</h2>
+      <button onclick="app.fecharPatrocinio()" style="background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; padding: 4px;">&times;</button>
+    </div>
+    <div class="prep-note" style="text-align: left; margin-bottom: 10px;">
+      Escolha um contrato para a temporada. <strong>Fixo</strong> cai toda rodada; <strong>arrojado</strong> paga menos por rodada, mas tem bônus gordo se a meta for cumprida (só 1×).
+    </div>
+    <div id="patrocinio-ofertas" style="display: flex; flex-direction: column; gap: 8px;"></div>
   </div>
 </div>
 
@@ -2460,6 +2483,31 @@ function _perfilTatico(nome) {
   };
 }
 
+// C1: oferta de patrocínio — fixo garantido vs arrojado (pouco fixo + bônus por meta).
+// metas[].pago garante pagamento único (não duplica em CONTINUAR).
+const PATROCINIOS = [
+  {
+    id: 'p_fixo', nome: 'Banco Estadual', tipo: 'fixo', fixo: 40000,
+    desc: 'Verba garantida toda rodada. Sem susto, sem meta.',
+    metas: []
+  },
+  {
+    id: 'p_g4', nome: 'Energia Max', tipo: 'arrojado', fixo: 15000,
+    desc: 'Fixo menor + bônus gordo se o time terminar no G4.',
+    metas: [{ id: 'g4', rotulo: 'Terminar no G4', tipo: 'posicao', valor: 4, bonus: 250000, pago: false }]
+  },
+  {
+    id: 'p_titulo', nome: 'SuperLoja Nacional', tipo: 'arrojado', fixo: 12000,
+    desc: 'Fixo baixo + prêmio enorme se for campeão.',
+    metas: [{ id: 'titulo', rotulo: 'Ser campeão', tipo: 'titulo', valor: 1, bonus: 500000, pago: false }]
+  },
+  {
+    id: 'p_classico', nome: 'Cervejaria do Povo', tipo: 'arrojado', fixo: 18000,
+    desc: 'Bônus por cada vitória em Clássico da Semana.',
+    metas: [{ id: 'classico', rotulo: 'Vencer 1 clássico', tipo: 'classico', valor: 1, bonus: 150000, pago: false }]
+  }
+];
+
 class Club {
   constructor(nome, isUser = false, fraca = false) {
     this.nome = nome;
@@ -2496,6 +2544,8 @@ class Club {
     this.consecDerrotas = 0;    // sequência atual de derrotas (pressão da diretoria)
     this.consecVitorias = 0;    // sequência atual de vitórias
     this.consecSemSofrerGol = 0; // sequência de jogos sem sofrer gol
+    // C1: contrato de patrocínio (null = ainda não escolheu; legado usa fórmula do patrimônio).
+    this.patrocinio = null;
 
     if (nome) this.gerarElencoInicial();
   }
@@ -2505,8 +2555,14 @@ class Club {
     const base = 15000 + (this.estadioNivel - 1) * 20000; // R$ por rodada
     const asc = (typeof app !== 'undefined' && app.club && this.isUser) ? (app.club.ascensaoNivel || 0) : 0;
     const mult = Math.max(0.5, 1 - asc * 0.1); // degraus de ascensão encolhem a bilheteria
-    // Patrocinadores acompanham o patrimônio do clube: renda passiva extra (+4k a cada R$2M, cap R$30k).
-    const patrocinio = Math.min(30000, Math.floor((this.patrimonio || 0) / 2000000) * 4000);
+    // C1: patrocinio por contrato (fixo/arrojado). Save antigo (legado/passivo) mantém a fórmula do patrimônio.
+    let patrocinio;
+    const pat = this.patrocinio;
+    if (pat && pat.ativo && pat.tipo && pat.tipo !== 'passivo') {
+      patrocinio = pat.fixo || 0;
+    } else {
+      patrocinio = Math.min(30000, Math.floor((this.patrimonio || 0) / 2000000) * 4000);
+    }
     // Aprovação da torcida: 0.5x (torcida contra) até 1.5x (clube em festa)
     const fansMult = 0.5 + ((this.fans == null ? 50 : this.fans) / 100) * 1.0;
     return Math.round((base * mult + patrocinio) * fansMult);
@@ -2548,7 +2604,7 @@ class Club {
     if (!this.isUser || !Array.isArray(this.missoes)) return;
     this.missoes.forEach(m => {
       if (m.concluida) return;
-      
+
       if (m.tipo === tipo) {
           const live = this._missionProgress(m);
           if (live != null) {
@@ -2556,10 +2612,51 @@ class Club {
           } else {
               m.progresso += valor;
           }
-          
+
           if (m.progresso >= m.meta) this._completarMissao(m);
       }
     });
+  }
+
+  // C1: confere metas do patrocínio. Paga bônus UMA vez (meta.pago).
+  // evento: { tipo: 'classico'|'vitoria'|'titulo'|'posicao', valor, posicao }
+  checkPatrocinioMetas(evento) {
+    if (!this.isUser || !this.patrocinio || !Array.isArray(this.patrocinio.metas)) return 0;
+    let total = 0;
+    this.patrocinio.metas.forEach(m => {
+      if (m.pago) return;
+      let ok = false;
+      if (m.tipo === 'classico' && evento && evento.tipo === 'classico') {
+        m.progresso = (m.progresso || 0) + 1;
+        ok = m.progresso >= (m.valor || 1);
+      } else if (m.tipo === 'posicao' && evento && evento.tipo === 'posicao') {
+        // valor = melhor posição aceita (ex. 4 = G4)
+        ok = (evento.posicao != null && evento.posicao <= (m.valor || 4));
+      } else if (m.tipo === 'titulo' && evento && evento.tipo === 'titulo') {
+        ok = true;
+      }
+      if (ok) {
+        m.pago = true;
+        total += (m.bonus || 0);
+      }
+    });
+    if (total > 0) {
+      this.orcamento += total;
+      this.patrimonio = (this.patrimonio || 0) + total;
+    }
+    return total;
+  }
+
+  // Texto curto do contrato para o dashboard.
+  patrocinioResumo() {
+    const p = this.patrocinio;
+    if (!p) return 'Sem contrato — escolha um patrocinador.';
+    if (p.tipo === 'passivo' || p.legado) return 'Patrocínio do patrimônio (legado).';
+    let t = p.nome + ' · +' + (typeof app !== 'undefined' && app.fmtMoneyShort ? app.fmtMoneyShort(p.fixo || 0) : (p.fixo || 0)) + '/rodada';
+    const meta = (p.metas || []).find(m => !m.pago);
+    if (meta) t += ' · meta: ' + meta.rotulo + (meta.tipo === 'classico' ? ' (' + (meta.progresso || 0) + '/' + (meta.valor || 1) + ')' : '');
+    else if ((p.metas || []).length) t += ' · meta cumprida ✓';
+    return t;
   }
 
   // Progresso "ao vivo" para missões que espelham um dado já rastreado (null = tipo por incremento).
@@ -4777,6 +4874,12 @@ class UI {
         statEl.innerText = `Moral ${app.club.moral}% · Fôlego ${avgF}%`;
     }
 
+    // C1: resumo do patrocínio no dashboard.
+    const patEl = document.getElementById('ui-patrocinio-msg');
+    if (patEl) {
+        patEl.innerText = (app.club.patrocinioResumo && app.club.patrocinioResumo()) || '—';
+    }
+
     const adv = app.getNextOpponent();
     const myNameEl = document.getElementById('ui-my-team-name');
     const advNameEl = document.getElementById('ui-adv-team-name');
@@ -6704,6 +6807,69 @@ const app = {
         if (sim._mao && sim._mao.length === 0) this.fecharCartasTaticas();
     },
 
+    // ---- C1: patrocínios com metas ----
+    abrirPatrocinio() {
+        const m = document.getElementById('modal-patrocinio');
+        const box = document.getElementById('patrocinio-ofertas');
+        if (!m || !box || !this.club) return;
+        box.innerHTML = '';
+        PATROCINIOS.forEach(p => {
+            const atual = this.club.patrocinio && this.club.patrocinio.id === p.id;
+            const el = document.createElement('button');
+            el.className = 'carta-mao-btn' + (atual ? ' disabled' : '');
+            el.style.textAlign = 'left';
+            const metasTxt = (p.metas || []).map(m2 => m2.rotulo + ' → +' + this.fmtMoneyShort(m2.bonus)).join(' · ');
+            el.innerHTML = '';
+            const spN = document.createElement('span');
+            spN.className = 'carta-nome';
+            spN.textContent = p.nome + (atual ? ' (atual)' : '');
+            const spC = document.createElement('span');
+            spC.className = 'carta-custo';
+            spC.textContent = '+' + this.fmtMoneyShort(p.fixo) + '/rodada';
+            const spD = document.createElement('span');
+            spD.className = 'carta-desc';
+            spD.textContent = p.desc + (metasTxt ? ' | ' + metasTxt : '');
+            el.appendChild(spN); el.appendChild(spC); el.appendChild(spD);
+            el.onclick = () => {
+                if (atual) return;
+                this.escolherPatrocinio(p.id);
+            };
+            box.appendChild(el);
+        });
+        m.classList.remove('hidden');
+        if (typeof ui !== 'undefined') ui.playSFX('sfx_click', 0.3);
+    },
+
+    fecharPatrocinio() {
+        const m = document.getElementById('modal-patrocinio');
+        if (m) m.classList.add('hidden');
+    },
+
+    escolherPatrocinio(id) {
+        const modelo = (typeof PATROCINIOS !== 'undefined') ? PATROCINIOS.find(p => p.id === id) : null;
+        if (!modelo || !this.club) return;
+        // Cópia profunda simples para o save (metas[].pago é por contrato).
+        this.club.patrocinio = {
+            id: modelo.id,
+            nome: modelo.nome,
+            tipo: modelo.tipo,
+            fixo: modelo.fixo,
+            ativo: true,
+            legado: false,
+            metas: (modelo.metas || []).map(m => ({
+                id: m.id, rotulo: m.rotulo, tipo: m.tipo,
+                valor: m.valor, bonus: m.bonus, pago: false, progresso: 0
+            }))
+        };
+        this.saveGame();
+        if (typeof ui !== 'undefined') {
+            ui.showActionFeedback('💼 Contrato assinado: ' + modelo.nome + ' (+' + this.fmtMoneyShort(modelo.fixo) + '/rodada)', 'success');
+            ui.playSFX('sfx_contract', 0.7);
+            if (ui.updateDashboard) ui.updateDashboard();
+        }
+        this.fecharPatrocinio();
+    },
+
     loadGame() {
         const saved = this.loadSavedData();
         if (saved) {
@@ -6976,6 +7142,10 @@ const app = {
         if (club.aposentados == null) club.aposentados = 0;
         if (club.albumIds == null || !Array.isArray(club.albumIds)) club.albumIds = [];
         if (club.lastCraqueDay == null) club.lastCraqueDay = '';
+        // C1: save antigo sem patrocinio → migra para o modelo passivo (fórmula do patrimônio), zero surpresa.
+        if (club.patrocinio === undefined) {
+            club.patrocinio = { id: 'p_passivo', nome: 'Patrocínio do Patrimônio', tipo: 'passivo', fixo: 0, metas: [], ativo: true, legado: true };
+        }
         // Fase 8: histórico de temporadas + recordes (guarda para saves antigos).
         if (club.historicoTemporadas == null || !Array.isArray(club.historicoTemporadas)) club.historicoTemporadas = [];
         if (club.recordes == null || typeof club.recordes !== 'object') club.recordes = {};
@@ -7912,6 +8082,10 @@ const app = {
         this.autosaveNow();
         this._registrarSessao();
         this._introPrepTocado = false;
+        // C1: carreira nova sem contrato ainda — oferta de patrocínio antes do 1º jogo.
+        if (this.club && this.club.patrocinio == null) {
+            this.abrirPatrocinio();
+        }
         // Antes de entrar em campo: estilo de jogo + craque da rodada
         this._abrirPreparacao();
     },
@@ -8517,13 +8691,22 @@ const app = {
         }
         if (expirando.length) this.saveGame();
 
-        // Renda de bilheteria do estádio
+        // Renda de bilheteria do estádio (inclui fixo do patrocínio C1)
         const gate = this.stadiumRevenue();
         // Bônus de sequência (3+ vitórias seguidas, apenas em vitória) e de dias jogados (streak sem punição).
         const streakGateBonus = ((this.club.consecVitorias || 0) >= 3 && this.lastResult && this.lastResult.h > this.lastResult.a)
             ? Math.round(gate * 0.15) : 0;
         const diasBonus = this._streakBonus ? this._streakBonus() : 0;
         this.club.orcamento += gate + streakGateBonus + diasBonus;
+
+        // C1: metas do patrocínio (clássico paga já; posicao/titulo no fim de temporada).
+        if (this._isClassico && this.lastResult && this.lastResult.h > this.lastResult.a) {
+            const bonusPat = this.club.checkPatrocinioMetas({ tipo: 'classico' });
+            if (bonusPat > 0) {
+                this.league.adicionarNoticia('💰 Patrocínio: meta de clássico cumprida! +' + this.fmtMoneyShort(bonusPat));
+                if (typeof ui !== 'undefined') ui.showActionFeedback('💰 Meta do patrocinador cumprida: +' + this.fmtMoneyShort(bonusPat), 'success');
+            }
+        }
 
         // Folha salarial da rodada
         if (this.club && typeof this.club.pagarSalarios === 'function') this.club.pagarSalarios();
@@ -8699,6 +8882,15 @@ const app = {
         const premio = (naB ? userPos >= 5 : userPos >= 17) ? 0 : premioPos(userPos);
         this.club.orcamento += premio;
         this.club.patrimonio = (this.club.patrimonio || 0) + premio;
+        // C1: metas de patrocínio por posição/título no fim da temporada (paga 1×).
+        try {
+            const bonusPat = this.club.checkPatrocinioMetas(
+                userPos === 1 ? { tipo: 'titulo', posicao: userPos } : { tipo: 'posicao', posicao: userPos }
+            );
+            if (bonusPat > 0) {
+                this.league.adicionarNoticia('💰 Patrocínio: meta da temporada cumprida! +' + this.fmtMoneyShort(bonusPat));
+            }
+        } catch (e) { /* meta nunca quebra o fecho de temporada */ }
         // Campeão de divisão: na A sobe o degrau de dificuldade; título vale em qualquer divisão.
         if (userPos === 1) {
             if (!naB) {
