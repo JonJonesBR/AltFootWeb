@@ -2326,6 +2326,8 @@ class Player {
     this.contratoRodadas = 8 + Math.floor(Math.random() * 8); // rodadas restantes de contrato
     this.clubeId = Math.floor(Math.random() * 20); // Placeholder club mapping
     this.traits = this.gerarTraitsAleatorios();
+    // G4: 'base' (cria do clube) | 'mercado' (contratado). Save antigo → normalize para 'mercado'.
+    this.origem = 'mercado';
   }
 
   gerarTraitsAleatorios() {
@@ -2953,6 +2955,47 @@ function escalarTitularesXI(elenco, formacao) {
     return xi;
 }
 
+// G4: química de elenco — bônus por sinergia entre quem está em campo.
+// Função pura (modelo escalarTitularesXI). Cap de +3 por linha; nunca supera o Craque (+6 atk).
+// Retorna { atk, mid, def, chips:[{label, valor, linha}] }.
+function bonusQuimica(elencoEmCampo) {
+    const el = (elencoEmCampo || []).filter(Boolean);
+    const out = { atk: 0, mid: 0, def: 0, chips: [] };
+    if (el.length < 3) return out;
+    const traitsDe = (p) => (Array.isArray(p.traits) ? p.traits : []);
+    const tem = (p, t) => traitsDe(p).indexOf(t) >= 0;
+    const nBase = el.filter(p => p.origem === 'base').length;
+    const nArt = el.filter(p => tem(p, 'Artilheiro')).length;
+    const nMae = el.filter(p => tem(p, 'Maestro')).length;
+    const nMur = el.filter(p => tem(p, 'Muralha')).length;
+    const nDef = el.filter(p => (p.posicao || '') === 'DEF').length;
+    // Crias da base: 3+ no XI → meio-campo entrosado
+    if (nBase >= 3) {
+        out.mid += 0.5;
+        out.chips.push({ label: '🎓 ' + nBase + ' crias da base', valor: 0.5, linha: 'mid' });
+    }
+    // Artilheiro + Maestro: ataque com armador
+    if (nArt >= 1 && nMae >= 1) {
+        out.atk += 1;
+        out.chips.push({ label: '🔗 Artilheiro + Maestro', valor: 1, linha: 'atk' });
+    }
+    // Muralha + zaga: defesa compacta
+    if (nMur >= 1 && nDef >= 2) {
+        out.def += 1;
+        out.chips.push({ label: '🧱 Muralha + zaga', valor: 1, linha: 'def' });
+    }
+    // Dois Maestros: posse e cadência
+    if (nMae >= 2) {
+        out.mid += 0.75;
+        out.chips.push({ label: '✨ Dois Maestros', valor: 0.75, linha: 'mid' });
+    }
+    // Cap por linha (±3) — nunca supera o bônus do Craque.
+    out.atk = Math.max(-3, Math.min(3, out.atk));
+    out.mid = Math.max(-3, Math.min(3, out.mid));
+    out.def = Math.max(-3, Math.min(3, out.def));
+    return out;
+}
+
 // --- Simulador de partida completo (90 min em eventos) ---
 // G2: condições de jogo (clima). NÃO confundir com _climaPartida (tema visual do modo).
 const CONDICOES_JOGO = {
@@ -3091,6 +3134,11 @@ class MatchSim {
         const cond = CONDICOES_JOGO[this.condicao] || CONDICOES_JOGO.normal;
         a += cond.atk || 0;
         d += cond.def || 0;
+        // G4: química de elenco (sinergias entre quem está em campo).
+        try {
+            const q = bonusQuimica(el);
+            a += q.atk; m += q.mid; d += q.def;
+        } catch (e) { /* sinergia nunca pode derrubar o _poder */ }
         // G1: buffs de cartas táticas valem só para o usuário (lado de casa).
         if (isHome && this._buffs && this._buffs.length) {
             this._buffs.forEach(b => {
@@ -4885,6 +4933,31 @@ class UI {
     const xpMax = p.xpMax || 100;
     const pct = Math.max(0, Math.min(100, (xp / xpMax) * 100));
     const nivelMax = (p.nivel || 1) >= 50;
+    // G4: química — mostra traits e o bônus que este atleta ajuda a formar no XI.
+    const traits = Array.isArray(p.traits) ? p.traits : [];
+    const origemTxt = p.origem === 'base' ? '🎓 Cria da base' : '💼 Do mercado';
+    let quimHtml = '';
+    try {
+        const xi = (app.club && Array.isArray(app.club.escalacaoXI)) ? app.club.escalacaoXI : [];
+        const noXI = xi.indexOf(p.id) >= 0;
+        const emCampo = (app.club && app.club.elenco) ? app.club.elenco.filter(x => xi.indexOf(x.id) >= 0) : [];
+        const q = (typeof bonusQuimica === 'function') ? bonusQuimica(emCampo.length ? emCampo : [p]) : { chips: [] };
+        const minhas = (q.chips || []).filter(c => {
+            if (c.label.indexOf('base') >= 0 && p.origem === 'base') return true;
+            if (c.label.indexOf('Artilheiro') >= 0 && (traits.indexOf('Artilheiro') >= 0 || traits.indexOf('Maestro') >= 0)) return true;
+            if (c.label.indexOf('Muralha') >= 0 && (traits.indexOf('Muralha') >= 0 || p.posicao === 'DEF')) return true;
+            if (c.label.indexOf('Maestros') >= 0 && traits.indexOf('Maestro') >= 0) return true;
+            return false;
+        });
+        const chips = traits.map(t => '<span style="display:inline-block;font-size:0.65rem;font-weight:800;padding:2px 7px;border-radius:999px;border:1px solid rgba(167,139,250,0.5);color:#ddd6fe;margin:0 3px 3px 0;">✦ ' + t + '</span>').join('');
+        const chipsQ = minhas.map(c => '<span style="display:inline-block;font-size:0.65rem;font-weight:800;padding:2px 7px;border-radius:999px;border:1px solid rgba(52,211,153,0.5);color:#6ee7b7;margin:0 3px 3px 0;">' + c.label + ' (+' + c.valor + ')</span>').join('');
+        quimHtml = '<div style="margin-top:6px;text-align:left;">'
+            + '<div style="font-size:0.65rem;font-weight:900;letter-spacing:0.6px;color:var(--text-muted);text-transform:uppercase;margin-bottom:3px;">Química · ' + origemTxt + '</div>'
+            + (chips || '<span style="font-size:0.68rem;color:var(--text-muted);">Sem traits especiais.</span>')
+            + (chipsQ ? '<div style="margin-top:4px;">' + chipsQ + '</div>' : '')
+            + (chipsQ ? '<div style="font-size:0.65rem;color:#6ee7b7;margin-top:3px;">Bônus ativo no XI — sinergia com os companheiros de campo.</div>' : '')
+            + '</div>';
+    } catch (e) { quimHtml = ''; }
     el.innerHTML = `
       <div style="margin: 8px 0 3px; display:flex; justify-content:space-between; align-items:center; gap:8px;">
         <span style="font-size:0.75rem; font-weight:900;">NÍVEL ${p.nivel || 1}</span>
@@ -4893,6 +4966,7 @@ class UI {
       <div style="height:8px; border-radius:999px; background:rgba(255,255,255,0.1); overflow:hidden; border:1px solid var(--border);">
         <div style="height:100%; width:${pct}%; background:linear-gradient(90deg, var(--secondary), #22d3ee); border-radius:999px; transition:width .3s ease;"></div>
       </div>
+      ${quimHtml}
     `;
   }
 
@@ -6708,6 +6782,8 @@ const app = {
             if (p.machucado == null) p.machucado = false;
             if (p.rodadasRecuperacao == null) p.rodadasRecuperacao = 0;
             if (p.traits == null) p.traits = [];
+            // G4: origem do atleta — save antigo não tinha (trate como mercado).
+            if (p.origem == null) p.origem = 'mercado';
             if (p.stats == null || typeof p.stats !== 'object') {
                 p.stats = typeof p.gerarStatsPorPosicao === 'function'
                     ? p.gerarStatsPorPosicao(p.posicao, p.overall || 55) : {};
@@ -6798,6 +6874,7 @@ const app = {
         const p = new Player();
         p.idade = 16 + Math.floor(Math.random() * 3);
         p.folego = 100;
+        p.origem = 'base'; // G4: cria da base conta para química de elenco
         p.overall = 58 + this.club.baseNivel * 2 + Math.floor(Math.random() * 8);
         // Potencial (Fase 6): teto de evolução aleatório da promessa — some o teto ao overall futuro.
         p.potencial = p.overall + 4 + Math.floor(Math.random() * 8);
