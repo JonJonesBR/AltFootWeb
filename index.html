@@ -1005,12 +1005,14 @@ body {
     padding: 11px 14px; border-radius: 10px; border: 1px solid var(--border);
     background: rgba(255,255,255,0.05); color: var(--text-muted); font-weight: 900; font-size: 0.72rem;
     cursor: pointer; transition: all 0.15s ease;
+    min-width: 42px; min-height: 42px;
 }
 .match-speed-btn.active { background: #ffb000; border-color: #ffb000; color: #1a1206; box-shadow: 0 0 12px rgba(255,176,0,0.5); }
 .match-skip-btn {
     padding: 11px 14px; border-radius: 10px; border: 1px solid rgba(255,176,0,0.4);
     background: rgba(255,176,0,0.12); color: #ffb000; font-weight: 900; font-size: 0.72rem; cursor: pointer;
     font-family: ui-monospace, Consolas, 'Courier New', monospace;
+    min-width: 42px; min-height: 42px;
 }
 .match-skip-btn:hover { background: rgba(255,176,0,0.28); }
 #match-status { flex: 1; text-align: center; font-size: 0.7rem; font-weight: 800; color: #ffb000; letter-spacing: 2px; font-family: ui-monospace, Consolas, 'Courier New', monospace; text-shadow: 0 0 8px rgba(255,176,0,0.6); animation: statusBlink 1.6s ease-in-out infinite; }
@@ -1467,6 +1469,7 @@ html, body, * {
     position: relative;
     width: 100%;
     aspect-ratio: 16 / 9;
+    flex: none; /* não encolhe no flex-column da partida */
     border-radius: 12px;
     overflow: hidden;
     border: 1px solid rgba(255,255,255,0.18);
@@ -1534,6 +1537,31 @@ html, body, * {
     box-shadow: 0 0 16px rgba(239,68,68,0.95), 0 0 0 2px rgba(239,68,68,0.7);
     transform: translate(-50%, -50%) scale(1.55);
 }
+/* Rótulo curto (sobrenome) sob a ficha — só em telas onde cabe */
+.campo-chip .chip-label {
+    position: absolute;
+    left: 50%;
+    top: calc(100% + 2px);
+    transform: translateX(-50%);
+    font-size: 0.42rem;
+    font-weight: 800;
+    letter-spacing: 0.2px;
+    color: rgba(255,255,255,0.92);
+    text-shadow: 0 1px 3px rgba(0,0,0,0.9), 0 0 6px rgba(0,0,0,0.7);
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0.85;
+    max-width: 52px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.campo-chip.atacante .chip-label,
+.campo-chip.ativo .chip-label {
+    opacity: 1;
+    color: #fff;
+    font-weight: 900;
+}
+.campo-chip.gk .chip-label { color: #fcd34d; }
 .campo-bola {
     position: absolute;
     width: 9px;
@@ -2257,6 +2285,207 @@ html, body, * {
     margin-right: 2px;
 }
 
+/* ========================================================================= */
+/* RESPONSIVO — celular, tablet, desktop e telas baixas/landscape            */
+/* ========================================================================= */
+
+/* Chips e bola escalam com o campo */
+.campo-chip {
+    width: clamp(10px, 2.4vw, 16px);
+    height: clamp(10px, 2.4vw, 16px);
+}
+.campo-bola {
+    width: clamp(7px, 1.8vw, 12px);
+    height: clamp(7px, 1.8vw, 12px);
+}
+
+/* Telas muito estreitas: esconde rótulos (fica só a ficha colorida) */
+@media (max-width: 380px) {
+    .campo-chip .chip-label { display: none; }
+    .campo-duelo .duelo-mini { min-width: 72px; padding: 6px 8px; }
+    .campo-duelo .duelo-mini .dm-nome { max-width: 80px; font-size: 0.6rem; }
+    .campo-duelo .duelo-mini .dm-ovr { font-size: 0.95rem; }
+    .match-footer-row { flex-wrap: wrap; gap: 4px; }
+    .match-speed-btn, .match-skip-btn { font-size: 0.68rem; padding: 8px 8px; min-height: 40px; min-width: 40px; }
+    .stat-chip { font-size: 0.66rem; padding: 3px 8px; }
+    .decision-btn { font-size: 0.72rem; padding: 10px 6px; min-width: 0; }
+    .score-big { min-width: 88px; letter-spacing: 2px; }
+}
+
+/* Telas baixas (landscape de celular / janela curta): compacta a partida */
+@media (max-height: 640px) {
+    .match-board { padding: 6px; gap: 5px; }
+    .match-header-card { padding: 6px 8px; }
+    .match-top-bar { margin-bottom: 3px; }
+    .how-to-play-btn { padding: 4px 8px; font-size: 0.64rem; }
+    .meta-row { display: none; }
+    .match-narrative-section { min-height: 72px; max-height: 32vh; padding: 5px 8px; }
+    #match-log { font-size: 0.66rem !important; min-height: 18px; margin-bottom: 4px; }
+    .feed-item { padding: 3px 6px; font-size: 0.66rem; }
+    .campo-2d { aspect-ratio: 21 / 9; }
+    .campo-duelo .duelo-mini { min-width: 70px; padding: 5px 8px; }
+    .campo-duelo .duelo-mini .dm-ovr { font-size: 0.95rem; }
+    .campo-duelo .duelo-mini .dm-nome { font-size: 0.58rem; max-width: 84px; }
+    .goal-celebra-mini { font-size: 1.05rem; top: 12%; }
+    .match-footer-row { gap: 4px; }
+    .match-speed-btn, .match-skip-btn { min-height: 40px; min-width: 42px; padding: 6px 10px; }
+}
+
+/* Landscape baixo (celular deitado): campo largo e feed compacto */
+@media (max-height: 480px) and (orientation: landscape) {
+    .campo-2d { aspect-ratio: 24 / 9; max-height: 34vh; }
+    .campo-chip .chip-label { display: none; }
+    .campo-duelo { top: 38%; }
+    .match-narrative-section { max-height: 28vh; min-height: 56px; }
+    .match-stats-row { gap: 4px; }
+    .posse-wrap { padding: 3px 8px; }
+    .radio-replay { font-size: 0.58rem; padding: 3px 8px; }
+}
+
+/* Tablet / desktop: mais ar no campo e rótulos legíveis */
+@media (min-width: 480px) {
+    .campo-chip .chip-label {
+        font-size: 0.52rem;
+        max-width: 64px;
+        top: calc(100% + 3px);
+    }
+    .campo-chip {
+        width: clamp(12px, 2vw, 18px);
+        height: clamp(12px, 2vw, 18px);
+    }
+    .campo-duelo .duelo-mini { min-width: 110px; padding: 10px 14px; }
+    .campo-duelo .duelo-mini .dm-ovr { font-size: 1.35rem; }
+    .campo-duelo .duelo-mini .dm-nome { font-size: 0.78rem; max-width: 130px; }
+    .campo-duelo .duelo-mini .dm-pos { font-size: 0.58rem; }
+}
+
+/* Desktop largo: painel da partida ganha largura e respiro */
+@media (min-width: 900px) {
+    :root { --app-max-w: 760px; }
+    .match-board { max-width: 760px; padding: 14px; gap: 10px; }
+    .campo-2d {
+        aspect-ratio: 16 / 9;
+        border-radius: 16px;
+    }
+    .campo-chip {
+        width: clamp(14px, 1.6vw, 20px);
+        height: clamp(14px, 1.6vw, 20px);
+    }
+    .campo-chip .chip-label {
+        font-size: 0.58rem;
+        max-width: 72px;
+        letter-spacing: 0.3px;
+    }
+    .campo-bola {
+        width: clamp(10px, 1.2vw, 14px);
+        height: clamp(10px, 1.2vw, 14px);
+    }
+    .match-header-card { padding: 14px 18px; }
+    .score-big { font-size: clamp(2rem, 3.2vw, 2.8rem); min-width: 140px; }
+    .team-tag { font-size: 1rem; letter-spacing: 3px; }
+    .match-narrative-section { max-height: 42vh; }
+    .feed-item { font-size: 0.82rem; padding: 7px 12px; }
+    .stat-chip { font-size: 0.8rem; padding: 6px 14px; }
+    .decision-btn { font-size: 0.88rem; padding: 14px 18px; min-height: 52px; }
+    .match-speed-btn, .match-skip-btn { min-height: 44px; padding: 10px 14px; font-size: 0.8rem; }
+    .radio-replay { font-size: 0.72rem; padding: 6px 14px; }
+    .goal-celebra-mini { font-size: 1.8rem; }
+    .var-panel .var-box { max-width: 420px; }
+}
+
+/* Telas muito altas (monitor alto): não deixa o campo esticar demais */
+@media (min-height: 1000px) {
+    .campo-2d { max-height: 360px; margin: 0 auto; }
+}
+
+/* ========================================================================= */
+/* DOIS PAINÉIS (desktop largo) — feed à esquerda, campo à direita           */
+/* ========================================================================= */
+@media (min-width: 1100px) {
+    :root { --app-max-w: 1240px; }
+    .match-board {
+        max-width: 1240px;
+        display: grid;
+        grid-template-columns: minmax(300px, 1fr) minmax(380px, 1.2fr);
+        grid-template-rows: auto minmax(0, 1fr) minmax(0, 0.9fr) auto;
+        grid-template-areas:
+            "header header"
+            "feed   field"
+            "stats  field"
+            "footer footer";
+        height: 100%;
+        overflow: hidden;
+        padding: 14px 16px;
+        gap: 12px 16px;
+    }
+    .match-header-card { grid-area: header; }
+    .match-narrative-section {
+        grid-area: feed;
+        max-height: none;
+        min-height: 0;
+        height: 100%;
+        overflow: hidden;
+    }
+    .match-stats-row {
+        grid-area: stats;
+        align-content: start;
+        justify-content: flex-start;
+    }
+    /* Campo preenche a coluna direita (proporção livre — pitch em %) */
+    #campo-2d, .campo-2d {
+        grid-area: field;
+        width: 100%;
+        height: 100%;
+        aspect-ratio: auto;
+        max-height: none;
+        min-height: 280px;
+        margin: 0;
+        border-radius: 16px;
+    }
+    /* Decisão do técnico flutua sobre o rodapé do campo (à direita) */
+    #match-decision {
+        grid-column: 2;
+        grid-row: 3;
+        align-self: end;
+        z-index: 8;
+        margin: 0 12px 12px;
+        box-shadow: 0 12px 32px rgba(0,0,0,0.55), 0 0 24px rgba(255,176,0,0.18);
+    }
+    .match-footer-row { grid-area: footer; }
+
+    /* Campo ainda maior e rótulos confortáveis no desktop largo */
+    .campo-chip {
+        width: clamp(16px, 1.4vw, 22px);
+        height: clamp(16px, 1.4vw, 22px);
+    }
+    .campo-chip .chip-label {
+        font-size: 0.62rem;
+        max-width: 88px;
+    }
+    .campo-bola {
+        width: clamp(12px, 1.1vw, 16px);
+        height: clamp(12px, 1.1vw, 16px);
+    }
+    .feed-item { font-size: 0.84rem; padding: 8px 12px; }
+    .brasfoot-feed { justify-content: flex-end; }
+    .match-narrative-section .brasfoot-feed { overflow: hidden; }
+    /* Dueto de mini-cards um pouco maior */
+    .campo-duelo .duelo-mini { min-width: 120px; padding: 10px 16px; }
+    .campo-duelo .duelo-mini .dm-ovr { font-size: 1.45rem; }
+    .campo-duelo .duelo-mini .dm-nome { font-size: 0.82rem; max-width: 140px; }
+    /* Placar com mais presença */
+    .score-big { font-size: clamp(2.2rem, 3vw, 3rem); }
+    .var-panel .var-box { max-width: 460px; }
+}
+
+/* Preferência por menos movimento */
+@media (prefers-reduced-motion: reduce) {
+    .campo-chip, .campo-bola { transition: none !important; }
+    .campo-duelo, .goal-celebra-mini, .replay-badge { animation: none !important; }
+    .estadio-bg.celebra .estadio-arquibancada,
+    .estadio-bg.celebra .estadio-gramado { animation: none !important; }
+}
+
 </style>
 </head>
 <body>
@@ -2675,6 +2904,7 @@ html, body, * {
         </div>
         <div id="tl-flash" class="tl-flash"></div>
       </div>
+    </div><!-- /.match-header-card -->
 
     <!-- Narração ao vivo -->
     <div class="match-narrative-section">
@@ -2726,7 +2956,7 @@ html, body, * {
   </div>
 
   <!-- Particles Canvas -->
-  <canvas id="fx-particles" width="400" height="600" style="position:absolute; inset:0; z-index:400; pointer-events:none;"></canvas>
+  <canvas id="fx-particles" width="400" height="600" style="position:absolute; inset:0; width:100%; height:100%; z-index:400; pointer-events:none;"></canvas>
   <canvas id="fx-particles-full" class="hidden" style="position:fixed; inset:0; z-index:1001; pointer-events:none;"></canvas>
 </div>
 </div>
@@ -4110,40 +4340,63 @@ const MatchUI = {
         if (box) box.classList.add('hidden');
     },
     // --- Campo 2D (fichas 11×11 + bola) ligadas ao MatchSim ---
-    fieldInit(homeNome, advNome) {
+    // Slots por formação real (x: 0=defesa casa → 100=ataque casa; y: 0=topo → 100=base).
+    _formSlots(formacao) {
+        const F = {
+            '4-4-2': [
+                { x: 6, y: 50, gk: true }, { x: 16, y: 20 }, { x: 16, y: 40 }, { x: 16, y: 60 }, { x: 16, y: 80 },
+                { x: 34, y: 22 }, { x: 34, y: 42 }, { x: 34, y: 58 }, { x: 34, y: 78 },
+                { x: 48, y: 36 }, { x: 48, y: 64 }
+            ],
+            '4-3-3': [
+                { x: 6, y: 50, gk: true }, { x: 16, y: 20 }, { x: 16, y: 40 }, { x: 16, y: 60 }, { x: 16, y: 80 },
+                { x: 34, y: 30 }, { x: 32, y: 50 }, { x: 34, y: 70 },
+                { x: 50, y: 20 }, { x: 52, y: 50 }, { x: 50, y: 80 }
+            ],
+            '3-5-2': [
+                { x: 6, y: 50, gk: true }, { x: 16, y: 30 }, { x: 16, y: 50 }, { x: 16, y: 70 },
+                { x: 32, y: 12 }, { x: 32, y: 32 }, { x: 30, y: 50 }, { x: 32, y: 68 }, { x: 32, y: 88 },
+                { x: 48, y: 38 }, { x: 48, y: 62 }
+            ],
+            '5-3-2': [
+                { x: 6, y: 50, gk: true }, { x: 15, y: 12 }, { x: 15, y: 32 }, { x: 14, y: 50 }, { x: 15, y: 68 }, { x: 15, y: 88 },
+                { x: 32, y: 30 }, { x: 30, y: 50 }, { x: 32, y: 70 },
+                { x: 48, y: 38 }, { x: 48, y: 62 }
+            ]
+        };
+        return F[String(formacao || '4-4-2')] || F['4-4-2'];
+    },
+    fieldInit(homeNome, advNome, homeForm, advForm) {
         const campo = this._el('campo-2d');
         if (!campo) return;
         campo.innerHTML = '<div class="campo-linhas"></div><div class="campo-area esq"></div><div class="campo-area dir"></div>';
         this._chipById = {};
         this._chipSlots = { casa: [], fora: [] };
-        // Slots 4-4-2 em % do campo (x: 0=defesa casa → 100=ataque casa)
-        const base = [
-            { x: 6, y: 50, gk: true }, { x: 16, y: 22 }, { x: 16, y: 42 }, { x: 16, y: 58 }, { x: 16, y: 78 },
-            { x: 32, y: 22 }, { x: 32, y: 42 }, { x: 32, y: 58 }, { x: 32, y: 78 },
-            { x: 44, y: 36 }, { x: 44, y: 64 }
-        ];
-        base.forEach((p, i) => {
-            const chip = document.createElement('div');
-            chip.className = 'campo-chip casa' + (p.gk ? ' gk' : '');
-            chip.style.left = p.x + '%';
-            chip.style.top = p.y + '%';
-            chip.dataset.side = 'casa';
-            chip.dataset.i = String(i);
-            chip.title = (homeNome || 'Casa');
-            campo.appendChild(chip);
-            this._chipSlots.casa.push(chip);
-        });
-        base.forEach((p, i) => {
-            const chip = document.createElement('div');
-            chip.className = 'campo-chip fora' + (p.gk ? ' gk' : '');
-            chip.style.left = (100 - p.x) + '%';
-            chip.style.top = p.y + '%';
-            chip.dataset.side = 'fora';
-            chip.dataset.i = String(i);
-            chip.title = (advNome || 'Fora');
-            campo.appendChild(chip);
-            this._chipSlots.fora.push(chip);
-        });
+        this._formCasa = homeForm || '4-4-2';
+        this._formFora = advForm || '4-4-2';
+        this._nomeCasa = homeNome || 'Casa';
+        this._nomeFora = advNome || 'Fora';
+        const mkChips = (side, formacao, nomeTime) => {
+            const base = this._formSlots(formacao);
+            base.forEach((p, i) => {
+                const chip = document.createElement('div');
+                chip.className = 'campo-chip ' + side + (p.gk ? ' gk' : '');
+                const hx = side === 'casa' ? p.x : (100 - p.x);
+                const hy = p.y;
+                chip.style.left = hx + '%';
+                chip.style.top = hy + '%';
+                // Posição de origem (formação) — fichas voltam para cá após cada lance.
+                chip.dataset.hx = String(hx);
+                chip.dataset.hy = String(hy);
+                chip.dataset.side = side;
+                chip.dataset.i = String(i);
+                chip.title = (nomeTime || (side === 'casa' ? 'Casa' : 'Fora'));
+                campo.appendChild(chip);
+                this._chipSlots[side].push(chip);
+            });
+        };
+        mkChips('casa', this._formCasa, this._nomeCasa);
+        mkChips('fora', this._formFora, this._nomeFora);
         const bola = document.createElement('div');
         bola.className = 'campo-bola';
         bola.id = 'campo-bola';
@@ -4172,9 +4425,51 @@ const MatchUI = {
             if (flash) { flash.className = 'tl-flash'; flash.textContent = ''; }
         }
     },
-    // Liga cada jogador do XI à sua ficha (GK→DEF→MID→ATT nas linhas do 4-4-2).
-    fieldBindXI(homeXI, awayXI) {
+    // Reposiciona as fichas na formação (após o lance / substituição).
+    fieldResetPositions() {
+        const campo = this._el('campo-2d');
+        if (!campo) return;
+        campo.querySelectorAll('.campo-chip').forEach(chip => {
+            const hx = chip.dataset.hx, hy = chip.dataset.hy;
+            if (hx != null) chip.style.left = hx + '%';
+            if (hy != null) chip.style.top = hy + '%';
+            chip.classList.remove('ativo', 'atacante', 'defensor');
+        });
+    },
+    // Liga cada jogador do XI à sua ficha (GK→DEF→MID→ATT nas linhas da formação real).
+    fieldBindXI(homeXI, awayXI, homeForm, advForm) {
         if (!this._chipSlots) return;
+        // Se a formação mudou (ou é a 1ª chamada), recria as fichas nos slots certos.
+        const fH = homeForm || this._formCasa || '4-4-2';
+        const fA = advForm || this._formFora || '4-4-2';
+        if (fH !== this._formCasa || fA !== this._formFora) {
+            this._formCasa = fH;
+            this._formFora = fA;
+            const campo = this._el('campo-2d');
+            if (campo) {
+                campo.querySelectorAll('.campo-chip').forEach(c => c.remove());
+                this._chipSlots = { casa: [], fora: [] };
+                this._chipById = {};
+                const mk = (side, formacao, nomeTime) => {
+                    this._formSlots(formacao).forEach((p, i) => {
+                        const chip = document.createElement('div');
+                        chip.className = 'campo-chip ' + side + (p.gk ? ' gk' : '');
+                        const hx = side === 'casa' ? p.x : (100 - p.x);
+                        chip.style.left = hx + '%';
+                        chip.style.top = p.y + '%';
+                        chip.dataset.hx = String(hx);
+                        chip.dataset.hy = String(p.y);
+                        chip.dataset.side = side;
+                        chip.dataset.i = String(i);
+                        chip.title = nomeTime;
+                        campo.appendChild(chip);
+                        this._chipSlots[side].push(chip);
+                    });
+                };
+                mk('casa', fH, this._nomeCasa || 'Casa');
+                mk('fora', fA, this._nomeFora || 'Fora');
+            }
+        }
         const bind = (side, lista) => {
             const chips = this._chipSlots[side] || [];
             const ordem = { GK: 0, DEF: 1, MID: 2, ATT: 3 };
@@ -4183,12 +4478,23 @@ const MatchUI = {
                 const p = ordenado[i];
                 if (p && p.id != null) {
                     chip.dataset.pid = String(p.id);
+                    const sobrenome = String(p.nome || '').split(' ').slice(-1)[0] || '';
                     chip.title = (p.nome || '') + (p.posicao ? ' · ' + p.posicao : '');
                     chip.classList.toggle('gk', p.posicao === 'GK');
+                    // Rótulo curto (sobrenome) — visível em telas maiores via CSS.
+                    let lab = chip.querySelector('.chip-label');
+                    if (!lab) {
+                        lab = document.createElement('span');
+                        lab.className = 'chip-label';
+                        chip.appendChild(lab);
+                    }
+                    lab.textContent = sobrenome.slice(0, 8);
                     this._chipById[String(p.id) + '@' + side] = chip;
                 } else {
                     delete chip.dataset.pid;
                     chip.title = side === 'casa' ? 'Casa' : 'Fora';
+                    const lab = chip.querySelector('.chip-label');
+                    if (lab) lab.remove();
                 }
             });
         };
@@ -4265,11 +4571,10 @@ const MatchUI = {
             }
         }
         // AÇÃO: posição final da bola (gol / defesa / meio)
+        // O alvo é SEMPRE o gol que o ATACANTE do lance mira (atkToRight = lado do atacante).
         let bx = 50, by = 50;
-        if (tipo === 'goal' || tipo === 'chance') {
+        if (tipo === 'goal' || tipo === 'chance' || tipo === 'goal-rival' || tipo === 'chance-rival') {
             bx = atkToRight ? 82 : 18; by = 42 + Math.random() * 16;
-        } else if (tipo === 'goal-rival' || tipo === 'chance-rival') {
-            bx = atkToRight ? 18 : 82; by = 42 + Math.random() * 16;
         } else if (tipo === 'def') {
             bx = atkToRight ? 74 : 26; by = 46 + Math.random() * 8;
         } else if (tipo === 'foul' || tipo === 'cartao') {
@@ -4288,17 +4593,26 @@ const MatchUI = {
         if (bola) {
             clearTimeout(this._bolaT1);
             clearTimeout(this._bolaT2);
-            // tempo 1 — recepção do atacante
+            clearTimeout(this._bolaT3);
+            // tempo 1 — recepção do atacante (ficha acende)
             bola.style.left = atkX + '%';
             bola.style.top = atkY + '%';
-            if (atkEl) atkEl.classList.add('ativo', 'atacante');
+            if (atkEl) {
+                atkEl.classList.add('ativo', 'atacante');
+                // Atacante avança em direção à ação (conta a história no gramado)
+                const avancoX = (atkToRight ? Math.min(bx - 4, atkX + (bx - atkX) * 0.55) : Math.max(bx + 4, atkX - (atkX - bx) * 0.55));
+                atkEl.style.left = avancoX + '%';
+                atkEl.style.top = (atkY + (by - atkY) * 0.35) + '%';
+            }
             // tempo 2 — conclusão do lance
             this._bolaT1 = setTimeout(() => {
                 bola.style.left = bx + '%';
                 bola.style.top = by + '%';
                 if (defChip) {
                     defChip.classList.add('ativo', 'defensor');
-                    defChip.style.left = (atkToRight ? Math.min(92, bx + 8) : Math.max(8, bx - 8)) + '%';
+                    // Avança em direção à bola (sem abandonar a formação para sempre).
+                    const dx = atkToRight ? Math.min(92, bx + 8) : Math.max(8, bx - 8);
+                    defChip.style.left = dx + '%';
                     defChip.style.top = (by + (Math.random() * 8 - 4)) + '%';
                 } else if (tipo === 'def' || tipo === 'goal' || tipo === 'goal-rival' || tipo === 'chance' || tipo === 'chance-rival') {
                     const pool = campo.querySelectorAll('.campo-chip.' + (ladoAtk === 'casa' ? 'fora' : 'casa'));
@@ -4306,6 +4620,8 @@ const MatchUI = {
                     if (pick) pick.classList.add('ativo', 'defensor');
                 }
             }, 380);
+            // tempo 3 — fichas voltam para a formação (campo sempre legível)
+            this._bolaT3 = setTimeout(() => this.fieldResetPositions(), 1600);
         }
         // Fallback de destaque se não há ficha ligada
         if (!atkChip && atkEl) atkEl.classList.add('ativo', 'atacante');
@@ -4386,6 +4702,8 @@ const MatchUI = {
         }
         badge.classList.add('on');
         bola.classList.add('rastro');
+        // Cancela o reset automático das fichas — o replay precisa dos protagonistas.
+        clearTimeout(this._bolaT3);
         // Torcida contínua + rádio 95.3
         this._replayAtivo = true;
         this.startCrowdLoop(0.22);
@@ -4449,6 +4767,8 @@ const MatchUI = {
             bola.classList.remove('rastro');
             bola.style.transition = 'left 0.7s ease, top 0.7s ease';
             this._replayAtivo = false;
+            // Fichas voltam para a formação após o replay
+            this.fieldResetPositions();
             const varAtivo = campo.querySelector('.var-panel.on');
             if (!varAtivo) {
                 this.stopCrowdLoop();
@@ -4989,8 +5309,10 @@ class MatchSim {
     }
 
     // ---- Narração (templates estilo rádio) ----
-    _fraseLan(team) {
-        const j = team === this.home ? this._nomeHome('MID') : this._nomeAdv('MID');
+    // nomeJ/nomeG opcionais: protagonistas JÁ escolhidos para o campo 2D —
+    // texto e ficha citam SEMPRE o mesmo jogador (coerência campo × narração).
+    _fraseLan(team, nomeJ) {
+        const j = nomeJ || (team === this.home ? this._nomeHome('MID') : this._nomeAdv('MID'));
         if (this.tom === 'amistoso') {
             return this._pick([
                 "Ritmo tranquilo, " + j + " troca passes sem pressa no meio.",
@@ -5003,34 +5325,34 @@ class MatchSim {
         const perfil = this._perfilDe(team);
         if (perfil === 'posse') {
             return this._pick([
-                "O " + (team === this.home ? "mandante" : "visitante") + " segura a bola e trabalha a posse com paciência.",
+                "O " + (team === this.home ? "mandante" : "visitante") + " segura a bola e " + j + " trabalha a posse com paciência.",
                 j + " gira o jogo e ninguém tira a bola do pé — posse sufocante.",
-                "Sequência de passes curtos do " + (team === this.home ? "time da casa" : "time de fora") + " no meio-campo.",
+                "Sequência de passes curtos do " + (team === this.home ? "time da casa" : "time de fora") + " com " + j + " no comando.",
                 "Cadência alta: " + j + " dita o ritmo e a torcida pede velocidade."
             ]);
         }
         if (perfil === 'contra_ataque') {
             return this._pick([
-                "Bola recuperada! O " + (team === this.home ? "mandante" : "visitante") + " já sai em velocidade.",
+                "Bola recuperada! O " + (team === this.home ? "mandante" : "visitante") + " já sai em velocidade com " + j + ".",
                 j + " ajeita de primeira e lança o contra-ataque — perigo na área!",
-                "Transição rápida! A defesa se divide para acompanhar o " + (team === this.home ? "time da casa" : "time de fora") + ".",
+                "Transição rápida! " + j + " puxa o contra-ataque e a defesa se divide para acompanhar o " + (team === this.home ? "time da casa" : "time de fora") + ".",
                 "Recuo proposital e a resposta vem em um passe: " + j + " acelera."
             ]);
         }
         if (perfil === 'retranca_copeira') {
             return this._pick([
-                "Linha baixa do " + (team === this.home ? "mandante" : "visitante") + " — a bola vive longe da área.",
+                "Linha baixa do " + (team === this.home ? "mandante" : "visitante") + " — " + j + " mantém a bola longe da área.",
                 j + " segura a falta e o " + (team === this.home ? "time da casa" : "time de fora") + " administra o tempo.",
                 "Bloco compacto: " + j + " fecha o espaço e não dá linha de passe.",
-                "Cera e controle: o " + (team === this.home ? "time da casa" : "time de fora") + " sabe o que quer do jogo."
+                "Cera e controle: " + j + " sabe o que o " + (team === this.home ? "time da casa" : "time de fora") + " quer do jogo."
             ]);
         }
         return this._pick([
-            "{j} domina no meio e procura espaço.", "{j} puxa a marcação e gira o jogo.", "Trocas de passe na intermediária, time de " + (team === this.home ? "casa" : "fora") + " paciente.", "{j} tenta a ligação direta... a zaga corta.", "Boa troca de passes! " + (team === this.home ? "O mandante" : "O visitante") + " impõe ritmo.", "{j} cobra falta curta e encontra o companheiro livre.", "{j} aciona o contra-ataque com um lançamento longo."
+            "{j} domina no meio e procura espaço.", "{j} puxa a marcação e gira o jogo.", "Trocas de passe na intermediária com {j} conduzindo o time de " + (team === this.home ? "casa" : "fora") + ".", "{j} tenta a ligação direta... a zaga corta.", "Boa troca de passes! {j} impõe ritmo para o " + (team === this.home ? "mandante" : "visitante") + ".", "{j} cobra falta curta e encontra o companheiro livre.", "{j} aciona o contra-ataque com um lançamento longo."
         ]).replace('{j}', j);
     }
-    _fraseChance(team) {
-        const j = team === this.home ? this._nomeHome('ATT') : this._nomeAdv('ATT');
+    _fraseChance(team, nomeJ) {
+        const j = nomeJ || (team === this.home ? this._nomeHome('ATT') : this._nomeAdv('ATT'));
         return this._pick([
             "PERIGO! {j} limpa a marcação e finaliza!",
             "{j} chega pela ponta e cruza na área...",
@@ -5038,42 +5360,42 @@ class MatchSim {
             "{j} cobra falta com veneno..."
         ]).replace('{j}', j);
     }
-    _fraseDef(team) {
-        const g = team === this.home ? this._nomeHome('GK') : this._nomeAdv('GK');
+    _fraseDef(team, nomeG) {
+        const g = nomeG || (team === this.home ? this._nomeHome('GK') : this._nomeAdv('GK'));
         return this._pick([
             "O goleiro " + g + " espalma pra escanteio!",
             "Milagre! " + g + " evita o gol com a ponta dos dedos!",
-            "A zaga se atira e tira em cima da linha!"
+            "A zaga se atira e " + g + " completa a defesa em cima da linha!"
         ]);
     }
-    _fraseMiss(team) {
-        const j = team === this.home ? this._nomeHome('ATT') : this._nomeAdv('ATT');
+    _fraseMiss(team, nomeJ) {
+        const j = nomeJ || (team === this.home ? this._nomeHome('ATT') : this._nomeAdv('ATT'));
         return this._pick([
             "{j} finaliza por cima do gol...",
             "{j} chuta fraco, defesa tranquila.",
-            "A bola beija a trave e sai! Quase!",
+            "A bola de {j} beija a trave e sai! Quase!",
             "{j} isola a bola nas arquibancadas."
         ]).replace('{j}', j);
     }
-    _fraseFalta(team) {
-        const j = team === this.home ? this._nomeHome('MID') : this._nomeAdv('MID');
+    _fraseFalta(team, nomeJ) {
+        const j = nomeJ || (team === this.home ? this._nomeHome('MID') : this._nomeAdv('MID'));
         return this._pick([
             "Falta dura de " + j + " no meio-campo.",
-            "Lance disputado, árbitro marca falta.",
-            "Joelhada na disputa aérea. Falta marcada."
+            "Lance disputado, " + j + " chega atrasado e o árbitro marca falta.",
+            "Joelhada de " + j + " na disputa aérea. Falta marcada."
         ]);
     }
-    _fraseCartao(team) {
-        const j = team === this.home ? this._nomeHome('DEF') : this._nomeAdv('DEF');
+    _fraseCartao(team, nomeJ) {
+        const j = nomeJ || (team === this.home ? this._nomeHome('DEF') : this._nomeAdv('DEF'));
         return this._pick([
             "Cartão amarelo para " + j + "!",
             "Travada por trás: " + j + " está no caderno do árbitro."
         ]);
     }
-    _fraseGol(team) {
+    _fraseGol(team, nomeJ, nomeG) {
         const isHome = team === this.home;
-        const j = isHome ? this._nomeHome('ATT') : this._nomeAdv('ATT');
-        const g = isHome ? this._nomeAdv('GK') : this._nomeHome('GK');
+        const j = nomeJ || (isHome ? this._nomeHome('ATT') : this._nomeAdv('ATT'));
+        const g = nomeG || (isHome ? this._nomeAdv('GK') : this._nomeHome('GK'));
         return this._pick([
             "GOOOOL! {j} não perdoa e balança as redes!",
             "GOL! {j} aparece livre e manda pra dentro, sem chances para " + g + "!",
@@ -5081,8 +5403,8 @@ class MatchSim {
         ]).replace('{j}', j);
     }
 
-    _fraseVar(team) {
-        const j = team === this.home ? this._nomeHome('ATT') : this._nomeAdv('ATT');
+    _fraseVar(team, nomeJ) {
+        const j = nomeJ || (team === this.home ? this._nomeHome('ATT') : this._nomeAdv('ATT'));
         return this._pick([
             "GOOOOOL... espera! O VAR está revisando. IMPEDIMENTO! Gol anulado.",
             "Bola na rede de " + j + "!... mas o VAR entra em ação: lance anulado!",
@@ -5092,8 +5414,8 @@ class MatchSim {
     _fraseAcrescimo() {
         return "O árbitro sinaliza " + (3 + Math.floor(this._rnd(0, 4))) + " minutos de acréscimo!";
     }
-    _fraseLesao(team) {
-        const j = team === this.home ? this._nomeHome('MID') : this._nomeAdv('MID');
+    _fraseLesao(team, nomeJ) {
+        const j = nomeJ || (team === this.home ? this._nomeHome('MID') : this._nomeAdv('MID'));
         return this._pick([
             "Atenção: " + j + " sente a coxa após a dividida forte... e continua por enquanto.",
             j + " fica no gramado segurando o tornozelo. A comissão avalia... segue o jogo!"
@@ -5211,7 +5533,8 @@ class MatchSim {
             this._xiDoTime(this.home),
             this._xiDoTime(this.away)
         ];
-        // Campo 2D: fichas passam a representar os jogadores REAIS do XI.
+        // Campo 2D: fichas passam a representar os jogadores REAIS do XI,
+        // posicionados pela formação real de cada time.
         try {
             MatchUI._tempoMin = this.tempoMin || 90;
             const toPlayers = (side, team) => {
@@ -5219,7 +5542,10 @@ class MatchSim {
                 const el = team.elenco || [];
                 return ids.map(id => el.find(p => p.id === id)).filter(Boolean);
             };
-            MatchUI.fieldBindXI(toPlayers(0, this.home), toPlayers(1, this.away));
+            MatchUI.fieldBindXI(
+                toPlayers(0, this.home), toPlayers(1, this.away),
+                this.home.formacao, this.away.formacao
+            );
         } catch (e) { /* campo 2D é cosmético */ }
         // G3: registra os titulares como "usados" (dreno pós-jogo).
         for (let side = 0; side <= 1; side++) {
@@ -5266,7 +5592,10 @@ class MatchSim {
                 const el = team.elenco || [];
                 return ids.map(id => el.find(p => p.id === id)).filter(Boolean);
             };
-            MatchUI.fieldBindXI(toPlayers(0, this.home), toPlayers(1, this.away));
+            MatchUI.fieldBindXI(
+                toPlayers(0, this.home), toPlayers(1, this.away),
+                this.home.formacao, this.away.formacao
+            );
         } catch (e) { /* cosmético */ }
     }
 
@@ -5428,7 +5757,9 @@ class MatchSim {
         let log = '';
         let tipoFeed = 'info';
         let expulsoNome = null;
-        // Campo 2D: lados reais (side 0 = casa) e protagonistas do lance
+        // Campo 2D: lados reais (side 0 = casa) e protagonistas do lance.
+        // setCtx escolhe OS JOGADORES uma única vez e devolve os objetos —
+        // o texto da narração usa exatamente os mesmos nomes das fichas.
         const sideAtk = ev.side === 0 ? 0 : 1;
         const sideDef = ev.side === 0 ? 1 : 0;
         const setCtx = (atkPos, defPos) => {
@@ -5439,10 +5770,14 @@ class MatchSim {
                 def: this._pctx(def, 'ZAG'),
                 atkSide: sideAtk, defSide: sideDef
             };
+            return { atk, def, nomeAtk: atk && atk.nome, nomeDef: def && def.nome };
         };
+        const teamAtk = ev.side === 0 ? this.home : this.away;
         if (t === 'lance') {
-            setCtx(this._roll(0.5) ? 'ATT' : 'MID', this._roll(0.4) ? 'GK' : 'DEF');
-            log = this._roll(0.55) ? this._fraseLan(ev.side === 0 ? this.home : this.away) : this._fraseChance(ev.side === 0 ? this.home : this.away);
+            // Escolhe o tipo de frase PRIMEIRO e alinha a posição do protagonista.
+            const ehChance = !this._roll(0.55);
+            const prot = setCtx(ehChance ? 'ATT' : 'MID', this._roll(0.4) ? 'GK' : 'DEF');
+            log = ehChance ? this._fraseChance(teamAtk, prot.nomeAtk) : this._fraseLan(teamAtk, prot.nomeAtk);
             if (log.indexOf('PERIGO') >= 0 || log.indexOf('Contra-ataque') >= 0) tipoFeed = 'warn';
             this.chutes[ev.side] += this._roll(0.5) ? 1 : 0;
             // Locução por tipo de lance (opção 3)
@@ -5453,19 +5788,20 @@ class MatchSim {
                 else ui.playNarracao('passe');
             }
         } else if (t === 'falta') {
-            setCtx('MID', 'DEF');
-            log = this._fraseFalta(ev.side === 0 ? this.home : this.away);
+            const prot = setCtx('MID', 'DEF');
+            log = this._fraseFalta(teamAtk, prot.nomeAtk);
             this.faltas[ev.side]++;
             tipoFeed = 'foul';
         } else if (t === 'cartao') {
-            setCtx('DEF', 'ATT');
-            log = this._fraseCartao(ev.side === 0 ? this.home : this.away);
+            const prot = setCtx('DEF', 'ATT');
+            log = this._fraseCartao(teamAtk, prot.nomeAtk);
             this.cartoes[ev.side]++;
             // G6: 2ª amarela → expulsão com efeito real em _poder (A8).
             // Chance base 12%, sobe com o acumulo de cartoes do time.
             const pExp = 0.12 + Math.min(0.18, this.cartoes[ev.side] * 0.03);
             if (this._roll(pExp)) {
-                const expulso = (ev.side === 0 ? this._nomeHome('DEF') : this._nomeAdv('DEF'));
+                // Expulso = MESMO jogador do cartão (coerente com o feed e o campo).
+                const expulso = prot.nomeAtk || (ev.side === 0 ? this._nomeHome('DEF') : this._nomeAdv('DEF'));
                 log += " " + expulso + " expulso! Segundo amarelo.";
                 expulsoNome = expulso;
                 this._expulsos[ev.side]++;
@@ -5473,43 +5809,49 @@ class MatchSim {
             }
             tipoFeed = 'foul';
         } else if (t === 'escanteio') {
-            setCtx('ATT', 'GK');
+            const prot = setCtx('ATT', 'GK');
             log = "Escanteio para o " + (ev.side === 0 ? "time da casa" : "visitante") + "!";
             this.escanteios[ev.side]++;
             this.chutes[ev.side]++;
             if (typeof ui !== 'undefined' && ui.playNarracao) ui.playNarracao('cruzamento');
             // 5% chance of direct goal from corner
             if (this._roll(0.05)) {
-                log += "! GOOOOL! Cobrança de escanteio!"
                 const isHome = ev.side === 0;
-                this.scoreH += isHome ? 1 : 0;
-                this.scoreA += isHome ? 0 : 1;
-                const autor = { id: Math.floor(Math.random() * 1000), nome: (isHome ? this._nomeHome('ATT') : this._nomeAdv('ATT')), gols: 1 };
+                // Autor REAL do XI (antes era um objeto falso com id aleatório).
+                const autor = prot.atk || this._autorDoGol(isHome);
+                const nomeAutor = (autor && autor.nome) || prot.nomeAtk || 'o camisa 9';
+                log += "! GOOOOL! Cobrança de escanteio de " + nomeAutor + "!";
                 const rec = this._marcar(isHome, autor);
                 log += rec;
             }
         } else if (t === 'defesa') {
-            setCtx('ATT', 'GK');
-            log = this._fraseDef(ev.side === 0 ? this.home : this.away);
+            const prot = setCtx('ATT', 'GK');
+            log = this._fraseDef(teamAtk, prot.nomeDef);
             this.chutes[ev.side ^ 1]++;
             tipoFeed = 'def';
         } else if (t === 'autoGol') {
             const isHome = ev.side === 0;
-            setCtx('ATT', 'GK');
-            const rec = this._marcar(isHome, this._autorDoGol(isHome));
-            log = this._fraseGol(isHome ? this.home : this.away) + rec;
+            const autor = this._autorDoGol(isHome);
+            const guardiao = this._pickXI(isHome ? 1 : 0, 'GK');
+            this._campoCtx = {
+                atk: this._pctx(autor, isHome ? this._nomeHome('ATT') : this._nomeAdv('ATT')),
+                def: this._pctx(guardiao, 'GOL'),
+                atkSide: isHome ? 0 : 1, defSide: isHome ? 1 : 0
+            };
+            const rec = this._marcar(isHome, autor);
+            log = this._fraseGol(isHome ? this.home : this.away, autor && autor.nome, guardiao && guardiao.nome) + rec;
             tipoFeed = 'goal';
         } else if (t === 'var') {
-            log = this._fraseVar(ev.side === 0 ? this.home : this.away);
+            const prot = setCtx('ATT', 'GK');
+            log = this._fraseVar(teamAtk, prot.nomeAtk);
             this.chutes[ev.side]++;
             tipoFeed = 'warn';
             // Visual do VAR: análise + decisão do juiz (anulado — coerente com _fraseVar)
             try {
-                const atkP = this._pickXI(ev.side === 0 ? 0 : 1, 'ATT');
                 MatchUI.varReview({
                     anulado: true,
                     motivo: (log.indexOf('toque de mão') >= 0 || log.indexOf('mao') >= 0) ? 'mao' : 'impedimento',
-                    autor: this._pctx(atkP, ev.side === 0 ? this._nomeHome('ATT') : this._nomeAdv('ATT')),
+                    autor: this._pctx(prot.atk, prot.nomeAtk || (ev.side === 0 ? this._nomeHome('ATT') : this._nomeAdv('ATT'))),
                     min: this.minuto
                 });
             } catch (e) { /* cosmético */ }
@@ -5517,13 +5859,17 @@ class MatchSim {
             log = this._fraseAcrescimo();
             tipoFeed = 'info';
         } else if (t === 'lesao') {
-            log = this._fraseLesao(ev.side === 0 ? this.home : this.away);
+            const prot = setCtx('MID', 'DEF');
+            log = this._fraseLesao(teamAtk, prot.nomeAtk);
             tipoFeed = 'warn';
         }
-        // Trave: bordão no lugar da frase curta de erro
+        // Trave: bordão no lugar da frase curta de erro (mantém o protagonista no texto)
         if (log && log.indexOf('trave') >= 0) {
             const tb = this._fraseContexto('trave');
-            if (tb) log = tb;
+            if (tb) {
+                const nomeProta = (this._campoCtx && this._campoCtx.atk && this._campoCtx.atk.nome) || null;
+                log = nomeProta ? (tb + ' (' + nomeProta + ')') : tb;
+            }
         }
         if (log) this._emit(log, tipoFeed);
         // Bordão contextual pós-evento (expulsão / goleada / virada / etc.)
@@ -5646,7 +5992,12 @@ class MatchSim {
     _mostrarDecisao(ev) {
         const isHome = ev.side === 0;
         const isUserAttack = (ev.side === this._userSide());
-        if (typeof ui !== 'undefined') ui.narrate(isHome ? this._fraseChance(this.home) : this._fraseChance(this.away), this.minuto);
+        // Protagonista da chance: escolhido AQUI e reaproveitado em _resolverChance
+        // (mesmo nome no feed da decisão, no card-battle e no campo 2D).
+        const jp = this._pickXI(isHome ? 0 : 1, 'ATT');
+        this._decisaoAtk = jp || null;
+        const nomeAtk = jp ? jp.nome : (isHome ? this._nomeHome('ATT') : this._nomeAdv('ATT'));
+        if (typeof ui !== 'undefined') ui.narrate(isHome ? this._fraseChance(this.home, nomeAtk) : this._fraseChance(this.away, nomeAtk), this.minuto);
         let desc, opts;
         if (isUserAttack) {
             desc = "Chance clara do seu ataque! Como você orienta a finalização?";
@@ -5751,13 +6102,16 @@ class MatchSim {
     }
 
     _resolverChance(isHome, p) {
-        const jp = this._pickXI(isHome ? 0 : 1, 'ATT'); // Fase 1: atacante real em campo
+        // Reusa o atacante escolhido na decisão do técnico (mesmo nome no feed e no campo).
+        const jp = this._decisaoAtk || this._pickXI(isHome ? 0 : 1, 'ATT');
+        this._decisaoAtk = null;
         const j = jp ? jp.nome : (isHome ? this._nomeHome('ATT') : this._nomeAdv('ATT'));
         const userScored = ((isHome ? 0 : 1) === this._userSide());
         // Campo 2D: protagonistas REAIS do lance (atacante × goleiro/zaga)
         const atkSide = isHome ? 0 : 1;
         const defSide = isHome ? 1 : 0;
         const guardiao = this._pickXI(defSide, 'GK') || this._pickXI(defSide, 'DEF');
+        const nomeGk = guardiao && guardiao.nome;
         this._campoCtx = {
             atk: this._pctx(jp, j),
             def: this._pctx(guardiao, 'GOL'),
@@ -5769,10 +6123,12 @@ class MatchSim {
                 const rec = this._marcar(isHome, autor);
                 this._emit((userScored ? "GOL! " + j + " converte a chance e explode a torcida!" : "GOL DO RIVAL! " + j + " não perdoa!") + rec, 'goal');
             } else if (this._roll(0.30)) {
-                this._emit(this._fraseDef(isHome ? this.home : this.away), 'def');
+                // Mesmo goleiro do card-battle / campo 2D
+                this._emit(this._fraseDef(isHome ? this.home : this.away, nomeGk), 'def');
                 this.chutes[isHome ? 0 : 1]++;
             } else {
-                const missTxt = this._fraseMiss(isHome ? this.home : this.away);
+                // Mesmo atacante do campo 2D
+                const missTxt = this._fraseMiss(isHome ? this.home : this.away, j);
                 this._emit(missTxt, 'info');
                 this.chutes[isHome ? 0 : 1]++;
                 // C5: batida na trave quando a narração cita a trave.
