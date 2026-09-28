@@ -1333,6 +1333,930 @@ body {
     50% { transform: translateY(-10px); }
 }
 
+/* ========================================================================= */
+/* UI/UX 2026-09-28 — scrollbars nativas, cards FUT, campo 2D, HUD, abas     */
+/* ========================================================================= */
+
+/* 1) Scrollbars nativas: some tudo (app nativo); overflow continua rolando */
+html, body, * {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+*::-webkit-scrollbar { width: 0 !important; height: 0 !important; display: none !important; }
+
+/* 2) Cards de jogador estilo Ultimate Team: OVR+POS no topo, nome limpo, ações embaixo */
+.player-card {
+    background:
+        radial-gradient(120% 80% at 50% 0%, rgba(255,255,255,0.07), transparent 55%),
+        linear-gradient(165deg, #1c2438 0%, #121826 55%, #0c101c 100%);
+}
+.player-card .card-top-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    width: 100%;
+    gap: 4px;
+}
+.player-card .card-ovr {
+    order: 0;
+    margin: 0;
+    font-size: 1.45rem;
+    line-height: 1;
+    letter-spacing: -1px;
+    background: linear-gradient(180deg, #fff 20%, #c8d0e0 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.75));
+    text-shadow: none;
+}
+.player-card .card-pos {
+    order: 1;
+    margin: 2px 0 0 auto;
+    font-size: 0.58rem;
+    font-weight: 900;
+    letter-spacing: 0.6px;
+    padding: 2px 6px;
+    border-radius: 5px;
+    background: rgba(255,255,255,0.14);
+    border: 1px solid rgba(255,255,255,0.18);
+    color: #fff;
+}
+.player-card .card-silh {
+    flex: 1 1 auto;
+    width: 72%;
+    min-height: 28px;
+    margin: 2px auto;
+    background:
+        radial-gradient(ellipse 34% 42% at 50% 28%, rgba(255,255,255,0.22) 0 62%, transparent 64%),
+        radial-gradient(ellipse 52% 58% at 50% 100%, rgba(255,255,255,0.16) 0 55%, transparent 58%);
+    opacity: 0.85;
+    pointer-events: none;
+}
+.player-card .card-name {
+    width: 100%;
+    max-width: 100%;
+    font-size: 0.62rem;
+    letter-spacing: 0.2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    background: rgba(0,0,0,0.4);
+    padding: 3px 4px;
+    border-radius: 5px;
+    border: 1px solid rgba(255,255,255,0.06);
+    margin: 0 0 3px;
+}
+.player-card .card-actions {
+    display: flex;
+    gap: 3px;
+    width: 100%;
+    margin-top: auto;
+}
+.player-card .card-actions .btn-secondary {
+    flex: 1;
+    min-width: 0;
+    padding: 3px 2px;
+    font-size: 0.55rem;
+    border-radius: 6px;
+    line-height: 1.15;
+}
+.player-card .card-price {
+    width: 100%;
+    text-align: center;
+    font-size: 0.62rem;
+    font-weight: 900;
+    margin-top: 2px;
+}
+.player-card .card-price.sem-saldo {
+    color: #fca5a5;
+    text-shadow: 0 0 8px rgba(239,68,68,0.55);
+}
+.player-card .card-price.sem-saldo::before {
+    content: '🔒 ';
+}
+
+/* Molduras por raridade (Bronze escovado / Prata aço / Ouro neon / Diamante / Tática cristal) */
+.player-card.rarity-Bronze {
+    border-color: #8a5a2b;
+    background:
+        radial-gradient(120% 80% at 50% 0%, rgba(205,127,50,0.18), transparent 55%),
+        linear-gradient(165deg, #3a2816 0%, #24170c 60%, #170e06 100%);
+    box-shadow: 0 8px 18px rgba(0,0,0,0.5), inset 0 0 18px rgba(180,110,50,0.18);
+}
+.player-card.rarity-Prata {
+    border-color: #a8b4c4;
+    background:
+        radial-gradient(120% 80% at 50% 0%, rgba(200,215,235,0.16), transparent 55%),
+        linear-gradient(165deg, #2a3344 0%, #1a2230 60%, #121820 100%);
+    box-shadow: 0 8px 18px rgba(0,0,0,0.5), inset 0 0 18px rgba(180,200,230,0.12);
+}
+.player-card.rarity-Ouro {
+    background:
+        radial-gradient(120% 80% at 50% 0%, rgba(245,197,66,0.22), transparent 55%),
+        linear-gradient(165deg, #4a3810 0%, #2a2008 55%, #1a1404 100%);
+}
+.player-card.rarity-Diamante {
+    background:
+        radial-gradient(120% 80% at 50% 0%, rgba(125,211,252,0.22), transparent 55%),
+        linear-gradient(165deg, #12304a 0%, #0c2034 55%, #081424 100%);
+}
+
+/* 3) Campo 2D na partida (preenche o gramado vazio com fichas + timeline) */
+.campo-2d {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.18);
+    background:
+        repeating-linear-gradient(90deg, rgba(255,255,255,0.045) 0 14px, transparent 14px 28px),
+        linear-gradient(180deg, #1a7a3a, #14632c);
+    box-shadow: inset 0 0 30px rgba(0,0,0,0.35), 0 6px 18px rgba(0,0,0,0.35);
+}
+.campo-2d .campo-linhas {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+.campo-2d .campo-linhas::before {
+    content: '';
+    position: absolute;
+    left: 50%; top: 0; bottom: 0;
+    width: 2px;
+    background: rgba(255,255,255,0.35);
+    transform: translateX(-50%);
+}
+.campo-2d .campo-linhas::after {
+    content: '';
+    position: absolute;
+    left: 50%; top: 50%;
+    width: 22%;
+    aspect-ratio: 1;
+    border: 2px solid rgba(255,255,255,0.35);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+}
+.campo-2d .campo-area {
+    position: absolute;
+    top: 22%;
+    width: 16%;
+    height: 56%;
+    border: 2px solid rgba(255,255,255,0.28);
+}
+.campo-2d .campo-area.esq { left: 0; border-left: none; }
+.campo-2d .campo-area.dir { right: 0; border-right: none; }
+.campo-chip {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    border: 1.5px solid rgba(255,255,255,0.85);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+    transition: left 0.8s ease, top 0.8s ease, transform 0.25s ease;
+    z-index: 2;
+}
+.campo-chip.casa { background: #3b82f6; }
+.campo-chip.fora { background: #ef4444; }
+.campo-chip.gk { background: #f59e0b; }
+.campo-chip.ativo {
+    transform: translate(-50%, -50%) scale(1.55);
+    box-shadow: 0 0 14px rgba(255,255,255,0.8);
+    z-index: 3;
+}
+.campo-chip.atacante {
+    box-shadow: 0 0 16px rgba(74,222,128,0.95), 0 0 0 2px rgba(74,222,128,0.7);
+    transform: translate(-50%, -50%) scale(1.7);
+}
+.campo-chip.defensor {
+    box-shadow: 0 0 16px rgba(239,68,68,0.95), 0 0 0 2px rgba(239,68,68,0.7);
+    transform: translate(-50%, -50%) scale(1.55);
+}
+.campo-bola {
+    position: absolute;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #fff, #d1d5db);
+    box-shadow: 0 0 10px rgba(255,255,255,0.9);
+    transform: translate(-50%, -50%);
+    transition: left 0.7s ease, top 0.7s ease;
+    z-index: 4;
+}
+.campo-duelo {
+    position: absolute;
+    left: 50%; top: 50%;
+    transform: translate(-50%, -50%) scale(0.85);
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    z-index: 5;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.campo-duelo.on {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+    animation: dueloClash 0.55s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes dueloClash {
+    0% { transform: translate(-50%, -50%) scale(0.7); filter: brightness(1.8); }
+    45% { transform: translate(-50%, -50%) scale(1.12); filter: brightness(1.35); }
+    100% { transform: translate(-50%, -50%) scale(1); filter: brightness(1); }
+}
+.campo-duelo .duelo-mini {
+    background: linear-gradient(165deg, rgba(28,32,48,0.95), rgba(12,16,28,0.95));
+    border: 1px solid rgba(255,176,0,0.55);
+    border-radius: 12px;
+    padding: 8px 12px;
+    min-width: 92px;
+    text-align: center;
+    color: #fff;
+    font-size: 0.62rem;
+    font-weight: 900;
+    box-shadow: 0 8px 22px rgba(0,0,0,0.55), 0 0 18px rgba(255,176,0,0.25);
+    animation: cardSlideL 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.campo-duelo .duelo-mini.d-def {
+    border-color: rgba(239,68,68,0.55);
+    box-shadow: 0 8px 22px rgba(0,0,0,0.55), 0 0 18px rgba(239,68,68,0.28);
+    animation: cardSlideR 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.campo-duelo .duelo-mini .dm-ovr {
+    font-size: 1.15rem;
+    line-height: 1;
+    letter-spacing: -0.5px;
+    color: #ffd97a;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.7);
+}
+.campo-duelo .duelo-mini .dm-pos {
+    display: inline-block;
+    font-size: 0.52rem;
+    letter-spacing: 0.8px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.18);
+    margin: 2px 0;
+}
+.campo-duelo .duelo-mini .dm-nome {
+    font-size: 0.68rem;
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 110px;
+}
+@keyframes cardSlideL {
+    from { transform: translateX(-28px) rotate(-6deg); opacity: 0; }
+    to   { transform: translateX(0) rotate(0); opacity: 1; }
+}
+@keyframes cardSlideR {
+    from { transform: translateX(28px) rotate(6deg); opacity: 0; }
+    to   { transform: translateX(0) rotate(0); opacity: 1; }
+}
+.campo-duelo .duelo-vs {
+    color: #ffb000;
+    font-size: 0.85rem;
+    font-weight: 900;
+    text-shadow: 0 0 12px rgba(255,176,0,0.9);
+    animation: vsPulse 0.5s ease;
+}
+@keyframes vsPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.35); }
+}
+
+/* Comemoração de gol: torcida pula + flash no estádio + badge de replay */
+.estadio-bg.celebra .estadio-arquibancada {
+    animation: torcidaPula 0.55s ease-in-out 4;
+    box-shadow: inset 0 12px 24px rgba(0,0,0,0.45), 0 0 40px rgba(255,176,0,0.35);
+}
+.estadio-bg.celebra .estadio-gramado {
+    animation: gramadoPulse 0.7s ease-in-out 2;
+}
+@keyframes torcidaPula {
+    0%, 100% { transform: translateY(0); filter: brightness(1); }
+    40% { transform: translateY(-6px); filter: brightness(1.35); }
+    70% { transform: translateY(2px); filter: brightness(1.1); }
+}
+@keyframes gramadoPulse {
+    0%, 100% { filter: brightness(1); }
+    50% { filter: brightness(1.22); }
+}
+.campo-2d .replay-badge {
+    position: absolute;
+    top: 8px;
+    left: 10px;
+    z-index: 6;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 0.58rem;
+    font-weight: 900;
+    letter-spacing: 1.5px;
+    color: #fff;
+    background: rgba(220,38,38,0.85);
+    border: 1px solid rgba(255,255,255,0.35);
+    box-shadow: 0 4px 14px rgba(220,38,38,0.45);
+    text-transform: uppercase;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+    pointer-events: none;
+}
+.campo-2d .replay-badge.on {
+    opacity: 1;
+    animation: replayBlink 1s ease-in-out infinite;
+}
+@keyframes replayBlink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.55; }
+}
+.campo-2d .replay-badge::before {
+    content: '●';
+    font-size: 0.55rem;
+    animation: aoPulse 0.9s ease-in-out infinite;
+}
+/* Traço do replay: bola deixa rastro */
+.campo-bola.rastro {
+    box-shadow: 0 0 12px rgba(255,255,255,0.95), 0 0 28px rgba(255,176,0,0.75);
+}
+.goal-celebra-mini {
+    position: absolute;
+    left: 50%; top: 18%;
+    transform: translateX(-50%);
+    z-index: 7;
+    font-size: 1.4rem;
+    font-weight: 900;
+    letter-spacing: 2px;
+    color: #4ade80;
+    text-shadow: 0 0 16px rgba(74,222,128,0.9);
+    opacity: 0;
+    pointer-events: none;
+}
+.goal-celebra-mini.on {
+    animation: celebraPop 1.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+@keyframes celebraPop {
+    0% { opacity: 0; transform: translateX(-50%) scale(0.4); }
+    25% { opacity: 1; transform: translateX(-50%) scale(1.15); }
+    70% { opacity: 1; transform: translateX(-50%) scale(1); }
+    100% { opacity: 0; transform: translateX(-50%) scale(0.9); }
+}
+
+/* Narração de rádio no replay: fita estilo transmissão 95.3 FM */
+.radio-replay {
+    position: absolute;
+    left: 8px; right: 8px; bottom: 8px;
+    z-index: 7;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 10px;
+    background: rgba(8, 6, 2, 0.88);
+    border: 1px solid rgba(255, 176, 0, 0.45);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45), inset 0 0 18px rgba(255, 176, 0, 0.08);
+    font-family: ui-monospace, Consolas, 'Courier New', monospace;
+    opacity: 0;
+    transform: translateY(6px);
+    transition: opacity 0.25s ease, transform 0.25s ease;
+    pointer-events: none;
+}
+.radio-replay.on {
+    opacity: 1;
+    transform: translateY(0);
+}
+.radio-replay .rr-freq {
+    flex: 0 0 auto;
+    font-size: 0.55rem;
+    font-weight: 900;
+    letter-spacing: 1px;
+    color: #1a1206;
+    background: #ffb000;
+    padding: 2px 7px;
+    border-radius: 999px;
+    box-shadow: 0 0 10px rgba(255, 176, 0, 0.55);
+}
+.radio-replay .rr-text {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 0.62rem;
+    font-weight: 700;
+    color: #ffe6a8;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-shadow: 0 0 8px rgba(255, 176, 0, 0.35);
+}
+.radio-replay .rr-text.typing::after {
+    content: '▍';
+    color: #ffb000;
+    animation: cursorBlink 0.7s step-end infinite;
+}
+@keyframes cursorBlink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+}
+
+/* VAR estilo transmissão: análise do lance + decisão do juiz no replay */
+.var-panel {
+    position: absolute;
+    inset: 0;
+    z-index: 8;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: rgba(4, 8, 18, 0.72);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+.var-panel.on { opacity: 1; }
+.var-panel .var-scan {
+    position: absolute;
+    inset: 0;
+    background:
+        repeating-linear-gradient(0deg, transparent 0 14px, rgba(56, 189, 248, 0.06) 14px 15px),
+        repeating-linear-gradient(90deg, transparent 0 14px, rgba(56, 189, 248, 0.05) 14px 15px);
+    pointer-events: none;
+    animation: varScanPulse 1.2s ease-in-out infinite;
+}
+@keyframes varScanPulse {
+    0%, 100% { opacity: 0.55; }
+    50% { opacity: 1; }
+}
+.var-panel .var-box {
+    position: relative;
+    z-index: 1;
+    min-width: 200px;
+    max-width: 88%;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: rgba(8, 14, 28, 0.92);
+    border: 1px solid rgba(56, 189, 248, 0.55);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.55), 0 0 22px rgba(56, 189, 248, 0.25);
+    text-align: center;
+    font-family: ui-monospace, Consolas, 'Courier New', monospace;
+}
+.var-panel .var-title {
+    font-size: 0.62rem;
+    font-weight: 900;
+    letter-spacing: 2.5px;
+    color: #38bdf8;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    text-shadow: 0 0 12px rgba(56, 189, 248, 0.7);
+}
+.var-panel .var-step {
+    font-size: 0.62rem;
+    font-weight: 700;
+    color: #e0f2fe;
+    letter-spacing: 0.4px;
+    min-height: 1.1em;
+}
+.var-panel .var-steps {
+    margin: 6px 0 2px;
+    text-align: left;
+    font-size: 0.56rem;
+    line-height: 1.55;
+    color: #7dd3fc;
+}
+.var-panel .var-steps .ok { color: #4ade80; }
+.var-panel .var-steps .bad { color: #f87171; }
+.var-panel .var-steps .pend { color: #64748b; }
+.var-panel .var-bar {
+    height: 4px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.1);
+    overflow: hidden;
+    margin: 6px 0 2px;
+}
+.var-panel .var-bar > i {
+    display: block;
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #38bdf8, #a78bfa);
+    border-radius: 999px;
+    transition: width 0.4s ease;
+}
+.var-panel .var-decision {
+    margin-top: 8px;
+    padding: 8px 14px;
+    border-radius: 10px;
+    font-size: 0.78rem;
+    font-weight: 900;
+    letter-spacing: 1.5px;
+    opacity: 0;
+    transform: scale(0.7);
+    transition: opacity 0.3s ease, transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.var-panel .var-decision.show {
+    opacity: 1;
+    transform: scale(1);
+}
+.var-panel .var-decision.confirmado {
+    background: rgba(34, 197, 94, 0.2);
+    border: 1.5px solid #22c55e;
+    color: #4ade80;
+    box-shadow: 0 0 22px rgba(34, 197, 94, 0.45);
+}
+.var-panel .var-decision.anulado {
+    background: rgba(239, 68, 68, 0.2);
+    border: 1.5px solid #ef4444;
+    color: #f87171;
+    box-shadow: 0 0 22px rgba(239, 68, 68, 0.45);
+}
+.var-panel .var-juiz {
+    margin-top: 6px;
+    font-size: 0.58rem;
+    font-weight: 800;
+    letter-spacing: 1px;
+    color: #94a3b8;
+}
+.var-panel .var-juiz.sig {
+    animation: juizApito 0.7s ease;
+}
+@keyframes juizApito {
+    0%, 100% { transform: scale(1); }
+    40% { transform: scale(1.12); color: #fff; }
+}
+
+/* Timeline de transmissão no placar: barra 0–90' com marcos de gol/cartão */
+.match-timeline {
+    margin: 10px 2px 2px;
+    min-height: 28px;
+}
+.match-timeline .tl-track {
+    position: relative;
+    height: 10px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,176,0,0.18);
+    overflow: visible;
+}
+.match-timeline .tl-progress {
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 0%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, rgba(255,176,0,0.15), rgba(255,176,0,0.55));
+    transition: width 0.6s ease;
+    pointer-events: none;
+}
+.match-timeline .tl-marker {
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.55rem;
+    font-weight: 900;
+    border: 1.5px solid rgba(255,255,255,0.75);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.55);
+    z-index: 2;
+    cursor: default;
+    animation: tlPop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes tlPop {
+    from { transform: translate(-50%, -50%) scale(0.3); opacity: 0; }
+    to   { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+}
+.match-timeline .tl-marker.gol { background: #16a34a; color: #fff; }
+.match-timeline .tl-marker.gol-rival { background: #dc2626; color: #fff; }
+.match-timeline .tl-marker.cartao { background: #eab308; color: #1a1206; }
+.match-timeline .tl-marker.var { background: #38bdf8; color: #062; }
+.match-timeline .tl-legend {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 4px;
+    font-size: 0.55rem;
+    font-weight: 800;
+    letter-spacing: 0.6px;
+    color: var(--text-muted);
+    font-family: ui-monospace, Consolas, monospace;
+}
+.match-timeline .tl-flash {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.62rem;
+    font-weight: 900;
+    border: 1px solid rgba(255,255,255,0.18);
+    background: rgba(0,0,0,0.35);
+    color: #fff;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+}
+.match-timeline .tl-flash.on { opacity: 1; }
+.match-timeline .tl-flash.gol { border-color: rgba(74,222,128,0.55); color: #4ade80; }
+.match-timeline .tl-flash.gol-rival { border-color: rgba(239,68,68,0.55); color: #f87171; }
+.match-timeline .tl-flash.cartao { border-color: rgba(250,204,21,0.55); color: #facc15; }
+
+/* 4) HUD compacto de métricas do clube (substitui cards verticais soltos) */
+.hud-metrics {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    margin-bottom: 12px;
+}
+.hud-metric {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 8px 6px;
+    text-align: center;
+    min-width: 0;
+}
+.hud-metric .hm-label {
+    font-size: 0.58rem;
+    font-weight: 800;
+    letter-spacing: 0.6px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.hud-metric .hm-value {
+    font-size: 0.78rem;
+    font-weight: 900;
+    color: #fff;
+    margin-top: 2px;
+    white-space: nowrap;
+}
+.hud-metric .hm-bar {
+    height: 4px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.1);
+    overflow: hidden;
+    margin-top: 5px;
+}
+.hud-metric .hm-bar > i {
+    display: block;
+    height: 100%;
+    border-radius: 999px;
+    background: var(--accent);
+}
+
+/* Desafios (Rodada do Dia / Clássico / Torneio) como cards de missão secundários */
+.challenge-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: rgba(255,255,255,0.04);
+}
+.challenge-card .ch-icon {
+    flex: 0 0 auto;
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.15rem;
+    background: rgba(245,158,11,0.15);
+    border: 1px solid rgba(245,158,11,0.35);
+}
+.challenge-card .ch-body { flex: 1 1 auto; min-width: 0; text-align: left; }
+.challenge-card .ch-title {
+    font-size: 0.68rem;
+    font-weight: 900;
+    letter-spacing: 1.2px;
+    color: var(--accent);
+    text-transform: uppercase;
+}
+.challenge-card .ch-desc {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+    line-height: 1.3;
+}
+.challenge-card .ch-cta {
+    flex: 0 0 auto;
+    padding: 8px 12px;
+    font-size: 0.72rem;
+    border-radius: 10px;
+    font-weight: 900;
+    border: 1px solid rgba(255,176,0,0.45);
+    background: rgba(255,176,0,0.16);
+    color: #ffd97a;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.challenge-card .ch-cta:hover { background: rgba(255,176,0,0.28); }
+
+/* Objetivos da diretoria como cards com recompensa */
+.mission-row {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px 10px;
+    margin-bottom: 6px;
+    background: rgba(255,255,255,0.035);
+}
+.mission-row.concluida {
+    border-color: rgba(245,197,66,0.45);
+    background: rgba(245,197,66,0.08);
+}
+.mission-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.72rem;
+    font-weight: 800;
+    margin-bottom: 5px;
+}
+.mission-header .m-desc {
+    color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.mission-header .m-reward {
+    flex: 0 0 auto;
+    font-size: 0.65rem;
+    font-weight: 900;
+    color: #ffd97a;
+    background: rgba(245,197,66,0.12);
+    border: 1px solid rgba(245,197,66,0.35);
+    border-radius: 999px;
+    padding: 2px 8px;
+}
+.mission-row.concluida .m-reward {
+    animation: rewardGlow 1.6s ease-in-out infinite;
+}
+@keyframes rewardGlow {
+    0%, 100% { box-shadow: 0 0 0 rgba(245,197,66,0); }
+    50% { box-shadow: 0 0 12px rgba(245,197,66,0.55); }
+}
+
+/* 5) Booster pack 3D na loja */
+.pack-store-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px;
+    border-radius: 16px;
+    border: 1px solid rgba(245,158,11,0.35);
+    background:
+        radial-gradient(90% 120% at 100% 0%, rgba(245,158,11,0.18), transparent 55%),
+        linear-gradient(145deg, #2a1c08, #1a1206);
+    overflow: hidden;
+}
+.pack-3d {
+    flex: 0 0 auto;
+    width: 86px;
+    height: 118px;
+    border-radius: 10px;
+    position: relative;
+    transform: rotate(-12deg) skewY(-3deg);
+    background:
+        linear-gradient(135deg, #fbbf24 0%, #b45309 38%, #7c2d12 70%, #f59e0b 100%);
+    box-shadow:
+        0 14px 28px rgba(0,0,0,0.55),
+        0 0 24px rgba(251,191,36,0.35),
+        inset 0 0 18px rgba(255,255,255,0.22);
+    border: 2px solid rgba(255,220,120,0.65);
+}
+.pack-3d::before {
+    content: '';
+    position: absolute;
+    inset: 8px;
+    border-radius: 6px;
+    border: 1px dashed rgba(255,255,255,0.35);
+    background: rgba(0,0,0,0.12);
+}
+.pack-3d::after {
+    content: '★';
+    position: absolute;
+    left: 50%; top: 42%;
+    transform: translate(-50%, -50%);
+    font-size: 1.8rem;
+    color: rgba(255,255,255,0.9);
+    text-shadow: 0 0 12px rgba(255,220,120,0.9);
+}
+.pack-3d-glow {
+    position: absolute;
+    inset: -14px;
+    border-radius: 18px;
+    background: radial-gradient(circle, rgba(251,191,36,0.28), transparent 70%);
+    animation: packShine 2.4s ease-in-out infinite;
+    pointer-events: none;
+}
+@keyframes packShine {
+    0%, 100% { opacity: 0.55; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.06); }
+}
+
+/* 6) Sistema de abas (preparação / conquistas) */
+.tabs-bar {
+    display: flex;
+    gap: 6px;
+    margin: 10px 0 12px;
+    flex-wrap: wrap;
+}
+.tab-btn {
+    flex: 1 1 auto;
+    min-width: 90px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: rgba(255,255,255,0.05);
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    font-weight: 900;
+    letter-spacing: 0.4px;
+    cursor: pointer;
+    text-transform: uppercase;
+}
+.tab-btn.active {
+    color: #1a1206;
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    border-color: var(--primary);
+    box-shadow: 0 4px 14px rgba(255,176,0,0.28);
+}
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* 7) Tabela de classificação: zonas + artilharia com escudo */
+.league-table .user-row td {
+    background: linear-gradient(90deg, rgba(59,130,246,0.28), rgba(251,191,36,0.12)) !important;
+    box-shadow: inset 3px 0 0 #f5c542, inset -3px 0 0 rgba(251,191,36,0.35);
+}
+.league-table .user-row td:first-child {
+    border-left: 3px solid #f5c542;
+}
+.league-table tr.zona-g4 td:first-child {
+    box-shadow: inset 3px 0 0 #22c55e;
+}
+.league-table tr.zona-z4 td:first-child {
+    box-shadow: inset 3px 0 0 #ef4444;
+}
+.league-table tr.zona-g4.zona-user td:first-child {
+    box-shadow: inset 3px 0 0 #f5c542, inset 6px 0 0 #22c55e;
+}
+.scorer-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 4px;
+    border-radius: 8px;
+    font-size: 0.72rem;
+}
+.scorer-row:nth-child(odd) { background: rgba(255,255,255,0.03); }
+.scorer-row .sc-crest {
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    color: #111;
+    font-size: 0.52rem;
+    font-weight: 900;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+}
+.scorer-row .sc-name {
+    flex: 1 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 800;
+}
+.scorer-row .sc-val {
+    font-weight: 900;
+    color: var(--accent);
+    font-family: ui-monospace, Consolas, monospace;
+}
+.scorer-row.golden {
+    border: 1px solid rgba(245,197,66,0.5);
+    background: rgba(245,197,66,0.1);
+}
+.scorer-row.golden::before {
+    content: '👟';
+    margin-right: 2px;
+}
+
 </style>
 </head>
 <body>
@@ -1456,45 +2380,60 @@ body {
   </button>
  </div>
 
- <!-- Aprovação da Torcida -->
- <div class="card" style="margin-bottom: 14px;">
-   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-     <span style="font-size: 0.72rem; font-weight: 900; letter-spacing: 1px; color: var(--text);">👥 TORCIDA</span>
-     <span id="ui-fan-value" style="font-size: 0.8rem; font-weight: 900;">—</span>
+ <!-- HUD compacto de métricas do clube -->
+ <div class="hud-metrics" id="hud-metrics">
+   <div class="hud-metric">
+     <div class="hm-label">💰 Grana</div>
+     <div class="hm-value" id="hud-money">—</div>
    </div>
-<div id="ui-fan-bar" style="width:100%; height:8px; border-radius:4px; background:rgba(255,255,255,0.08); overflow:hidden;"><div id="ui-fan-fill" style="height:100%; border-radius:4px; transition:width 0.4s ease; background:#facc15; width:50%;"></div></div>
-   <div id="ui-fan-msg" style="font-size: 0.72rem; color: var(--text-muted); margin-top: 6px;">—</div>
- </div>
-
- <!-- C1: Patrocínio -->
- <div class="card" style="margin-bottom: 14px;">
-   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-     <span style="font-size: 0.72rem; font-weight: 900; letter-spacing: 1px; color: var(--text);">💼 PATROCÍNIO</span>
-     <button class="deck-filter-btn" style="font-size: 0.65rem; padding: 3px 8px; cursor: pointer;" onclick="app.abrirPatrocinio()">TROCAR</button>
+   <div class="hud-metric">
+     <div class="hm-label">👥 Torcida</div>
+     <div class="hm-value" id="hud-fans">—</div>
+     <div class="hm-bar"><i id="hud-fans-bar" style="width:50%; background:#facc15;"></i></div>
    </div>
-   <div id="ui-patrocinio-msg" style="font-size: 0.72rem; color: var(--text-muted);">—</div>
+   <div class="hud-metric">
+     <div class="hm-label">😊 Moral</div>
+     <div class="hm-value" id="hud-moral">—</div>
+     <div class="hm-bar"><i id="hud-moral-bar" style="width:50%;"></i></div>
+   </div>
+   <div class="hud-metric">
+     <div class="hm-label">🫁 Fôlego</div>
+     <div class="hm-value" id="hud-folego">—</div>
+     <div class="hm-bar"><i id="hud-folego-bar" style="width:50%; background:#4ade80;"></i></div>
+   </div>
+ </div>
+ <div id="ui-patrocinio-msg" style="font-size: 0.7rem; color: var(--text-muted); margin: -6px 2px 12px; display:flex; justify-content:space-between; align-items:center; gap:8px;">
+   <span id="ui-patrocinio-txt">—</span>
+   <button class="deck-filter-btn" style="font-size: 0.62rem; padding: 3px 8px; cursor: pointer;" onclick="app.abrirPatrocinio()">💼 PATROCÍNIO</button>
  </div>
 
- <!-- Rodada do Dia -->
- <div id="daily-challenge-card" style="display: none; margin-bottom: 14px; text-align: center; padding: 12px; border: 1px solid var(--accent); border-radius: 14px; background: rgba(245,158,11,0.08);">
-  <div style="font-size: 0.72rem; font-weight: 900; letter-spacing: 2px; color: var(--accent); margin-bottom: 6px;">⚡ RODADA DO DIA</div>
-   <div id="daily-rival-text" style="font-size: 0.78rem; font-weight: 700; margin-bottom: 10px;"></div>
-   <button class="btn-end-turn" style="width: 100%; padding: 11px; font-size: 0.88rem;" onclick="app.playDesafioDia()">⚽ JOGAR (+R$100k · 1 JOGADOR)</button>
+ <!-- Desafios secundários (não competem com o CTA principal) -->
+ <div id="daily-challenge-card" class="challenge-card" style="display: none;">
+   <div class="ch-icon">⚡</div>
+   <div class="ch-body">
+     <div class="ch-title">Rodada do Dia</div>
+     <div class="ch-desc" id="daily-rival-text"></div>
+   </div>
+   <button class="ch-cta" onclick="app.playDesafioDia()">+R$100k</button>
  </div>
 
-<!-- Clássico da Semana -->
-<div id="classico-card" style="display: none; margin-bottom: 14px; text-align: center; padding: 12px; background: linear-gradient(135deg, rgba(255,193,7,0.09), rgba(255,87,34,0.06)); border: 1px solid rgba(255,193,7,0.35); border-radius: 10px;">
-  <div style="font-size: 0.72rem; font-weight: 900; letter-spacing: 2px; color: var(--accent); margin-bottom: 6px;">🌆 CLÁSSICO DA SEMANA</div>
-  <div id="classico-rival-text" style="font-size: 0.78rem; font-weight: 700; margin-bottom: 10px;"></div>
-  <button class="btn-end-turn" style="width: 100%; padding: 11px; font-size: 0.88rem;" onclick="app.playClassicoSemana()">🔥 DISPUTAR CLÁSSICO</button>
-</div>
+ <div id="classico-card" class="challenge-card" style="display: none;">
+   <div class="ch-icon">🌆</div>
+   <div class="ch-body">
+     <div class="ch-title">Clássico da Semana</div>
+     <div class="ch-desc" id="classico-rival-text"></div>
+   </div>
+   <button class="ch-cta" onclick="app.playClassicoSemana()">+R$250k</button>
+ </div>
 
-<!-- Torneio Relâmpago -->
-<div id="torneio-card" style="display: none; margin-bottom: 14px; text-align: center; padding: 12px; background: linear-gradient(135deg, rgba(255,215,0,0.08), rgba(255,140,0,0.05)); border: 1px solid rgba(255,215,0,0.4); border-radius: 10px;">
-  <div style="font-size: 0.72rem; font-weight: 900; letter-spacing: 2px; color: var(--accent); margin-bottom: 6px;">🏆 TORNEIO RELÂMPAGO</div>
-  <div id="torneio-rival-text" style="font-size: 0.78rem; font-weight: 700; margin-bottom: 10px;"></div>
-  <button class="btn-end-turn" style="width: 100%; padding: 11px; font-size: 0.88rem;" onclick="app.playTorneioFase()">⚡ JOGAR FASE</button>
-</div>
+ <div id="torneio-card" class="challenge-card" style="display: none;">
+   <div class="ch-icon">🏆</div>
+   <div class="ch-body">
+     <div class="ch-title">Torneio Relâmpago</div>
+     <div class="ch-desc" id="torneio-rival-text"></div>
+   </div>
+   <button class="ch-cta" onclick="app.playTorneioFase()">JOGAR</button>
+ </div>
 
  <!-- Objetivos / Missões -->
  <div class="card" style="margin-bottom: 14px;">
@@ -1534,6 +2473,7 @@ body {
     </div>
     <button id="btn-voltar-prep" class="btn-secondary hidden" style="width: 100%; padding: 8px; font-size: 0.72rem; margin-bottom: 8px;" onclick="app.voltarPreparacao()">← VOLTAR À PREPARAÇÃO</button>
     <div id="escala-status" style="font-size: 0.62rem; color: var(--text-muted); margin-bottom: 6px; line-height: 1.4;">Toque nos jogadores para montar seus 11 titulares. Goleiro obrigatório.</div>
+    <div id="campo-xi" class="campo-2d" style="margin-bottom: 10px; aspect-ratio: 3 / 2;" aria-label="Campo tático do XI"></div>
     <div id="escala-xi" style="display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px;"></div>
     <div id="escala-reserva" style="display: flex; flex-direction: column; gap: 4px;"></div>
     <button onclick="app.salvarEscalacao()" class="btn-end-turn" style="width: 100%; padding: 9px; font-size: 0.78rem;">💾 SALVAR ESCALAÇÃO</button>
@@ -1560,7 +2500,11 @@ body {
    
    <!-- Booster Pack Hero Card -->
    <div id="pack-store-hero-card" class="pack-store-card" style="margin-bottom: 18px;">
-     <div style="max-width: 60%;">
+     <div class="pack-3d-wrap" style="position:relative; flex:0 0 auto;">
+       <div class="pack-3d-glow"></div>
+       <div class="pack-3d"></div>
+     </div>
+     <div style="flex: 1 1 auto; min-width: 0;">
        <div style="font-size: 0.65rem; font-weight: 900; letter-spacing: 2px; color: var(--accent); text-transform: uppercase;">BOOSTER ELITE</div>
        <div style="font-size: 1.15rem; font-weight: 900; margin: 4px 0 8px; color: #fff;">PACOTE DE CARTAS</div>
        <p style="font-size: 0.72rem; color: var(--text-muted); line-height: 1.35; margin-bottom: 12px;">Contém 1 carta colecionável com chance de craques Ouro ou Diamante!</p>
@@ -1719,6 +2663,18 @@ body {
         <span id="match-competicao">RODADA</span>
         <span id="match-escala">FORÇA —</span>
       </div>
+      <!-- Linha do tempo de transmissão no placar (gols e cartões por minuto) -->
+      <div id="match-timeline" class="match-timeline" aria-label="Linha do tempo da partida">
+        <div class="tl-track" id="tl-track">
+          <div class="tl-progress" id="tl-progress"></div>
+        </div>
+        <div class="tl-legend">
+          <span>0'</span>
+          <span id="tl-mid">45'</span>
+          <span id="tl-end">90'</span>
+        </div>
+        <div id="tl-flash" class="tl-flash"></div>
+      </div>
 
     <!-- Narração ao vivo -->
     <div class="match-narrative-section">
@@ -1739,6 +2695,9 @@ body {
       <span class="stat-chip">🟨 Cartões <b id="stat-cartoes">0 – 0</b></span>
       <span class="stat-chip">🚩 Escanteios <b id="stat-escanteios">0 – 0</b></span>
     </div>
+
+    <!-- Campo 2D com fichas (preenche o gramado e anima os lances) -->
+    <div id="campo-2d" class="campo-2d" aria-label="Campo tático 2D"></div>
 
     <!-- Decisão do técnico -->
     <div id="match-decision" class="hidden">
@@ -1787,36 +2746,46 @@ body {
     </div>
     <div id="prep-apresentacao" class="prep-note" style="margin: 8px 0 10px; text-align: left;"></div>
 
-    <div style="font-size: 0.68rem; font-weight: 900; letter-spacing: 1.5px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px;">🧩 FORMAÇÃO</div>
-    <div class="style-grid" id="prep-formacoes">
-      <button class="style-btn" data-formacao="4-4-2" onclick="app.setFormacaoPrep('4-4-2')">4-4-2</button>
-      <button class="style-btn" data-formacao="4-3-3" onclick="app.setFormacaoPrep('4-3-3')">4-3-3</button>
-      <button class="style-btn" data-formacao="3-5-2" onclick="app.setFormacaoPrep('3-5-2')">3-5-2</button>
-      <button class="style-btn" data-formacao="5-3-2" onclick="app.setFormacaoPrep('5-3-2')">5-3-2</button>
+    <div class="tabs-bar" id="prep-tabs">
+      <button class="tab-btn active" data-prep-tab="estrategia" onclick="app.switchPrepTab('estrategia')">⚔️ Estratégia</button>
+      <button class="tab-btn" data-prep-tab="detalhes" onclick="app.switchPrepTab('detalhes')">📋 Detalhes</button>
     </div>
 
-    <div style="font-size: 0.68rem; font-weight: 900; letter-spacing: 1.5px; color: var(--text-muted); text-transform: uppercase; margin-top: 12px; margin-bottom: 6px;">🎽 CAMISA DO TIME</div>
-    <div id="prep-camisas" style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;"></div>
+    <div class="tab-panel active" id="prep-tab-estrategia">
+      <div style="font-size: 0.68rem; font-weight: 900; letter-spacing: 1.5px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px;">🧩 FORMAÇÃO</div>
+      <div class="style-grid" id="prep-formacoes">
+        <button class="style-btn" data-formacao="4-4-2" onclick="app.setFormacaoPrep('4-4-2')">4-4-2</button>
+        <button class="style-btn" data-formacao="4-3-3" onclick="app.setFormacaoPrep('4-3-3')">4-3-3</button>
+        <button class="style-btn" data-formacao="3-5-2" onclick="app.setFormacaoPrep('3-5-2')">3-5-2</button>
+        <button class="style-btn" data-formacao="5-3-2" onclick="app.setFormacaoPrep('5-3-2')">5-3-2</button>
+      </div>
 
-    <div style="font-size: 0.68rem; font-weight: 900; letter-spacing: 1.5px; color: var(--text-muted); text-transform: uppercase; margin-top: 12px; margin-bottom: 6px;">🏟️ ESTÁDIO</div>
-    <div class="style-grid" id="prep-estadios"></div>
-
-    <div style="font-size: 0.68rem; font-weight: 900; letter-spacing: 1.5px; color: var(--text-muted); text-transform: uppercase; margin-top: 12px; margin-bottom: 6px;">⏱️ TEMPO DE JOGO</div>
-    <div class="style-grid" id="prep-tempos">
-      <button class="style-btn" data-tempo="45" onclick="app.escolherTempo(45)">1º TEMPO · 45'</button>
-      <button class="style-btn active" data-tempo="90" onclick="app.escolherTempo(90)">JOGO INTEIRO · 90'</button>
+      <div style="font-size: 0.68rem; font-weight: 900; letter-spacing: 1.5px; color: var(--text-muted); text-transform: uppercase; margin-top: 12px; margin-bottom: 6px;">ESTILO DE JOGO</div>
+      <div class="style-grid">
+        <button class="style-btn" data-estilo="ofensivo" onclick="app.escolherEstilo('ofensivo')"><span class="ib">🔥</span>OFENSIVO</button>
+        <button class="style-btn active" data-estilo="equilibrado" onclick="app.escolherEstilo('equilibrado')"><span class="ib">⚖️</span>EQUILIBRADO</button>
+        <button class="style-btn" data-estilo="retranca" onclick="app.escolherEstilo('retranca')"><span class="ib">🧱</span>RETRANCA</button>
+      </div>
+      <div style="font-size: 0.68rem; font-weight: 900; letter-spacing: 1.5px; color: var(--text-muted); text-transform: uppercase; margin-top: 12px; margin-bottom: 6px;">🌟 CRAQUE DA RODADA <span style="color: var(--accent);">(1/dia)</span></div>
+      <div class="craque-row" id="prep-craques"></div>
+      <div style="font-size: 0.66rem; font-weight: 900; letter-spacing: 1px; color: var(--text-muted); text-transform: uppercase; margin-top: 12px; margin-bottom: 6px;">TEU TIME</div>
+      <button class="btn-secondary" style="width: 100%; padding: 9px; font-size: 0.75rem;" onclick="app.abrirEscalacaoPreparacao()">🕐 Ajustar escalação titular</button>
     </div>
 
-    <div style="font-size: 0.68rem; font-weight: 900; letter-spacing: 1.5px; color: var(--text-muted); text-transform: uppercase; margin-top: 12px; margin-bottom: 6px;">ESTILO DE JOGO</div>
-    <div class="style-grid">
-      <button class="style-btn" data-estilo="ofensivo" onclick="app.escolherEstilo('ofensivo')"><span class="ib">🔥</span>OFENSIVO</button>
-      <button class="style-btn active" data-estilo="equilibrado" onclick="app.escolherEstilo('equilibrado')"><span class="ib">⚖️</span>EQUILIBRADO</button>
-      <button class="style-btn" data-estilo="retranca" onclick="app.escolherEstilo('retranca')"><span class="ib">🧱</span>RETRANCA</button>
+    <div class="tab-panel" id="prep-tab-detalhes">
+      <div style="font-size: 0.68rem; font-weight: 900; letter-spacing: 1.5px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px;">🎽 CAMISA DO TIME</div>
+      <div id="prep-camisas" style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;"></div>
+
+      <div style="font-size: 0.68rem; font-weight: 900; letter-spacing: 1.5px; color: var(--text-muted); text-transform: uppercase; margin-top: 12px; margin-bottom: 6px;">🏟️ ESTÁDIO</div>
+      <div class="style-grid" id="prep-estadios"></div>
+
+      <div style="font-size: 0.68rem; font-weight: 900; letter-spacing: 1.5px; color: var(--text-muted); text-transform: uppercase; margin-top: 12px; margin-bottom: 6px;">⏱️ TEMPO DE JOGO</div>
+      <div class="style-grid" id="prep-tempos">
+        <button class="style-btn" data-tempo="45" onclick="app.escolherTempo(45)">1º TEMPO · 45'</button>
+        <button class="style-btn active" data-tempo="90" onclick="app.escolherTempo(90)">JOGO INTEIRO · 90'</button>
+      </div>
     </div>
-    <div style="font-size: 0.68rem; font-weight: 900; letter-spacing: 1.5px; color: var(--text-muted); text-transform: uppercase; margin-top: 12px; margin-bottom: 6px;">🌟 CRAQUE DA RODADA <span style="color: var(--accent);">(1/dia)</span></div>
-    <div class="craque-row" id="prep-craques"></div>
-    <div style="font-size: 0.66rem; font-weight: 900; letter-spacing: 1px; color: var(--text-muted); text-transform: uppercase; margin-top: 12px; margin-bottom: 6px;">TEU TIME</div>
-    <button class="btn-secondary" style="width: 100%; padding: 9px; font-size: 0.75rem;" onclick="app.abrirEscalacaoPreparacao()">🕐 Ajustar escalação titular</button>
+
     <div class="prep-note" id="prep-obs" style="margin-top: 8px;">Escolha um craque emprestado para reforçar o time SÓ nesta partida. O estilo define o equilíbrio entre ataque e defesa. A escalação titular vale para as próximas partidas.</div>
     <button class="btn-end-turn" style="width: 100%; margin-top: 12px; padding: 12px;" onclick="app.confirmarPreparacao()">⚽ ENTRAR EM CAMPO</button>
   </div>
@@ -3071,6 +4040,8 @@ const MatchUI = {
         const st = this._el('match-status'); if (st) st.innerText = 'BOLA ROLANDO...';
         document.querySelectorAll('.match-speed-btn').forEach(b => b.classList.toggle('active', String(b.dataset.speed) === '1'));
         this.clearPrompt();
+        this._tempoMin = 90;
+        this.fieldInit(nomeHome, nomeAdv);
         if (typeof ui !== 'undefined' && ui.atualizarFocoUI) ui.atualizarFocoUI({ _foco: 70 });
     },
     stats(arr) { // [posse, chH, chA, faH, faA, caH, caA, escH, escA]
@@ -3091,6 +4062,10 @@ const MatchUI = {
     clock(min) {
         const el = this._el('match-clock');
         if (el) el.innerText = "⏱️ " + min + "'";
+        // Barra da linha do tempo acompanha o relógio (preenche ao longo da partida)
+        const prog = this._el('tl-progress');
+        const total = (this._tempoMin || 90);
+        if (prog) prog.style.width = Math.min(100, Math.max(0, (min / total) * 100)) + '%';
     },
     status(txt) {
         const el = this._el('match-status');
@@ -3133,6 +4108,573 @@ const MatchUI = {
         if (this._promptTimer) { clearInterval(this._promptTimer); this._promptTimer = null; }
         const box = this._el('match-decision');
         if (box) box.classList.add('hidden');
+    },
+    // --- Campo 2D (fichas 11×11 + bola) ligadas ao MatchSim ---
+    fieldInit(homeNome, advNome) {
+        const campo = this._el('campo-2d');
+        if (!campo) return;
+        campo.innerHTML = '<div class="campo-linhas"></div><div class="campo-area esq"></div><div class="campo-area dir"></div>';
+        this._chipById = {};
+        this._chipSlots = { casa: [], fora: [] };
+        // Slots 4-4-2 em % do campo (x: 0=defesa casa → 100=ataque casa)
+        const base = [
+            { x: 6, y: 50, gk: true }, { x: 16, y: 22 }, { x: 16, y: 42 }, { x: 16, y: 58 }, { x: 16, y: 78 },
+            { x: 32, y: 22 }, { x: 32, y: 42 }, { x: 32, y: 58 }, { x: 32, y: 78 },
+            { x: 44, y: 36 }, { x: 44, y: 64 }
+        ];
+        base.forEach((p, i) => {
+            const chip = document.createElement('div');
+            chip.className = 'campo-chip casa' + (p.gk ? ' gk' : '');
+            chip.style.left = p.x + '%';
+            chip.style.top = p.y + '%';
+            chip.dataset.side = 'casa';
+            chip.dataset.i = String(i);
+            chip.title = (homeNome || 'Casa');
+            campo.appendChild(chip);
+            this._chipSlots.casa.push(chip);
+        });
+        base.forEach((p, i) => {
+            const chip = document.createElement('div');
+            chip.className = 'campo-chip fora' + (p.gk ? ' gk' : '');
+            chip.style.left = (100 - p.x) + '%';
+            chip.style.top = p.y + '%';
+            chip.dataset.side = 'fora';
+            chip.dataset.i = String(i);
+            chip.title = (advNome || 'Fora');
+            campo.appendChild(chip);
+            this._chipSlots.fora.push(chip);
+        });
+        const bola = document.createElement('div');
+        bola.className = 'campo-bola';
+        bola.id = 'campo-bola';
+        bola.style.left = '50%';
+        bola.style.top = '50%';
+        campo.appendChild(bola);
+
+        const duelo = document.createElement('div');
+        duelo.className = 'campo-duelo';
+        duelo.id = 'campo-duelo';
+        duelo.innerHTML =
+            '<div class="duelo-mini d-atk" id="duelo-a"><div class="dm-ovr" id="duelo-a-ovr">—</div><div class="dm-pos" id="duelo-a-pos">ATA</div><div class="dm-nome" id="duelo-a-nome">ATA</div></div>'
+            + '<div class="duelo-vs">VS</div>'
+            + '<div class="duelo-mini d-def" id="duelo-b"><div class="dm-ovr" id="duelo-b-ovr">—</div><div class="dm-pos" id="duelo-b-pos">DEF</div><div class="dm-nome" id="duelo-b-nome">DEF</div></div>';
+        campo.appendChild(duelo);
+
+        const tl = this._el('match-timeline');
+        if (tl) {
+            const track = this._el('tl-track');
+            if (track) {
+                [...track.querySelectorAll('.tl-marker')].forEach(m => m.remove());
+            }
+            const prog = this._el('tl-progress');
+            if (prog) prog.style.width = '0%';
+            const flash = this._el('tl-flash');
+            if (flash) { flash.className = 'tl-flash'; flash.textContent = ''; }
+        }
+    },
+    // Liga cada jogador do XI à sua ficha (GK→DEF→MID→ATT nas linhas do 4-4-2).
+    fieldBindXI(homeXI, awayXI) {
+        if (!this._chipSlots) return;
+        const bind = (side, lista) => {
+            const chips = this._chipSlots[side] || [];
+            const ordem = { GK: 0, DEF: 1, MID: 2, ATT: 3 };
+            const ordenado = (lista || []).slice().sort((a, b) => (ordem[a.posicao] || 9) - (ordem[b.posicao] || 9));
+            chips.forEach((chip, i) => {
+                const p = ordenado[i];
+                if (p && p.id != null) {
+                    chip.dataset.pid = String(p.id);
+                    chip.title = (p.nome || '') + (p.posicao ? ' · ' + p.posicao : '');
+                    chip.classList.toggle('gk', p.posicao === 'GK');
+                    this._chipById[String(p.id) + '@' + side] = chip;
+                } else {
+                    delete chip.dataset.pid;
+                    chip.title = side === 'casa' ? 'Casa' : 'Fora';
+                }
+            });
+        };
+        this._chipById = {};
+        bind('casa', homeXI);
+        bind('fora', awayXI);
+    },
+    timeline(min, tipo, label) {
+        const track = this._el('tl-track');
+        const prog = this._el('tl-progress');
+        const flash = this._el('tl-flash');
+        const fimEl = this._el('tl-end');
+        const midEl = this._el('tl-mid');
+        const total = (this._tempoMin || 90);
+        if (fimEl) fimEl.textContent = total + "'";
+        if (midEl) midEl.textContent = Math.round(total / 2) + "'";
+        const minuto = Math.max(0, Math.min(total, min == null ? 0 : min));
+        if (prog) prog.style.width = Math.min(100, (minuto / total) * 100) + '%';
+        if (track && (tipo === 'goal' || tipo === 'goal-rival' || tipo === 'cartao' || tipo === 'var')) {
+            const m = document.createElement('div');
+            let cls = 'tl-marker ';
+            let icon = '•';
+            if (tipo === 'goal') { cls += 'gol'; icon = '⚽'; }
+            else if (tipo === 'goal-rival') { cls += 'gol-rival'; icon = '⚽'; }
+            else if (tipo === 'cartao') { cls += 'cartao'; icon = '🟨'; }
+            else { cls += 'var'; icon = '📺'; }
+            m.className = cls;
+            m.style.left = Math.min(98, Math.max(2, (minuto / total) * 100)) + '%';
+            m.title = minuto + "' " + (label || '');
+            m.textContent = icon;
+            track.appendChild(m);
+        }
+        if (flash) {
+            let fcls = 'tl-flash on ';
+            if (tipo === 'goal') fcls += 'gol';
+            else if (tipo === 'goal-rival') fcls += 'gol-rival';
+            else if (tipo === 'cartao') fcls += 'cartao';
+            flash.className = fcls;
+            flash.textContent = (minuto != null ? minuto + "' " : '') + (label || '');
+            clearTimeout(this._tlFlashT);
+            this._tlFlashT = setTimeout(() => { flash.classList.remove('on'); }, 3200);
+        }
+    },
+    // ctx: { atk:{id,nome}, def:{id,nome}, atkSide:0|1, defSide:0|1 } — jogadores REAIS do MatchSim
+    fieldEvent(tipo, min, label, ctx) {
+        const campo = this._el('campo-2d');
+        if (!campo) return;
+        const bola = this._el('campo-bola');
+        const chips = campo.querySelectorAll('.campo-chip');
+        chips.forEach(c => c.classList.remove('ativo', 'atacante', 'defensor'));
+        const c = ctx || {};
+        const atkSide = c.atkSide != null ? c.atkSide : ((tipo === 'goal' || tipo === 'chance' || tipo === 'def') ? 0 : 1);
+        const defSide = c.defSide != null ? c.defSide : (1 - atkSide);
+        const ladoAtk = (atkSide === 0) ? 'casa' : 'fora';
+        // Casa ataca para a direita (x alto); fora ataca para a esquerda
+        const atkToRight = (atkSide === 0);
+        const chipOf = (p, side) => {
+            if (!p || p.id == null) return null;
+            return this._chipById && this._chipById[String(p.id) + '@' + (side === 0 ? 'casa' : 'fora')];
+        };
+        const atkChip = chipOf(c.atk, atkSide);
+        const defChip = chipOf(c.def, defSide);
+        // Posição do atacante (ficha real ou fallback)
+        let atkX = 50, atkY = 50, atkEl = atkChip;
+        if (atkEl) {
+            atkX = parseFloat(atkEl.style.left) || (atkToRight ? 44 : 56);
+            atkY = parseFloat(atkEl.style.top) || 50;
+        } else {
+            const pool = campo.querySelectorAll('.campo-chip.' + ladoAtk + ':not(.gk)');
+            atkEl = pool[Math.floor(Math.random() * Math.max(1, pool.length))] || null;
+            if (atkEl) {
+                atkX = parseFloat(atkEl.style.left) || 50;
+                atkY = parseFloat(atkEl.style.top) || 50;
+            }
+        }
+        // AÇÃO: posição final da bola (gol / defesa / meio)
+        let bx = 50, by = 50;
+        if (tipo === 'goal' || tipo === 'chance') {
+            bx = atkToRight ? 82 : 18; by = 42 + Math.random() * 16;
+        } else if (tipo === 'goal-rival' || tipo === 'chance-rival') {
+            bx = atkToRight ? 18 : 82; by = 42 + Math.random() * 16;
+        } else if (tipo === 'def') {
+            bx = atkToRight ? 74 : 26; by = 46 + Math.random() * 8;
+        } else if (tipo === 'foul' || tipo === 'cartao') {
+            bx = 35 + Math.random() * 30; by = 25 + Math.random() * 50;
+        } else {
+            bx = 30 + Math.random() * 40; by = 30 + Math.random() * 40;
+        }
+        // Animação em 2 tempos: (1) bola até o ATACANTE (2) bola vai para a ação
+        // Também grava o caminho para o replay do lance.
+        this._lastPlay = {
+            tipo, min, label,
+            atk: { x: atkX, y: atkY, el: atkEl },
+            act: { x: bx, y: by },
+            ctx: c
+        };
+        if (bola) {
+            clearTimeout(this._bolaT1);
+            clearTimeout(this._bolaT2);
+            // tempo 1 — recepção do atacante
+            bola.style.left = atkX + '%';
+            bola.style.top = atkY + '%';
+            if (atkEl) atkEl.classList.add('ativo', 'atacante');
+            // tempo 2 — conclusão do lance
+            this._bolaT1 = setTimeout(() => {
+                bola.style.left = bx + '%';
+                bola.style.top = by + '%';
+                if (defChip) {
+                    defChip.classList.add('ativo', 'defensor');
+                    defChip.style.left = (atkToRight ? Math.min(92, bx + 8) : Math.max(8, bx - 8)) + '%';
+                    defChip.style.top = (by + (Math.random() * 8 - 4)) + '%';
+                } else if (tipo === 'def' || tipo === 'goal' || tipo === 'goal-rival' || tipo === 'chance' || tipo === 'chance-rival') {
+                    const pool = campo.querySelectorAll('.campo-chip.' + (ladoAtk === 'casa' ? 'fora' : 'casa'));
+                    const pick = pool[Math.floor(Math.random() * Math.max(1, pool.length))];
+                    if (pick) pick.classList.add('ativo', 'defensor');
+                }
+            }, 380);
+        }
+        // Fallback de destaque se não há ficha ligada
+        if (!atkChip && atkEl) atkEl.classList.add('ativo', 'atacante');
+        // Card-battle: mini-cartões reais (OVR + posição + sobrenome) com impacto
+        if (tipo === 'goal' || tipo === 'goal-rival' || tipo === 'chance' || tipo === 'chance-rival' || tipo === 'def') {
+            const duelo = this._el('campo-duelo');
+            const a = this._el('duelo-a'), b = this._el('duelo-b');
+            if (duelo && a && b) {
+                const sobrenome = (n) => String(n || '—').split(' ').slice(-1)[0].toUpperCase().slice(0, 12);
+                const setCard = (prefix, p, fallbackPos) => {
+                    const ovr = this._el(prefix + '-ovr');
+                    const pos = this._el(prefix + '-pos');
+                    const nome = this._el(prefix + '-nome');
+                    if (ovr) ovr.textContent = (p && p.ovr != null) ? p.ovr : (p && p.overall != null ? p.overall : '—');
+                    if (pos) pos.textContent = (p && p.posicao) ? p.posicao : fallbackPos;
+                    if (nome) nome.textContent = sobrenome(p && p.nome ? p.nome : fallbackPos);
+                };
+                setCard('duelo-a', c.atk, 'ATA');
+                setCard('duelo-b', c.def, 'DEF');
+                // retrigger da animação de clash
+                duelo.classList.remove('on');
+                void duelo.offsetWidth;
+                duelo.classList.add('on');
+                clearTimeout(this._dueloT);
+                this._dueloT = setTimeout(() => duelo.classList.remove('on'), 2200);
+            }
+        }
+    },
+    // Torcida reage ao gol: arquibancada pula + gramado pulsa + rádio + swell de torcida.
+    crowdCelebrate(foiNosso) {
+        const bg = document.querySelector('#screen-match .estadio-bg');
+        if (!bg) return;
+        bg.classList.remove('celebra');
+        void bg.offsetWidth;
+        bg.classList.add('celebra');
+        clearTimeout(this._crowdT);
+        this._crowdT = setTimeout(() => bg.classList.remove('celebra'), 2400);
+        // Swell de torcida (pico curto; o loop do replay mantém o ronco)
+        this.startCrowdLoop(foiNosso ? 0.32 : 0.18);
+        clearTimeout(this._crowdSwellT);
+        this._crowdSwellT = setTimeout(() => {
+            if (!this._replayAtivo) this.stopCrowdLoop(700);
+        }, 2200);
+        // Comemoração compacta no campo + bordão de rádio
+        const campo = this._el('campo-2d');
+        if (campo) {
+            let mini = campo.querySelector('.goal-celebra-mini');
+            if (!mini) {
+                mini = document.createElement('div');
+                mini.className = 'goal-celebra-mini';
+                campo.appendChild(mini);
+            }
+            mini.textContent = foiNosso ? '⚽ GOOOOL!' : '⚽ GOL DO RIVAL';
+            mini.style.color = foiNosso ? '#4ade80' : '#f87171';
+            mini.classList.remove('on');
+            void mini.offsetWidth;
+            mini.classList.add('on');
+            clearTimeout(this._celebraT);
+            this._celebraT = setTimeout(() => mini.classList.remove('on'), 1800);
+        }
+        this.radioSay(foiNosso
+            ? '🎙 GOOOOL! O estádio entra em ebulição — a rádio 95.3 quase cai da mesa!'
+            : '🎙 Gol do rival… o silêncio no caldeirão dura um segundo. Depois, a torcida cobra.');
+    },
+    // Replay do último lance: a bola refaz o caminho atacante → ação com badge "REPLAY".
+    // Também: narração de rádio dinâmica + som de torcida contínuo.
+    replayLastPlay() {
+        const play = this._lastPlay;
+        const campo = this._el('campo-2d');
+        const bola = this._el('campo-bola');
+        if (!play || !campo || !bola) return;
+        let badge = campo.querySelector('.replay-badge');
+        if (!badge) {
+            badge = document.createElement('div');
+            badge.className = 'replay-badge';
+            badge.textContent = 'REPLAY';
+            campo.appendChild(badge);
+        }
+        badge.classList.add('on');
+        bola.classList.add('rastro');
+        // Torcida contínua + rádio 95.3
+        this._replayAtivo = true;
+        this.startCrowdLoop(0.22);
+        const atkNome = (play.ctx && play.ctx.atk && play.ctx.atk.nome) ? play.ctx.atk.nome.split(' ').slice(-1)[0] : 'o atacante';
+        const defNome = (play.ctx && play.ctx.def && play.ctx.def.nome) ? play.ctx.def.nome.split(' ').slice(-1)[0] : 'a defesa';
+        const ehGol = (play.tipo === 'goal' || play.tipo === 'goal-rival');
+        const frases = [
+            { t: 80,  txt: '🎙 Olha a bola no pé de ' + atkNome + '… o estádio segura a respiração!' },
+            { t: 520, txt: '🎙 ' + atkNome + ' domina, olha pra cima e procura o espaço…' },
+            { t: 780, txt: ehGol
+                ? ('🎙 ' + atkNome + ' solta a perna — E A REDE BALANÇA! Que golaço da rádio 95.3!')
+                : ('🎙 Finalização! ' + defNome + ' aparece e evita o pior — defesaça!') },
+            { t: 1500, txt: ehGol
+                ? ('🎙 O estádio explode! ' + atkNome + ' é o herói do lance — vamos ao replay!')
+                : ('🎙 No replay: ' + defNome + ' leu o lance antes de todo mundo. Gênio!') }
+        ];
+        // limpa destaques e reexecuta o caminho gravado
+        campo.querySelectorAll('.campo-chip').forEach(c => c.classList.remove('ativo', 'atacante', 'defensor'));
+        clearTimeout(this._replayT1);
+        clearTimeout(this._replayT2);
+        clearTimeout(this._replayT3);
+        clearTimeout(this._radioSeq);
+        frases.forEach(f => {
+            this._radioSeq = setTimeout(() => this.radioSay(f.txt), f.t);
+        });
+        // (0) centro → atacante
+        bola.style.transition = 'none';
+        bola.style.left = '50%';
+        bola.style.top = '50%';
+        void bola.offsetWidth;
+        bola.style.transition = 'left 0.55s ease, top 0.55s ease';
+        this._replayT1 = setTimeout(() => {
+            bola.style.left = play.atk.x + '%';
+            bola.style.top = play.atk.y + '%';
+            if (play.atk.el) play.atk.el.classList.add('ativo', 'atacante');
+        }, 40);
+        // (1) atacante → ação (com defensor)
+        this._replayT2 = setTimeout(() => {
+            bola.style.left = play.act.x + '%';
+            bola.style.top = play.act.y + '%';
+            const defChip = play.ctx && play.ctx.def && play.ctx.def.id != null
+                ? this._chipById && this._chipById[String(play.ctx.def.id) + '@' + ((play.ctx.defSide === 0) ? 'casa' : 'fora')]
+                : null;
+            if (defChip) defChip.classList.add('ativo', 'defensor');
+            // VAR: em gols, o painel de análise sobe em cima do replay
+            if (ehGol) {
+                try {
+                    this.varReview({
+                        anulado: !!play.anulado,
+                        autor: play.ctx && play.ctx.atk,
+                        def: play.ctx && play.ctx.def,
+                        motivo: play.motivo || (play.tipo === 'goal-rival' ? 'bola' : 'impedimento'),
+                        min: play.min
+                    });
+                } catch (e) { }
+            }
+        }, 700);
+        // (2) fim do replay — desliga torcida e some com a fita (VAR pode continuar)
+        this._replayT3 = setTimeout(() => {
+            badge.classList.remove('on');
+            bola.classList.remove('rastro');
+            bola.style.transition = 'left 0.7s ease, top 0.7s ease';
+            this._replayAtivo = false;
+            const varAtivo = campo.querySelector('.var-panel.on');
+            if (!varAtivo) {
+                this.stopCrowdLoop();
+                this.radioHide();
+            }
+        }, ehGol ? 3400 : 2400);
+    },
+    // Fita de rádio 95.3 no campo (typewriter).
+    radioSay(texto) {
+        const campo = this._el('campo-2d');
+        if (!campo) return;
+        let strip = campo.querySelector('.radio-replay');
+        if (!strip) {
+            strip = document.createElement('div');
+            strip.className = 'radio-replay';
+            strip.innerHTML = '<span class="rr-freq">95.3 FM</span><span class="rr-text"></span>';
+            campo.appendChild(strip);
+        }
+        const el = strip.querySelector('.rr-text');
+        strip.classList.add('on');
+        if (!el) return;
+        clearTimeout(this._radioTypeT);
+        clearInterval(this._radioTypeI);
+        el.classList.add('typing');
+        el.textContent = '';
+        const full = String(texto || '');
+        let i = 0;
+        this._radioTypeI = setInterval(() => {
+            i += 2;
+            el.textContent = full.slice(0, i);
+            if (i >= full.length) {
+                clearInterval(this._radioTypeI);
+                this._radioTypeT = setTimeout(() => el.classList.remove('typing'), 600);
+            }
+        }, 22);
+    },
+    radioHide() {
+        clearInterval(this._radioTypeI);
+        clearTimeout(this._radioTypeT);
+        const strip = this._el('campo-2d') && this._el('campo-2d').querySelector('.radio-replay');
+        if (strip) strip.classList.remove('on');
+    },
+    // VAR estilo transmissão: varre o lance em etapas e mostra a decisão do juiz.
+    // opts: { anulado: bool, autor: {nome}, def: {nome}, motivo: 'impedimento'|'falta'|'mao'|'bola' }
+    varReview(opts = {}) {
+        const campo = this._el('campo-2d');
+        if (!campo) return;
+        const anulado = !!opts.anulado;
+        const motivo = opts.motivo || (anulado ? 'impedimento' : 'bola');
+        const autor = (opts.autor && opts.autor.nome) ? opts.autor.nome.split(' ').slice(-1)[0] : 'o atacante';
+        let panel = campo.querySelector('.var-panel');
+        if (!panel) {
+            panel = document.createElement('div');
+            panel.className = 'var-panel';
+            panel.innerHTML =
+                '<div class="var-scan"></div>'
+                + '<div class="var-box">'
+                + '<div class="var-title">📺 VAR · ANÁLISE DO LANCE</div>'
+                + '<div class="var-step" id="var-step-txt">Verificando imagens…</div>'
+                + '<div class="var-steps" id="var-steps-list"></div>'
+                + '<div class="var-bar"><i id="var-bar-fill"></i></div>'
+                + '<div class="var-decision" id="var-decision"></div>'
+                + '<div class="var-juiz" id="var-juiz">⌚ ÁRBITRO NA REVISÃO</div>'
+                + '</div>';
+            campo.appendChild(panel);
+        }
+        const stepTxt = panel.querySelector('#var-step-txt');
+        const stepsList = panel.querySelector('#var-steps-list');
+        const barFill = panel.querySelector('#var-bar-fill');
+        const dec = panel.querySelector('#var-decision');
+        const juiz = panel.querySelector('#var-juiz');
+        const alvos = [
+            { id: 'off', label: 'Impedimento', bad: motivo === 'impedimento' },
+            { id: 'falta', label: 'Falta na origem', bad: motivo === 'falta' },
+            { id: 'mao', label: 'Toque de mão', bad: motivo === 'mao' },
+            { id: 'bola', label: 'Linha do gol', bad: false }
+        ];
+        const nomeAlvo = {
+            impedimento: 'IMPEDIMENTO',
+            falta: 'FALTA NA ORIGEM',
+            mao: 'TOQUE DE MÃO',
+            bola: 'BOLA NA LINHA'
+        }[motivo] || 'LANCE';
+        panel.classList.add('on');
+        if (dec) { dec.className = 'var-decision'; dec.textContent = ''; }
+        if (juiz) { juiz.className = 'var-juiz'; juiz.textContent = '⌚ ÁRBITRO NA REVISÃO'; }
+        if (stepsList) stepsList.innerHTML = alvos.map(a => `<div class="pend" id="var-s-${a.id}">▢ ${a.label}</div>`).join('');
+        if (barFill) barFill.style.width = '8%';
+        // Sequência de análise (sincronizada com o replay)
+        clearTimeout(this._varT1); clearTimeout(this._varT2); clearTimeout(this._varT3);
+        clearTimeout(this._varT4); clearTimeout(this._varT5);
+        this.radioSay('🎙 O VAR chama o árbitro… vamos à revisão do lance de ' + autor + '!');
+        this._varT1 = setTimeout(() => {
+            if (stepTxt) stepTxt.textContent = 'Verificando ' + nomeAlvo.toLowerCase() + '…';
+            if (barFill) barFill.style.width = '35%';
+            this.radioSay('🎙 Painel de imagens ligado — é ' + nomeAlvo.toLowerCase() + ' que está em cheque.');
+        }, 350);
+        this._varT2 = setTimeout(() => {
+            alvos.forEach((a, i) => {
+                this._varT3 = setTimeout(() => {
+                    const el = panel.querySelector('#var-s-' + a.id);
+                    if (el) {
+                        el.className = a.bad ? 'bad' : 'ok';
+                        el.textContent = (a.bad ? '✗ ' : '✓ ') + a.label;
+                    }
+                    if (barFill) barFill.style.width = (35 + (i + 1) * 12) + '%';
+                }, i * 380);
+            });
+        }, 700);
+        this._varT4 = setTimeout(() => {
+            if (stepTxt) stepTxt.textContent = 'Imagens do vídeo arbitral…';
+            if (barFill) barFill.style.width = '88%';
+        }, 2200);
+        this._varT5 = setTimeout(() => {
+            if (barFill) barFill.style.width = '100%';
+            if (dec) {
+                dec.className = 'var-decision show ' + (anulado ? 'anulado' : 'confirmado');
+                dec.textContent = anulado ? '❌ GOL ANULADO' : '⚽ GOL CONFIRMADO';
+            }
+            if (juiz) {
+                juiz.className = 'var-juiz sig';
+                juiz.textContent = anulado
+                    ? '👉 ÁRBITRO APONTA PARA A CENTRAL — LANCE CANCELADO'
+                    : '👉 ÁRBITRO APONTA PARA O MEIO — VALOR O GOL!';
+            }
+            if (stepTxt) stepTxt.textContent = anulado
+                ? ('Decisão: ' + nomeAlvo + ' — gol de ' + autor + ' está anulado.')
+                : ('Decisão: lance limpo de ' + autor + ' — gol vale!');
+            this.timeline(opts.min != null ? opts.min : 0, 'var', anulado ? 'VAR ✗' : 'VAR ✓');
+            this.radioSay(anulado
+                ? ('🎙 VAR confirmou ' + nomeAlvo.toLowerCase() + '! O gol de ' + autor + ' está ANULADO. O juiz aponta pra central!')
+                : ('🎙 Sem irregularidade! O juiz bate no relógio e confirma o gol de ' + autor + '!')
+            );
+            if (typeof ui !== 'undefined' && ui.playSFX) ui.playSFX(anulado ? 'sfx_notify' : 'sfx_whistle', 0.55);
+        }, 3000);
+        // some sozinho
+        clearTimeout(this._varHideT);
+        this._varHideT = setTimeout(() => {
+            panel.classList.remove('on');
+            if (!this._replayAtivo) {
+                this.stopCrowdLoop();
+                this.radioHide();
+            }
+        }, 5200);
+    },
+    // Torcida contínua: ruído filtrado + LFO (bairro de estádio). Web Audio, sem asset.
+    // _synthCtx/_synthVol vivem na classe UI — delega para o singleton `ui`.
+    _crowdCtx() {
+        return (typeof ui !== 'undefined' && ui && ui._synthCtx) ? ui._synthCtx() : null;
+    },
+    _crowdVol(base) {
+        return (typeof ui !== 'undefined' && ui && ui._synthVol) ? ui._synthVol(base) : base;
+    },
+    startCrowdLoop(level = 0.18) {
+        this._crowdErr = null;
+        try {
+            const ctx = this._crowdCtx();
+            if (!ctx) { this._crowdErr = 'sem AudioContext (sfx off?)'; return; }
+            this.stopCrowdLoop();
+            const t0 = ctx.currentTime || 0;
+            const vol = this._crowdVol(level);
+            const dur = 3.2;
+            const sr = ctx.sampleRate || 44100;
+            const len = Math.floor(sr * dur);
+            const buf = ctx.createBuffer(1, len, sr);
+            const data = buf.getChannelData(0);
+            // ruído rosa-ish: média móvel de branco
+            let last = 0;
+            for (let i = 0; i < len; i++) {
+                const w = Math.random() * 2 - 1;
+                last = 0.92 * last + 0.08 * w;
+                // murmúrio + picos leves de gritos
+                const t = i / sr;
+                data[i] = last * 0.7 + Math.sin(2 * Math.PI * 0.35 * t) * 0.05 * w;
+            }
+            const src = ctx.createBufferSource();
+            src.buffer = buf;
+            src.loop = true;
+            const bp = ctx.createBiquadFilter();
+            bp.type = 'bandpass';
+            bp.frequency.value = 420;
+            bp.Q.value = 0.55;
+            const master = ctx.createGain();
+            master.gain.setValueAtTime(0.0001, t0);
+            master.gain.linearRampToValueAtTime(vol, t0 + 0.35);
+            // LFO de agitação da torcida
+            const lfo = ctx.createOscillator();
+            lfo.type = 'sine';
+            lfo.frequency.value = 0.7;
+            const lfoGain = ctx.createGain();
+            lfoGain.gain.value = vol * 0.35;
+            lfo.connect(lfoGain);
+            lfoGain.connect(master.gain);
+            src.connect(bp); bp.connect(master); master.connect(ctx.destination);
+            try { src.start(t0); lfo.start(t0); } catch (eStart) {
+                try { src.start(); lfo.start(); } catch (e2) { this._crowdErr = String(e2); }
+            }
+            this._crowdNodes = { src, lfo, master, bp };
+            if (ctx.state === 'suspended' && ctx.resume) {
+                ctx.resume().catch(() => { });
+                const kick = () => {
+                    try { if (ui && ui.audioContext && ui.audioContext.state === 'suspended') ui.audioContext.resume(); } catch (_) { }
+                    document.removeEventListener('pointerdown', kick);
+                    document.removeEventListener('touchstart', kick);
+                };
+                document.addEventListener('pointerdown', kick, { once: true });
+                document.addEventListener('touchstart', kick, { once: true });
+            }
+        } catch (e) { this._crowdErr = String(e && e.message ? e.message : e); }
+    },
+    stopCrowdLoop(fadeMs = 500) {
+        const n = this._crowdNodes;
+        if (!n) return;
+        this._crowdNodes = null;
+        try {
+            const ctx = this._crowdCtx();
+            const t0 = ctx ? (ctx.currentTime || 0) : 0;
+            n.master.gain.cancelScheduledValues(t0);
+            n.master.gain.setValueAtTime(n.master.gain.value || 0.05, t0);
+            n.master.gain.exponentialRampToValueAtTime(0.0001, t0 + fadeMs / 1000);
+            setTimeout(() => {
+                try { n.src.stop(); n.lfo.stop(); } catch (_) { }
+            }, fadeMs + 40);
+        } catch (_) {
+            try { n.src.stop(); n.lfo.stop(); } catch (__) { }
+        }
     }
 };
 
@@ -3485,7 +5027,7 @@ class MatchSim {
         }
         return this._pick([
             "{j} domina no meio e procura espaço.", "{j} puxa a marcação e gira o jogo.", "Trocas de passe na intermediária, time de " + (team === this.home ? "casa" : "fora") + " paciente.", "{j} tenta a ligação direta... a zaga corta.", "Boa troca de passes! " + (team === this.home ? "O mandante" : "O visitante") + " impõe ritmo.", "{j} cobra falta curta e encontra o companheiro livre.", "{j} aciona o contra-ataque com um lançamento longo."
-        ]);
+        ]).replace('{j}', j);
     }
     _fraseChance(team) {
         const j = team === this.home ? this._nomeHome('ATT') : this._nomeAdv('ATT');
@@ -3669,6 +5211,16 @@ class MatchSim {
             this._xiDoTime(this.home),
             this._xiDoTime(this.away)
         ];
+        // Campo 2D: fichas passam a representar os jogadores REAIS do XI.
+        try {
+            MatchUI._tempoMin = this.tempoMin || 90;
+            const toPlayers = (side, team) => {
+                const ids = this._emCampo[side] || [];
+                const el = team.elenco || [];
+                return ids.map(id => el.find(p => p.id === id)).filter(Boolean);
+            };
+            MatchUI.fieldBindXI(toPlayers(0, this.home), toPlayers(1, this.away));
+        } catch (e) { /* campo 2D é cosmético */ }
         // G3: registra os titulares como "usados" (dreno pós-jogo).
         for (let side = 0; side <= 1; side++) {
             if (!this._usados[side]) this._usados[side] = {};
@@ -3704,6 +5256,29 @@ class MatchSim {
             if (uniq.size === 11 && xi.length === 11 && xi.some(p => p.posicao === 'GK')) return ids.slice();
         }
         return escalarTitularesXI(team.elenco || [], team.formacao).map(p => p.id);
+    }
+
+    // Campo 2D: re-mapeia fichas após substituição (XI em campo mudou).
+    _rebindCampo() {
+        try {
+            const toPlayers = (side, team) => {
+                const ids = (this._emCampo && this._emCampo[side]) || [];
+                const el = team.elenco || [];
+                return ids.map(id => el.find(p => p.id === id)).filter(Boolean);
+            };
+            MatchUI.fieldBindXI(toPlayers(0, this.home), toPlayers(1, this.away));
+        } catch (e) { /* cosmético */ }
+    }
+
+    // Resumo leve do jogador para o card-battle do campo 2D.
+    _pctx(p, fallbackNome) {
+        if (!p) return { nome: fallbackNome || '—' };
+        return {
+            id: p.id,
+            nome: p.nome || fallbackNome || '—',
+            ovr: (p.overall != null ? p.overall : (p.ovr != null ? p.ovr : null)),
+            posicao: p.posicao || null
+        };
     }
 
     // ---- G1: cartas táticas de partida ----
@@ -3853,7 +5428,20 @@ class MatchSim {
         let log = '';
         let tipoFeed = 'info';
         let expulsoNome = null;
+        // Campo 2D: lados reais (side 0 = casa) e protagonistas do lance
+        const sideAtk = ev.side === 0 ? 0 : 1;
+        const sideDef = ev.side === 0 ? 1 : 0;
+        const setCtx = (atkPos, defPos) => {
+            const atk = this._pickXI(sideAtk, atkPos) || this._pickXI(sideAtk, 'MID');
+            const def = this._pickXI(sideDef, defPos) || this._pickXI(sideDef, 'DEF') || this._pickXI(sideDef, 'GK');
+            this._campoCtx = {
+                atk: this._pctx(atk, sideAtk === 0 ? this._nomeHome('MID') : this._nomeAdv('MID')),
+                def: this._pctx(def, 'ZAG'),
+                atkSide: sideAtk, defSide: sideDef
+            };
+        };
         if (t === 'lance') {
+            setCtx(this._roll(0.5) ? 'ATT' : 'MID', this._roll(0.4) ? 'GK' : 'DEF');
             log = this._roll(0.55) ? this._fraseLan(ev.side === 0 ? this.home : this.away) : this._fraseChance(ev.side === 0 ? this.home : this.away);
             if (log.indexOf('PERIGO') >= 0 || log.indexOf('Contra-ataque') >= 0) tipoFeed = 'warn';
             this.chutes[ev.side] += this._roll(0.5) ? 1 : 0;
@@ -3865,10 +5453,12 @@ class MatchSim {
                 else ui.playNarracao('passe');
             }
         } else if (t === 'falta') {
+            setCtx('MID', 'DEF');
             log = this._fraseFalta(ev.side === 0 ? this.home : this.away);
             this.faltas[ev.side]++;
             tipoFeed = 'foul';
         } else if (t === 'cartao') {
+            setCtx('DEF', 'ATT');
             log = this._fraseCartao(ev.side === 0 ? this.home : this.away);
             this.cartoes[ev.side]++;
             // G6: 2ª amarela → expulsão com efeito real em _poder (A8).
@@ -3883,6 +5473,7 @@ class MatchSim {
             }
             tipoFeed = 'foul';
         } else if (t === 'escanteio') {
+            setCtx('ATT', 'GK');
             log = "Escanteio para o " + (ev.side === 0 ? "time da casa" : "visitante") + "!";
             this.escanteios[ev.side]++;
             this.chutes[ev.side]++;
@@ -3898,11 +5489,13 @@ class MatchSim {
                 log += rec;
             }
         } else if (t === 'defesa') {
+            setCtx('ATT', 'GK');
             log = this._fraseDef(ev.side === 0 ? this.home : this.away);
             this.chutes[ev.side ^ 1]++;
             tipoFeed = 'def';
         } else if (t === 'autoGol') {
             const isHome = ev.side === 0;
+            setCtx('ATT', 'GK');
             const rec = this._marcar(isHome, this._autorDoGol(isHome));
             log = this._fraseGol(isHome ? this.home : this.away) + rec;
             tipoFeed = 'goal';
@@ -3910,6 +5503,16 @@ class MatchSim {
             log = this._fraseVar(ev.side === 0 ? this.home : this.away);
             this.chutes[ev.side]++;
             tipoFeed = 'warn';
+            // Visual do VAR: análise + decisão do juiz (anulado — coerente com _fraseVar)
+            try {
+                const atkP = this._pickXI(ev.side === 0 ? 0 : 1, 'ATT');
+                MatchUI.varReview({
+                    anulado: true,
+                    motivo: (log.indexOf('toque de mão') >= 0 || log.indexOf('mao') >= 0) ? 'mao' : 'impedimento',
+                    autor: this._pctx(atkP, ev.side === 0 ? this._nomeHome('ATT') : this._nomeAdv('ATT')),
+                    min: this.minuto
+                });
+            } catch (e) { /* cosmético */ }
         } else if (t === 'acrescimo') {
             log = this._fraseAcrescimo();
             tipoFeed = 'info';
@@ -3940,6 +5543,17 @@ class MatchSim {
         if (isHome) this.scoreH++; else this.scoreA++;
         if (autor && autor.id) this.matchScorers[autor.id] = (this.matchScorers[autor.id] || 0) + 1;
         if (autor) autor.gols = (autor.gols || 0) + 1;
+        // Campo 2D: se o chamador não montou contexto, usa autor × goleiro adversário
+        if (!this._campoCtx) {
+            const atkSide = isHome ? 0 : 1;
+            const defSide = isHome ? 1 : 0;
+            const guardiao = this._pickXI(defSide, 'GK') || this._pickXI(defSide, 'DEF');
+            this._campoCtx = {
+                atk: this._pctx(autor, isHome ? this._nomeHome('ATT') : this._nomeAdv('ATT')),
+                def: this._pctx(guardiao, 'GOL'),
+                atkSide, defSide
+            };
+        }
         // Contexto pós-gol: virada / sequência / gol do adversário
         this._golsMin = (this._golsMin || []).filter(m => this.minuto - m <= 5);
         this._golsMin.push(this.minuto);
@@ -3990,6 +5604,33 @@ class MatchSim {
         if (typeof ui !== 'undefined' && log) ui.narrate(log, this.minuto);
         MatchUI.score(this.scoreH, this.scoreA);
         MatchUI.stats([this.posse, this.chutes[0], this.chutes[1], this.faltas[0], this.faltas[1], this.cartoes[0], this.cartoes[1], this.escanteios[0], this.escanteios[1]]);
+        // Campo 2D + timeline de transmissão (fichas reais do lance via _campoCtx)
+        try {
+            const t = tipo || 'info';
+            const ctx = this._campoCtx || null;
+            // Lado preferencialmente pelo contexto real do MatchSim; fallback = texto (compat).
+            let atkSide = ctx && ctx.atkSide != null ? ctx.atkSide : null;
+            const isGoal = (t === 'goal');
+            const isUserGoal = isGoal && (atkSide != null
+                ? atkSide === this._userSide()
+                : (log && log.indexOf('GOL DO RIVAL') < 0));
+            const isRivalGoal = isGoal && !isUserGoal;
+            if (isUserGoal) {
+                MatchUI.fieldEvent('goal', this.minuto, log, ctx);
+                MatchUI.timeline(this.minuto, 'goal', '⚽ GOL');
+            } else if (isRivalGoal) {
+                MatchUI.fieldEvent('goal-rival', this.minuto, log, ctx);
+                MatchUI.timeline(this.minuto, 'goal-rival', '⚽ RIVAL');
+            } else if (t === 'warn' || t === 'foul') {
+                MatchUI.fieldEvent('cartao', this.minuto, log, ctx);
+                if (t === 'warn') MatchUI.timeline(this.minuto, 'cartao', '🟨');
+            } else if (t === 'def') {
+                MatchUI.fieldEvent('def', this.minuto, log, ctx);
+            } else {
+                MatchUI.fieldEvent('info', this.minuto, log, ctx);
+            }
+        } catch (e) { /* campo 2D é cosmético — nunca derruba a simulação */ }
+        this._campoCtx = null;
         if (this.onTick) {
             this.onTick({
                 minuto: this.minuto, scoreH: this.scoreH, scoreA: this.scoreA, posse: Math.round(this.posse),
@@ -4064,6 +5705,7 @@ class MatchSim {
         em[em.indexOf(sai.id)] = entra.id;
         if (!this._usados[isHome ? 0 : 1]) this._usados[isHome ? 0 : 1] = {};
         this._usados[isHome ? 0 : 1][entra.id] = true;
+        this._rebindCampo();
         this._emit('⚤ Substituição: sai ' + sai.nome + ' (fôlego ' + Math.round(saiF) + '%), entra ' + entra.nome + '.', 'info');
         // Recalcula forças — efeito imediato nas próximas chances e decisões.
         const pH = this._poder(this.home, true);
@@ -4096,6 +5738,7 @@ class MatchSim {
         if (!sai || !entra || em.indexOf(entraId) >= 0) return;
         em[em.indexOf(saiId)] = entraId;
         this._usados[side][entraId] = true;
+        this._rebindCampo();
         this._emit('⚤ Substituição: sai ' + sai.nome + ', entra ' + entra.nome + '.', 'info');
         const pH = this._poder(this.home, true);
         const pA = this._poder(this.away, false);
@@ -4111,6 +5754,15 @@ class MatchSim {
         const jp = this._pickXI(isHome ? 0 : 1, 'ATT'); // Fase 1: atacante real em campo
         const j = jp ? jp.nome : (isHome ? this._nomeHome('ATT') : this._nomeAdv('ATT'));
         const userScored = ((isHome ? 0 : 1) === this._userSide());
+        // Campo 2D: protagonistas REAIS do lance (atacante × goleiro/zaga)
+        const atkSide = isHome ? 0 : 1;
+        const defSide = isHome ? 1 : 0;
+        const guardiao = this._pickXI(defSide, 'GK') || this._pickXI(defSide, 'DEF');
+        this._campoCtx = {
+            atk: this._pctx(jp, j),
+            def: this._pctx(guardiao, 'GOL'),
+            atkSide, defSide
+        };
         try {
             if (this._roll(p)) {
                 const autor = jp || null;
@@ -4166,6 +5818,7 @@ class MatchSim {
             ui.synthApito(true); // C5: apito final procedural
             if (ui.pararNarracao) ui.pararNarracao();
         }
+        try { MatchUI.stopCrowdLoop(800); MatchUI.radioHide(); } catch (e) { }
         const h = this.scoreH, a = this.scoreA;
         // Bordão de encerramento (1x por partida)
         const fimTxt = this._fraseContexto(h > a ? 'fimVitoria' : (h < a ? 'fimDerrota' : 'empateFinal'));
@@ -4455,6 +6108,10 @@ class UI {
     }
     // C5: estática de sintonia de rádio ao trocar de tela (sutil, com cooldown).
     this.synthEstatica();
+    // Ao sair da partida: encerra torcida contínua / fita de rádio do replay.
+    if (screenId !== 'screen-match') {
+      try { MatchUI.stopCrowdLoop(300); MatchUI.radioHide(); } catch (e) { }
+    }
   }
 
   showSubscreen(subscreenId) {
@@ -4809,6 +6466,8 @@ class UI {
     const notif = document.getElementById('ui-goal-notification');
     if (!notif) return;
     this.synthGolEstouro(); // C5: estouro de gol (distinto do click)
+    // Torcida reage + badge de comemoração no campo 2D
+    try { MatchUI.crowdCelebrate(!!isPlayerGoal); } catch (e) { }
     const h1 = notif.querySelector('h1');
     const titulo = isPlayerGoal ? 'GOOOOL!!' : 'GOL SOFRIDO';
     const sub = autor ? (autor.nome + (minuto ? ' aos ' + minuto + "'" : '')) : null;
@@ -4826,6 +6485,11 @@ class UI {
         h1.style.transform = 'scale(0)';
         setTimeout(() => notif.classList.add('hidden'), 300);
     }, dramatico ? 1800 : 1500);
+    // Replay do lance logo após a comemoração (campo 2D)
+    clearTimeout(this._replayGoalT);
+    this._replayGoalT = setTimeout(() => {
+        try { MatchUI.replayLastPlay(); } catch (e) { }
+    }, (dramatico ? 1900 : 1600));
   }
 
   showMatchResultModal(scoreH, scoreA, resultText, summary, pen) {
@@ -5042,10 +6706,27 @@ class UI {
         statEl.innerText = `Moral ${app.club.moral}% · Fôlego ${avgF}%`;
     }
 
-    // C1: resumo do patrocínio no dashboard.
-    const patEl = document.getElementById('ui-patrocinio-msg');
+    // C1: resumo do patrocínio no dashboard (HUD compacto).
+    const patEl = document.getElementById('ui-patrocinio-txt');
     if (patEl) {
         patEl.innerText = (app.club.patrocinioResumo && app.club.patrocinioResumo()) || '—';
+    }
+
+    // HUD de métricas: Grana | Torcida | Moral | Fôlego
+    const hudMoney = document.getElementById('hud-money');
+    if (hudMoney) hudMoney.innerText = app.fmtMoneyShort(app.club.orcamento);
+    const avgF = Math.round(app.club.elenco.reduce((s, p) => s + (p.folego == null ? 100 : p.folego), 0) / Math.max(1, app.club.elenco.length));
+    const hudFol = document.getElementById('hud-folego');
+    const hudFolBar = document.getElementById('hud-folego-bar');
+    if (hudFol) hudFol.innerText = avgF + '%';
+    if (hudFolBar) hudFolBar.style.width = Math.max(0, Math.min(100, avgF)) + '%';
+    const moral = Math.round(app.club.moral == null ? 70 : app.club.moral);
+    const hudMoral = document.getElementById('hud-moral');
+    const hudMoralBar = document.getElementById('hud-moral-bar');
+    if (hudMoral) hudMoral.innerText = moral + '%';
+    if (hudMoralBar) {
+        hudMoralBar.style.width = Math.max(0, Math.min(100, moral)) + '%';
+        hudMoralBar.style.background = moral >= 60 ? '#4ade80' : (moral >= 35 ? '#facc15' : '#f87171');
     }
 
     const adv = app.getNextOpponent();
@@ -5075,7 +6756,7 @@ class UI {
                     ? `Vença <b>${rival.nome}</b> hoje para +R$100k e 1 jogador grátis.`
                     : 'Desafio diário disponível: +R$100k e 1 jogador grátis.';
             }
-            dailyEl.style.display = 'block';
+            dailyEl.style.display = 'flex';
         } else {
             dailyEl.style.display = 'none';
         }
@@ -5092,7 +6773,7 @@ class UI {
                     ? `Clássico! Vença <b>${rival.nome}</b> (o mais forte da liga) para +R$250k e 1 jogador.`
                     : 'Clássico da Semana disponível: +R$250k e 1 jogador.';
             }
-            clEl.style.display = 'block';
+            clEl.style.display = 'flex';
         } else {
             clEl.style.display = 'none';
         }
@@ -5108,7 +6789,7 @@ class UI {
             if (txt) {
                 txt.innerHTML = `${app._torneioFaseNome(tor.fase)} — vença <b>${adv ? adv.nome : '?'}</b> para +${app.fmtMoneyShort(tor.premioFase)}. Campeão leva R$1,5M!`;
             }
-            torEl.style.display = 'block';
+            torEl.style.display = 'flex';
         } else {
             torEl.style.display = 'none';
         }
@@ -5123,12 +6804,17 @@ class UI {
       } else {
         missoes.forEach(m => {
           const item = document.createElement('div');
-          item.className = 'mission-row';
+          item.className = 'mission-row' + (m.concluida ? ' concluida' : '');
           const pct = Math.min(100, Math.round((m.progresso / Math.max(1, m.meta)) * 100));
+          const premioTxt = m.premio ? ('+' + app.fmtMoneyShort(m.premio)) : '';
           item.innerHTML = `
             <div class="mission-header">
-              <span>${m.desc}</span>
-              <span style="color: ${m.concluida ? 'var(--gold)' : 'var(--text)'}">${m.progresso}/${m.meta} ${m.concluida ? '✓' : ''}</span>
+              <span class="m-desc">${m.desc}</span>
+              ${premioTxt ? `<span class="m-reward">🪙 ${premioTxt}</span>` : ''}
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:0.65rem; color:var(--text-muted); margin-bottom:4px;">
+              <span>${m.concluida ? 'Concluída ✓' : 'Em andamento'}</span>
+              <span style="color: ${m.concluida ? 'var(--gold)' : 'var(--text)'}">${m.progresso}/${m.meta}</span>
             </div>
             <div style="height:6px; background:rgba(255,255,255,0.08); border-radius:3px; overflow:hidden;">
               <div style="width:${pct}%; height:100%; background:${m.concluida ? 'var(--gold)' : 'var(--accent)'}; border-radius:3px; transition:width 0.3s;"></div>
@@ -5151,18 +6837,14 @@ class UI {
       if (typeof app._updatePackPityUI === 'function') app._updatePackPityUI();
     }
 
-    // Aprovação da torcida: barra, cor e mensagem de humor do estádio.
-    const fanVal = document.getElementById('ui-fan-value');
-    const fanFill = document.getElementById('ui-fan-fill');
-    const fanMsg = document.getElementById('ui-fan-msg');
-    if (fanVal && fanFill && fanMsg) {
+    // Aprovação da torcida: HUD compacto (valor + barra colorida).
+    const fanVal = document.getElementById('hud-fans');
+    const fanFill = document.getElementById('hud-fans-bar');
+    if (fanVal && fanFill) {
         const f = Math.max(0, Math.min(100, app.club.fans == null ? 50 : app.club.fans));
         fanVal.innerText = f + '%';
         fanFill.style.width = f + '%';
         fanFill.style.background = f >= 60 ? '#4ade80' : (f >= 35 ? '#facc15' : '#f87171');
-        fanMsg.innerText = f >= 60 ? 'Torcida em festa — bilheteria turbinada!'
-            : (f >= 35 ? 'Torcida morna — vitórias recuperam a confiança.'
-            : 'Torcida irritada — a diretoria cobra resultados.');
     }
 
     this.renderNews();
@@ -5216,15 +6898,15 @@ class UI {
         el.className = `player-card rarity-${p.tier || p.raridade}`;
         el.innerHTML = `
             <div class="card-top-row">
-              ${this.posBadge(p.posicao)}
-              <div class="card-energy">${p.custoEnergia || 1}</div>
+              <div class="card-ovr">${p.overall}</div>
+              <div class="card-pos">${p.posicao || '—'}</div>
             </div>
-            <div class="card-ovr">${p.overall}</div>
-            <div class="card-name">${p.nome}</div>
+            <div class="card-silh"></div>
+            <div class="card-name" title="${p.nome}">${this.cardLabel(p.nome)}</div>
             ${p.trainingPoints > 0 ? `<div style="position:absolute; top:-4px; right:-4px; background:var(--accent); color:white; width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:0.65rem; border:2px solid white; box-shadow:0 0 8px var(--accent);">${p.trainingPoints}</div>` : ''}
-            <div style="display:flex; gap:4px; margin-top:auto; width:100%;">
-              <button onclick="ui.openPlayerModal('${p.id}')" class="btn-secondary" style="flex:1; padding:3px 4px; font-size:0.58rem; border-radius:6px;">Info</button>
-              <button onclick="app.sellPlayerWithConfirmation('${p.id}')" class="btn-secondary" style="background:rgba(239,68,68,0.2); border-color:rgba(239,68,68,0.4); color:#fca5a5; padding:3px 4px; font-size:0.58rem; border-radius:6px;">$</button>
+            <div class="card-actions">
+              <button onclick="ui.openPlayerModal('${p.id}')" class="btn-secondary">Info</button>
+              <button onclick="app.sellPlayerWithConfirmation('${p.id}')" class="btn-secondary" style="background:rgba(239,68,68,0.2); border-color:rgba(239,68,68,0.4); color:#fca5a5;">$</button>
             </div>
         `;
         list.appendChild(el);
@@ -5237,15 +6919,23 @@ class UI {
         el.style.borderColor = '#a855f7';
         el.innerHTML = `
             <div class="card-top-row">
-              ${this.posBadge('TAC')}
-              <div class="card-energy" style="background:#9333ea;">${t.custoEnergia}</div>
+              <div class="card-ovr" style="font-size:1.05rem; -webkit-text-fill-color:#e9d5ff; filter:none;">TAC</div>
+              <div class="card-pos" style="background:rgba(168,85,247,0.35); border-color:rgba(200,140,255,0.5);">✨</div>
             </div>
-            <div class="card-ovr" style="font-size:1.1rem; color:#e9d5ff;">TÁTICA</div>
-            <div class="card-name">${t.nome}</div>
-            <div class="card-pos" style="background:rgba(168,85,247,0.3); color:#fff;">ESTRATÉGIA</div>
+            <div class="card-silh" style="opacity:0.5;"></div>
+            <div class="card-name" title="${t.nome}">${this.cardLabel(t.nome)}</div>
+            <div class="card-pos" style="width:100%; text-align:center; margin:0;">ESTRATÉGIA</div>
         `;
         list.appendChild(el);
     });
+  }
+
+  // Nome curto do card (sobrenome) — evita truncar atrás dos botões.
+  cardLabel(nome) {
+    const n = (nome || '').toString().trim();
+    if (!n) return '—';
+    const parts = n.split(/\s+/);
+    return (parts.length >= 2 ? parts[parts.length - 1] : n).toUpperCase();
   }
 
   openPlayerModal(id) {
@@ -5410,17 +7100,20 @@ class UI {
     const list = document.getElementById('market-list');
     if (!list) return;
     list.innerHTML = '';
+    const saldo = (app.club && app.club.orcamento) || 0;
     (app.marketPlayers || []).forEach(p => {
         const el = document.createElement('div');
         el.className = `player-card rarity-${p.tier || p.raridade}`;
+        const preco = p.valor || 0;
+        const semSaldo = preco > saldo;
         el.innerHTML = `
             <div class="card-top-row">
-              ${this.posBadge(p.posicao)}
-              <div class="card-energy">${p.custoEnergia || 1}</div>
+              <div class="card-ovr">${p.overall}</div>
+              <div class="card-pos">${p.posicao || '—'}</div>
             </div>
-            <div class="card-ovr">${p.overall}</div>
-            <div class="card-name">${p.nome}</div>
-            <div style="font-size: 0.65rem; color: var(--primary); font-weight: 800; margin-top: 4px;">${app.fmtMoneyShort(p.valor)}</div>
+            <div class="card-silh"></div>
+            <div class="card-name" title="${p.nome}">${this.cardLabel(p.nome)}</div>
+            <div class="card-price ${semSaldo ? 'sem-saldo' : ''}">${app.fmtMoneyShort(preco)}</div>
         `;
         el.onclick = () => app.buyPlayer(p);
         list.appendChild(el);
@@ -5466,10 +7159,13 @@ class UI {
       rc.style.display = 'flex';
       rc.innerHTML = `
         <div class="player-card rarity-${card.tier || card.raridade || 'Bronze'} pack-flip" style="width:115px; height:155px; padding:8px; border-color:${tier.color}; box-shadow:0 0 34px ${tier.color}55;">
-          ${this.posBadge(card.posicao || (isTactic ? 'TAC' : 'RES'))}
-          ${ovr ? `<div class="card-ovr" style="font-size:1.4rem;">${ovr}</div>` : ''}
-          <div class="card-name">${card.nome}</div>
-          <div class="card-pos">${card.posicao || 'TÁTICA'}</div>
+          <div class="card-top-row">
+            <div class="card-ovr" style="font-size:1.35rem;">${ovr}</div>
+            <div class="card-pos">${card.posicao || 'TAC'}</div>
+          </div>
+          <div class="card-silh"></div>
+          <div class="card-name">${this.cardLabel(card.nome)}</div>
+          <div class="card-pos" style="width:100%; text-align:center;">${isTactic ? 'ESTRATÉGIA' : (card.posicao || 'JOGADOR')}</div>
         </div>
         <div class="pack-tier-label" style="color:${tier.color}; text-shadow:0 0 16px ${tier.color}; font-weight:900; letter-spacing:3px; margin-top:8px;">${tier.nome}</div>
       `;
@@ -5505,7 +7201,12 @@ class UI {
     table.forEach((c, i) => {
       const isUser = c.isUser;
       const row = document.createElement('tr');
-      if (isUser) row.className = 'user-row';
+      const zonas = [];
+      if (isUser) zonas.push('user-row');
+      if (i < 4) zonas.push('zona-g4');
+      if (i >= table.length - 4) zonas.push('zona-z4');
+      if (isUser) zonas.push('zona-user');
+      row.className = zonas.join(' ');
       const posClass = i === 0 ? 'top-1' : (i < 4 ? 'top-4' : (i >= table.length - 4 ? 'bottom-4' : ''));
       row.innerHTML = `
         <td><span class="pos-pill ${posClass}">${i + 1}</span></td>
@@ -5526,8 +7227,14 @@ class UI {
       });
     });
     const top = (arr) => arr.sort((a, b) => b.v - a.v).slice(0, 5);
+    const crest = (nome) => (nome || '?').toString().trim().slice(0, 2).toUpperCase();
     const fmt = (arr) => arr.length
-      ? arr.map((x, i) => `${i + 1}º <b>${x.nome}</b> — ${x.v} · ${x.clube}`).join('<br>')
+      ? arr.map((x, i) => `
+          <div class="scorer-row${i === 0 ? ' golden' : ''}">
+            <span class="sc-crest" title="${x.clube}">${crest(x.clube)}</span>
+            <span class="sc-name">${x.nome}${i === 0 ? ' <span style="color:#f5c542;font-size:0.62rem;">⭐</span>' : ''}</span>
+            <span class="sc-val">${x.v}</span>
+          </div>`).join('')
       : '<span style="color:var(--text-dim)">Ninguém ainda.</span>';
     const golsEl = document.getElementById('league-top-gols');
     const assistsEl = document.getElementById('league-top-assists');
@@ -6794,6 +8501,35 @@ const app = {
             else if (cansados > 0) status.textContent = '⚠ ' + cansados + ' titular(es) com fôlego baixo e sem reserva pronto no banco.';
             else status.textContent = '✓ Escalação completa (11 titulares, goleiro definido).';
         }
+        this._renderCampoXI(xi);
+    },
+
+    // Campo 2D compacto do XI (prancheta visual) — só cosmético.
+    _renderCampoXI(xi) {
+        const campo = document.getElementById('campo-xi');
+        if (!campo) return;
+        campo.innerHTML = '<div class="campo-linhas"></div><div class="campo-area esq"></div><div class="campo-area dir"></div>';
+        const slots = [
+            { x: 8, y: 50 }, { x: 22, y: 18 }, { x: 22, y: 40 }, { x: 22, y: 60 }, { x: 22, y: 82 },
+            { x: 42, y: 22 }, { x: 42, y: 50 }, { x: 42, y: 78 },
+            { x: 62, y: 30 }, { x: 62, y: 70 }, { x: 78, y: 50 }
+        ];
+        // Ordena: GK, DEF, MID, ATT para preencher as posições da prancheta
+        const ordem = { GK: 0, DEF: 1, MID: 2, ATT: 3 };
+        const ordenado = (xi || []).slice().sort((a, b) => (ordem[a.posicao] || 9) - (ordem[b.posicao] || 9));
+        ordenado.forEach((p, i) => {
+            const s = slots[i] || { x: 50, y: 50 };
+            const chip = document.createElement('div');
+            chip.className = 'campo-chip casa' + (p.posicao === 'GK' ? ' gk' : '');
+            chip.style.left = s.x + '%';
+            chip.style.top = s.y + '%';
+            chip.title = p.nome + ' · OVR ' + (p.overall || 0);
+            campo.appendChild(chip);
+            const tag = document.createElement('div');
+            tag.style.cssText = 'position:absolute; left:' + s.x + '%; top:calc(' + s.y + '% + 10px); transform:translateX(-50%); font-size:0.52rem; font-weight:900; color:#fff; text-shadow:0 1px 3px rgba(0,0,0,0.85); white-space:nowrap; pointer-events:none; z-index:3;';
+            tag.textContent = (p.nome || '').split(' ').slice(-1)[0];
+            campo.appendChild(tag);
+        });
     },
 
     toggleXI(id) {
@@ -7013,6 +8749,11 @@ const app = {
     fecharPatrocinio() {
         const m = document.getElementById('modal-patrocinio');
         if (m) m.classList.add('hidden');
+        // Se o playMatch esperava o patrocínio, segue para a preparação.
+        if (this._preparacaoPendente) {
+            this._preparacaoPendente = false;
+            setTimeout(() => this._abrirPreparacao(), 80);
+        }
     },
 
     escolherPatrocinio(id) {
@@ -8361,18 +10102,40 @@ const app = {
         const m = document.getElementById('modal-conquistas');
         if (!m || !this.club) return;
         this._registrarConquistas();
-        const feitas = this.club.conquistas.filter(c => c.concluida).length;
-        const list = document.getElementById('conquistas-list');
-        list.innerHTML =
-            `<div style="text-align:center; margin-bottom:10px; font-size:0.82rem; color:var(--text-muted);">${feitas} / ${this.club.conquistas.length} conquistadas</div>` +
-            this.club.conquistas.map(c =>
-                `<div style="display:flex; justify-content:space-between; align-items:center; gap:8px; padding:6px 8px; border:1px solid ${c.concluida ? 'var(--accent)' : 'var(--border)'}; border-radius:10px; margin-bottom:6px; ${c.concluida ? '' : 'opacity:0.5;'}">
-                  <div><div style="font-weight:800;">${c.concluida ? '✅' : '⬜'} ${c.nome}</div>
-                  <div style="font-size:0.68rem; color:var(--text-muted);">${c.desc}</div></div>
-                  <div style="font-size:0.7rem; font-weight:900; color:${c.concluida ? 'var(--primary)' : 'var(--text-muted)'}; white-space:nowrap;">${c.concluida ? this.fmtMoneyShort(c.recompensa) : '—'}</div>
-                </div>`).join('');
+        this._conquistasFiltro = this._conquistasFiltro || 'todas';
+        this._renderConquistasLista();
         ui.playSFX('sfx_click', 0.3);
         m.classList.remove('hidden');
+    },
+
+    _renderConquistasLista() {
+        const list = document.getElementById('conquistas-list');
+        if (!list || !this.club) return;
+        const filtro = this._conquistasFiltro || 'todas';
+        const todas = this.club.conquistas || [];
+        const feitas = todas.filter(c => c.concluida).length;
+        const filtradas = todas.filter(c =>
+            filtro === 'todas' ? true : (filtro === 'andamento' ? !c.concluida : c.concluida));
+        const tabs = `
+            <div class="tabs-bar" id="conquistas-tabs">
+              <button class="tab-btn ${filtro === 'todas' ? 'active' : ''}" onclick="app.setConquistasFiltro('todas')">Todas</button>
+              <button class="tab-btn ${filtro === 'andamento' ? 'active' : ''}" onclick="app.setConquistasFiltro('andamento')">Em Andamento</button>
+              <button class="tab-btn ${filtro === 'concluidas' ? 'active' : ''}" onclick="app.setConquistasFiltro('concluidas')">Concluídas</button>
+            </div>`;
+        const header = `<div style="text-align:center; margin-bottom:10px; font-size:0.82rem; color:var(--text-muted);">${feitas} / ${todas.length} conquistadas</div>`;
+        const body = filtradas.length ? filtradas.map(c =>
+                `<div style="display:flex; justify-content:space-between; align-items:center; gap:8px; padding:8px 10px; border:1px solid ${c.concluida ? 'rgba(245,197,66,0.55)' : 'var(--border)'}; border-radius:10px; margin-bottom:6px; ${c.concluida ? 'background:rgba(245,197,66,0.08);' : 'opacity:0.55;'}">
+                  <div><div style="font-weight:800;">${c.concluida ? '✅' : '⬜'} ${c.nome}</div>
+                  <div style="font-size:0.68rem; color:var(--text-muted);">${c.desc}</div></div>
+                  <div style="font-size:0.7rem; font-weight:900; white-space:nowrap; ${c.concluida ? 'color:#ffd97a; background:rgba(245,197,66,0.14); border:1px solid rgba(245,197,66,0.45); border-radius:999px; padding:4px 10px; animation:rewardGlow 1.6s ease-in-out infinite;' : 'color:var(--text-muted);'}">${c.concluida ? '🪙 ' + this.fmtMoneyShort(c.recompensa) : '—'}</div>
+                </div>`).join('')
+            : '<div style="text-align:center; color:var(--text-muted); padding:12px 4px;">Nenhuma conquista nesta aba.</div>';
+        list.innerHTML = tabs + header + body;
+    },
+
+    setConquistasFiltro(f) {
+        this._conquistasFiltro = f;
+        this._renderConquistasLista();
     },
 
     openPack() {
@@ -8424,9 +10187,12 @@ const app = {
         this.autosaveNow();
         this._registrarSessao();
         this._introPrepTocado = false;
-        // C1: carreira nova sem contrato ainda — oferta de patrocínio antes do 1º jogo.
+        // C1: carreira nova sem contrato ainda — oferta de patrocínio ANTES da preparação
+        // (um modal por vez: escolher/fechar o patrocínio libera a preparação).
         if (this.club && this.club.patrocinio == null) {
+            this._preparacaoPendente = true;
             this.abrirPatrocinio();
+            return;
         }
         // Antes de entrar em campo: estilo de jogo + craque da rodada
         this._abrirPreparacao();
@@ -8518,6 +10284,16 @@ const app = {
         el.innerText = txt;
     },
     // ---- Escolhas do menu de pré-jogo ----
+    switchPrepTab(nome) {
+        const alvo = (nome === 'detalhes') ? 'detalhes' : 'estrategia';
+        document.querySelectorAll('#prep-tabs .tab-btn').forEach(b =>
+            b.classList.toggle('active', (b.dataset.prepTab || '') === alvo));
+        const a = document.getElementById('prep-tab-estrategia');
+        const d = document.getElementById('prep-tab-detalhes');
+        if (a) a.classList.toggle('active', alvo === 'estrategia');
+        if (d) d.classList.toggle('active', alvo === 'detalhes');
+        if (typeof ui !== 'undefined') ui.playSFX('sfx_click', 0.25);
+    },
     setFormacaoPrep(form) {
         this.setFormacao(form);
         document.querySelectorAll('#prep-formacoes .style-btn').forEach(b =>
@@ -8615,6 +10391,7 @@ const app = {
         let adv = this.getNextOpponent();
         if (this._isClassico) adv = this._classicoRival() || adv;
         else if (this._isTorneio) adv = this._torneioAdversario() || adv;
+        this.switchPrepTab('estrategia');
         // Mandos alternados: tags MANDANTE/VISITANTE conforme o fixture da rodada.
         let userHome = true;
         if (!this._isClassico && !this._isTorneio && !this._isDaily && this.league && this.league.getUserFixture) {
