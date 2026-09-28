@@ -1,0 +1,12 @@
+# Docs locais do projeto — nunca versionar no remote
+AGENTS.md
+PLANO_MELHORIAS.md
+CRIAÇÃO DOS BORDÕES.md
+instrucoes.md
+PESQUISA_REPAGINADA.md
+PROPOSTA_REPAGINADA.md
+
+# Ferramentas de sessão / orquestração
+.omp/
+.claude/
+.mimocode/
