@@ -1169,6 +1169,49 @@ body {
 }
 .rs-spark-svg { width: 100%; height: 42px; display: block; }
 .rs-heat-svg { width: 100%; height: 150px; display: block; }
+.rs-heat-mini { width: 100%; height: 110px; display: block; }
+.rs-heat-vs {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px; text-align: left;
+}
+.rs-heat-col-title {
+    font-size: 0.62rem; font-weight: 900; letter-spacing: 1px; margin-bottom: 3px;
+}
+.rs-heat-col-foot {
+    font-size: 0.64rem; color: var(--text-muted); margin-top: 3px; letter-spacing: 0.2px;
+}
+.rs-heat-col-foot b { color: var(--text); }
+/* Ranking de decisões */
+.rs-dec-rank { display: flex; flex-direction: column; gap: 8px; text-align: left; }
+.rs-dec-score { display: flex; align-items: baseline; gap: 8px; }
+.rs-dec-pct {
+    font-family: ui-monospace, Consolas, 'Courier New', monospace;
+    font-size: 1.6rem; font-weight: 900; letter-spacing: 1px;
+}
+.rs-dec-sub {
+    font-size: 0.66rem; font-weight: 900; letter-spacing: 1.5px; color: var(--text-muted);
+}
+.rs-dec-bars { display: flex; gap: 14px; flex-wrap: wrap; }
+.rs-dec-line {
+    display: flex; gap: 6px; align-items: center;
+    font-size: 0.72rem; color: var(--text-muted);
+}
+.rs-dec-line b {
+    font-family: ui-monospace, Consolas, 'Courier New', monospace;
+    font-size: 0.78rem;
+}
+.rs-dec-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.rs-dec-chip {
+    display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px;
+    font-family: ui-monospace, Consolas, 'Courier New', monospace;
+    font-size: 0.66rem; font-weight: 900;
+    border: 1px solid transparent;
+}
+.rs-dec-chip.rs-dec-ok {
+    background: rgba(74,222,128,0.16); color: #4ade80; border-color: rgba(74,222,128,0.4);
+}
+.rs-dec-chip.rs-dec-bad {
+    background: rgba(248,113,113,0.14); color: #f87171; border-color: rgba(248,113,113,0.35);
+}
 .rs-dec-legend {
     color: #ffb000; font-size: 0.62rem; font-weight: 900; letter-spacing: 0.5px;
 }
@@ -7429,10 +7472,15 @@ class UI {
             html += `<div class="glass-ui rs-chart-box">${this._svgPosseChart(hist, st.posse, nomeC, nomeF, s.eventos, s.decisoes)}</div>`;
             html += `<div class="rs-chart-box rs-spark-box">${this._svgPressaoSpark(hist, nomeC, nomeF)}</div>`;
         }
-        // Mapa de calor dos lances perigosos.
+        // Ranking de acerto das decisões do técnico.
+        if (s.decisoes && s.decisoes.length) {
+            html += `<div class="rs-section-title">🎯 DECISÕES DO TÉCNICO</div>`;
+            html += `<div class="glass-ui rs-chart-box">${this._htmlDecRank(s.decisoes, s.userHome)}</div>`;
+        }
+        // Mapa de calor comparado: perigo criado × sofrido.
         if (s.zonas && s.zonas.length >= 2) {
-            html += `<div class="rs-section-title">🔥 MAPA DE CALOR — LANCES PERIGOSOS</div>`;
-            html += `<div class="glass-ui rs-chart-box">${this._svgHeatmap(s.zonas, nomeC, nomeF)}</div>`;
+            html += `<div class="rs-section-title">🔥 MAPA DE CALOR — CRIADO × SOFRIDO</div>`;
+            html += `<div class="glass-ui rs-chart-box">${this._htmlHeatVs(s.zonas, nomeC, nomeF, s.userHome)}</div>`;
         }
         // Linha do tempo dos gols / expulsões.
         const evs = (s.eventos || []).filter(e => e.tipo === 'gol' || e.tipo === 'gol-rival' || e.tipo === 'expulsao');
@@ -7609,64 +7657,105 @@ class UI {
     </div>`;
   }
 
-  // Mapa de calor dos lances perigosos. zonas = [{x,y,tipo,lado}] em 0–100 do campo.
-  // Casa ataca à direita; pontos se acumulam como blobs quentes (verde casa / vermelho fora).
-  _svgHeatmap(zonas, nomeC, nomeF) {
+  // Ranking de acerto das decisões do técnico.
+  // Ataque: gol = acerto. Defesa: defesa/erro do rival = acerto (sofremos menos).
+  _htmlDecRank(decisoes, userHome) {
+    const lista = (decisoes || []).filter(Boolean);
+    if (!lista.length) return '';
+    let acertos = 0, ataques = 0, ataquesOk = 0, defesas = 0, defesasOk = 0;
+    lista.forEach(d => {
+      const foiAtk = d.isUserAtk != null ? !!d.isUserAtk : true;
+      const r = d.resultado;
+      const ok = foiAtk ? (r === 'gol') : (r === 'defesa' || r === 'erro');
+      if (ok) acertos++;
+      if (foiAtk) { ataques++; if (ok) ataquesOk++; }
+      else { defesas++; if (ok) defesasOk++; }
+    });
+    const pct = Math.round((acertos / lista.length) * 100);
+    const corPct = pct >= 70 ? '#4ade80' : (pct >= 40 ? '#ffb000' : '#f87171');
+    const chips = lista.map(d => {
+      const foiAtk = d.isUserAtk != null ? !!d.isUserAtk : true;
+      const ok = foiAtk ? (d.resultado === 'gol') : (d.resultado === 'defesa' || d.resultado === 'erro');
+      const ico = ok ? '✓' : '✗';
+      const cls = ok ? 'rs-dec-ok' : 'rs-dec-bad';
+      const alvo = foiAtk ? 'ATA' : 'DEF';
+      return `<span class="rs-dec-chip ${cls}" title="${(d.label || '')} · ${alvo} · ${d.resultado || '—'}">${d.min}' ${ico}</span>`;
+    }).join('');
+    return `<div class="rs-dec-rank">
+      <div class="rs-dec-score">
+        <span class="rs-dec-pct" style="color:${corPct};">${pct}%</span>
+        <span class="rs-dec-sub">ACERTO · ${acertos}/${lista.length}</span>
+      </div>
+      <div class="rs-dec-bars">
+        <div class="rs-dec-line"><span>Ataque</span><b style="color:${ataquesOk ? '#4ade80' : 'var(--text-muted)'};">${ataquesOk}/${ataques}</b></div>
+        <div class="rs-dec-line"><span>Defesa</span><b style="color:${defesasOk ? '#4ade80' : 'var(--text-muted)'};">${defesasOk}/${defesas}</b></div>
+      </div>
+      <div class="rs-dec-chips">${chips}</div>
+    </div>`;
+  }
+
+  // Mapa de calor comparado: perigo criado (ataques do usuário) × perigo sofrido.
+  // zonas usa lado 0 = casa / 1 = fora; aqui invertemos para "do ponto de vista do usuário".
+  _htmlHeatVs(zonas, nomeC, nomeF, userHome) {
     const lista = (zonas || []).filter(z => z && z.x != null && z.y != null);
     if (!lista.length) return '';
-    const W = 300, H = 150;
-    // Campo 0–100 → viewBox com padding fino.
+    const ladoUser = userHome === false ? 1 : 0;
+    const criado = lista.filter(z => z.lado === ladoUser);
+    const sofrido = lista.filter(z => z.lado !== ladoUser);
+    const nomeUser = ladoUser === 0 ? (nomeC || 'Você') : (nomeF || 'Você');
+    const nomeAdv = ladoUser === 0 ? (nomeF || 'Rival') : (nomeC || 'Rival');
+    const golsC = criado.filter(z => z.tipo === 'gol').length;
+    const golsS = sofrido.filter(z => z.tipo === 'gol').length;
+    return `<div class="rs-heat-vs">
+      <div class="rs-heat-col">
+        <div class="rs-heat-col-title rs-home-tag">▲ PERIGO CRIADO</div>
+        ${this._svgHeatLado(criado, true)}
+        <div class="rs-heat-col-foot"><b>${nomeUser}</b> · ${criado.length} lance(s) · ${golsC} gol(s)</div>
+      </div>
+      <div class="rs-heat-col">
+        <div class="rs-heat-col-title rs-away-tag">PERIGO SOFRIDO ▼</div>
+        ${this._svgHeatLado(sofrido, false)}
+        <div class="rs-heat-col-foot"><b>${nomeAdv}</b> · ${sofrido.length} lance(s) · ${golsS} gol(s)</div>
+      </div>
+    </div>
+    <div class="rs-chart-legend">
+      <span style="color:var(--text-muted);">● gol · ○ defesa · tam. = perigo</span>
+    </div>`;
+  }
+
+  // Mini-campo de calor para UM dos lados. `criado` decide o sentido do ataque (espelha X).
+  _svgHeatLado(zonas, criado) {
+    const lista = zonas || [];
+    const W = 140, H = 100;
+    const peso = (t) => t === 'gol' ? 1 : (t === 'defesa' ? 0.7 : (t === 'chance' ? 0.55 : 0.35));
+    // Espelha o X do "lado adversário" para o ataque sempre ir para a direita do mini-campo.
+    const xNorm = (z) => criado ? z.x : (100 - z.x);
     const xOf = (x) => 6 + (Math.max(0, Math.min(100, x)) / 100) * (W - 12);
     const yOf = (y) => 6 + (Math.max(0, Math.min(100, y)) / 100) * (H - 12);
-    // Raio/opacidade por tipo: gol mais denso que um lance qualquer.
-    const peso = (t) => t === 'gol' ? 1 : (t === 'defesa' ? 0.7 : (t === 'chance' ? 0.55 : 0.35));
+    const cor = criado ? '#4ade80' : '#f87171';
     let blobs = '', pontos = '';
     lista.forEach(z => {
-      const x = xOf(z.x), y = yOf(z.y);
+      const x = xOf(xNorm(z)), y = yOf(z.y);
       const w = peso(z.tipo);
-      const casa = z.lado === 0;
-      const cor = casa ? '#4ade80' : '#f87171';
-      const r = 10 + w * 16;
-      const op = 0.14 + w * 0.28;
+      const r = 8 + w * 12;
+      const op = 0.16 + w * 0.30;
       blobs += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r.toFixed(1)}" fill="${cor}" fill-opacity="${op.toFixed(2)}"/>`;
-      // núcleo + rótulo curto para gols
       if (z.tipo === 'gol') {
-        pontos += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.4" fill="${cor}" stroke="#0c0704" stroke-width="1"><title>Gol aos ${z.min || '?'}'</title></circle>`;
+        pontos += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="2.8" fill="${cor}" stroke="#0c0704" stroke-width="1"><title>Gol aos ${z.min || '?'}'</title></circle>`;
       } else if (z.tipo === 'defesa') {
-        pontos += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="2.4" fill="none" stroke="${cor}" stroke-width="1.2" opacity="0.85"><title>Defesa aos ${z.min || '?'}'</title></circle>`;
+        pontos += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="2.2" fill="none" stroke="${cor}" stroke-width="1.1" opacity="0.9"><title>Defesa aos ${z.min || '?'}'</title></circle>`;
       }
     });
-    const nCasa = lista.filter(z => z.lado === 0).length;
-    const nFora = lista.length - nCasa;
-    return `<svg class="rs-heat-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Mapa de calor dos lances perigosos">
-      <defs>
-        <radialGradient id="rsHeatG" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stop-color="#4ade80" stop-opacity="0.55"/>
-          <stop offset="100%" stop-color="#4ade80" stop-opacity="0"/>
-        </radialGradient>
-      </defs>
-      <!-- gramado -->
-      <rect x="6" y="6" width="${W - 12}" height="${H - 12}" rx="6" fill="rgba(22,101,52,0.35)" stroke="rgba(255,255,255,0.18)" stroke-width="1"/>
-      <!-- linha central + círculo -->
-      <line x1="${W / 2}" y1="6" x2="${W / 2}" y2="${H - 6}" stroke="rgba(255,255,255,0.22)" stroke-width="1"/>
-      <circle cx="${W / 2}" cy="${H / 2}" r="18" fill="none" stroke="rgba(255,255,255,0.22)" stroke-width="1"/>
-      <!-- áreas -->
-      <rect x="6" y="${H / 2 - 28}" width="36" height="56" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
-      <rect x="${W - 42}" y="${H / 2 - 28}" width="36" height="56" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
-      <rect x="6" y="${H / 2 - 14}" width="14" height="28" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
-      <rect x="${W - 20}" y="${H / 2 - 14}" width="14" height="28" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
-      <!-- calor -->
+    return `<svg class="rs-heat-mini" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Mapa de calor do lado">
+      <rect x="6" y="6" width="${W - 12}" height="${H - 12}" rx="5" fill="rgba(22,101,52,0.35)" stroke="rgba(255,255,255,0.16)" stroke-width="1"/>
+      <line x1="${W / 2}" y1="6" x2="${W / 2}" y2="${H - 6}" stroke="rgba(255,255,255,0.18)" stroke-width="1"/>
+      <circle cx="${W / 2}" cy="${H / 2}" r="12" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="1"/>
+      <rect x="6" y="${H / 2 - 18}" width="22" height="36" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="1"/>
+      <rect x="${W - 28}" y="${H / 2 - 18}" width="22" height="36" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="1"/>
       ${blobs}
       ${pontos}
-      <!-- setas de sentido -->
-      <text x="10" y="${H - 10}" fill="rgba(255,255,255,0.4)" font-size="8">← ${nomeF || 'Fora'}</text>
-      <text x="${W - 10}" y="${H - 10}" text-anchor="end" fill="rgba(255,255,255,0.4)" font-size="8">${nomeC || 'Casa'} →</text>
-    </svg>
-    <div class="rs-chart-legend">
-      <span class="rs-home-tag">${nomeC || 'Casa'} ${nCasa} lance(s)</span>
-      <span style="color:var(--text-muted);">● gol · ○ defesa</span>
-      <span class="rs-away-tag">${nFora} lance(s) ${nomeF || 'Fora'}</span>
-    </div>`;
+      <text x="${W - 8}" y="${H - 6}" text-anchor="end" fill="${cor}" fill-opacity="0.7" font-size="8">ataca →</text>
+    </svg>`;
   }
 
   showSeasonEndModal(data) {
@@ -11777,6 +11866,7 @@ const app = {
             pressaoFinal: mp ? (mp.pressaoFinal || 0) : 0,
             decisoes: mp ? (mp.decisoes || []) : [],
             zonas: mp ? (mp.zonas || []) : [],
+            userHome: mp ? !!mp.userHome : true,
             times: mp ? { casa: mp.casa, fora: mp.fora } : null,
             noticias: (this.league && this.league.noticias) ? this.league.noticias.slice(0, 3) : []
         };
