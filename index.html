@@ -4542,6 +4542,20 @@ const MatchUI = {
     fieldEvent(tipo, min, label, ctx) {
         const campo = this._el('campo-2d');
         if (!campo) return;
+        // Torcida acompanha a tensão do lance (sobe em chance/defesa, volta ao leito).
+        try {
+            if (tipo === 'chance' || tipo === 'chance-rival' || tipo === 'def') {
+                this._crowdBedLevel = 0.17;
+                this.startCrowdLoop(0.17);
+                clearTimeout(this._crowdBedT);
+                this._crowdBedT = setTimeout(() => {
+                    if (!this._replayAtivo) {
+                        this._crowdBedLevel = 0.11;
+                        this.startCrowdLoop(0.11);
+                    }
+                }, 1600);
+            }
+        } catch (e) { }
         const bola = this._el('campo-bola');
         const chips = campo.querySelectorAll('.campo-chip');
         chips.forEach(c => c.classList.remove('ativo', 'atacante', 'defensor'));
@@ -4659,12 +4673,16 @@ const MatchUI = {
         bg.classList.add('celebra');
         clearTimeout(this._crowdT);
         this._crowdT = setTimeout(() => bg.classList.remove('celebra'), 2400);
-        // Swell de torcida (pico curto; o loop do replay mantém o ronco)
-        this.startCrowdLoop(foiNosso ? 0.32 : 0.18);
+        // Swell de torcida (pico curto; o leito da partida mantém o ronco)
+        this._crowdBedLevel = foiNosso ? 0.26 : 0.16;
+        this.startCrowdLoop(this._crowdBedLevel);
         clearTimeout(this._crowdSwellT);
         this._crowdSwellT = setTimeout(() => {
-            if (!this._replayAtivo) this.stopCrowdLoop(700);
-        }, 2200);
+            if (!this._replayAtivo) {
+                this._crowdBedLevel = 0.11;
+                this.startCrowdLoop(0.11);
+            }
+        }, 2800);
         // Comemoração compacta no campo + bordão de rádio
         const campo = this._el('campo-2d');
         if (campo) {
@@ -4778,6 +4796,7 @@ const MatchUI = {
     },
     // Fita de rádio 95.3 no campo (typewriter).
     radioSay(texto) {
+        if (this._radioFim) return;
         const campo = this._el('campo-2d');
         if (!campo) return;
         let strip = campo.querySelector('.radio-replay');
@@ -4810,6 +4829,26 @@ const MatchUI = {
         clearTimeout(this._radioTypeT);
         const strip = this._el('campo-2d') && this._el('campo-2d').querySelector('.radio-replay');
         if (strip) strip.classList.remove('on');
+    },
+    // Corta TODA a transmissão residual (rádio/replay/VAR) no apito final.
+    encerrarTransmissao() {
+        this._radioFim = true;
+        const ts = ['_radioSeq','_radioTypeT','_radioTypeI','_replayT1','_replayT2','_replayT3',
+            '_replayGoalT','_varT1','_varT2','_varT3','_varT4','_varT5','_varHideT',
+            '_crowdSwellT','_crowdBedT','_celebraT','_crowdT','_dueloT','_bolaT3'];
+        ts.forEach(k => { try { clearTimeout(this[k]); clearInterval(this[k]); this[k] = null; } catch (_) {} });
+        this._replayAtivo = false;
+        try { this.radioHide(); } catch (_) {}
+        try { this.stopCrowdLoop(400); } catch (_) {}
+        try {
+            const campo = this._el('campo-2d');
+            if (campo) {
+                const vp = campo.querySelector('.var-panel');
+                if (vp) vp.classList.remove('on');
+                const rb = campo.querySelector('.replay-badge');
+                if (rb) rb.classList.remove('on');
+            }
+        } catch (_) {}
     },
     // VAR estilo transmissão: varre o lance em etapas e mostra a decisão do juiz.
     // opts: { anulado: bool, autor: {nome}, def: {nome}, motivo: 'impedimento'|'falta'|'mao'|'bola' }
@@ -4902,7 +4941,10 @@ const MatchUI = {
                 ? ('🎙 VAR confirmou ' + nomeAlvo.toLowerCase() + '! O gol de ' + autor + ' está ANULADO. O juiz aponta pra central!')
                 : ('🎙 Sem irregularidade! O juiz bate no relógio e confirma o gol de ' + autor + '!')
             );
-            if (typeof ui !== 'undefined' && ui.playSFX) ui.playSFX(anulado ? 'sfx_notify' : 'sfx_whistle', 0.55);
+            if (typeof ui !== 'undefined' && ui.playSFX) {
+                if (anulado) ui.playSFX('sfx_notify', 0.5);
+                else ui.playApito(false, 'curto');
+            }
         }, 3000);
         // some sozinho
         clearTimeout(this._varHideT);
@@ -4927,6 +4969,17 @@ const MatchUI = {
         try {
             const ctx = this._crowdCtx();
             if (!ctx) { this._crowdErr = 'sem AudioContext (sfx off?)'; return; }
+            // Já está tocando: só desliza o volume (evita restart e o "pulo" do leito).
+            if (this._crowdNodes && this._crowdNodes.master) {
+                const volNow = this._crowdVol(level);
+                const t0 = ctx.currentTime || 0;
+                try {
+                    this._crowdNodes.master.gain.cancelScheduledValues(t0);
+                    this._crowdNodes.master.gain.setValueAtTime(this._crowdNodes.master.gain.value || 0.05, t0);
+                    this._crowdNodes.master.gain.linearRampToValueAtTime(volNow, t0 + 0.45);
+                } catch (_) {}
+                return;
+            }
             this.stopCrowdLoop();
             const t0 = ctx.currentTime || 0;
             const vol = this._crowdVol(level);
@@ -5932,8 +5985,10 @@ class MatchSim {
         this.noAlvo[isHome ? 0 : 1]++;
         MatchUI.score(this.scoreH, this.scoreA);
         if (typeof ui !== 'undefined') {
-            ui.playGoalSound();
             const userScored = ((isHome ? 0 : 1) === this._userSide());
+            // Cascata: playGolMoment (impacto→torcida→duck) + overlay visual.
+            // showGoalAnimation NÃO toca mais som — evita 3 camadas no mesmo frame.
+            ui.playGoalSound(userScored);
             ui.showGoalAnimation(userScored, autor, this.minuto, Math.abs(this.scoreH - this.scoreA) <= 1);
         }
         let extra = (autor && autor.gols >= 10 && autor.gols % 10 === 0)
@@ -5970,6 +6025,11 @@ class MatchSim {
             } else if (t === 'warn' || t === 'foul') {
                 MatchUI.fieldEvent('cartao', this.minuto, log, ctx);
                 if (t === 'warn') MatchUI.timeline(this.minuto, 'cartao', '🟨');
+                // Só cartão de verdade apita — warn também cobre PERIGO/contra-ataque.
+                const ehCartao = (t === 'foul') && /amarelo|expulso|cart[aã]o|vermelho/i.test(log || '');
+                if (ehCartao && typeof ui !== 'undefined' && ui.playApito) {
+                    ui.playApito(false, 'curto');
+                }
             } else if (t === 'def') {
                 MatchUI.fieldEvent('def', this.minuto, log, ctx);
             } else {
@@ -6170,11 +6230,13 @@ class MatchSim {
         MatchUI.clock(this.tempoMin || 90);
         MatchUI.status('FIM DE JOGO');
         if (typeof ui !== 'undefined') {
-            ui.playSFX('sfx_whistle', 0.7);
-            ui.synthApito(true); // C5: apito final procedural
+            ui.playApito(true, 'longo'); // um único apito final
             if (ui.pararNarracao) ui.pararNarracao();
+            ui.duckBGM(0.35, 1600);
         }
-        try { MatchUI.stopCrowdLoop(800); MatchUI.radioHide(); } catch (e) { }
+        try { MatchUI.encerrarTransmissao(); } catch (e) {
+            try { MatchUI.stopCrowdLoop(800); MatchUI.radioHide(); } catch (e2) { }
+        }
         const h = this.scoreH, a = this.scoreA;
         // Bordão de encerramento (1x por partida)
         const fimTxt = this._fraseContexto(h > a ? 'fimVitoria' : (h < a ? 'fimDerrota' : 'empateFinal'));
@@ -6542,14 +6604,37 @@ class UI {
     }
   }
 
+  // Diretor de áudio: cooldown + limite de vozes por amostra. Evita a
+  // "metralhadora" de click/notify e o empilhamento da mesma amostra.
   playSFX(name, volume = 0.5, maxDuration = null) {
     if (app && app.settings && !app.settings.sfx) return;
     const src = (AUDIO_ASSETS && AUDIO_ASSETS[name]) || '';
     if (!src) return;
     try {
+      const now = Date.now();
+      if (!this._sfxCool) this._sfxCool = {};
+      const coolMs = (name === 'sfx_click') ? 70 : 45;
+      if (this._sfxCool[name] && now - this._sfxCool[name] < coolMs) return;
+      this._sfxCool[name] = now;
+
+      if (!this._sfxVoices) this._sfxVoices = {};
+      const voices = this._sfxVoices[name] || (this._sfxVoices[name] = []);
+      while (voices.length && (voices[0].ended || voices[0].paused)) voices.shift();
+      if (voices.length >= 2) {
+        const old = voices.shift();
+        try { old.pause(); old.currentTime = 0; } catch (_) {}
+      }
+
+      // Click de UI mais discreto — o resto da mixagem tem prioridade.
+      const volBase = (name === 'sfx_click') ? volume * 0.65 : volume;
       const audio = new Audio(src);
       const sfxMaster = (typeof app !== 'undefined' && app.settings && typeof app.settings.sfxVol === 'number') ? app.settings.sfxVol : 1.0;
-      audio.volume = Math.max(0, Math.min(1, volume * sfxMaster));
+      audio.volume = Math.max(0, Math.min(1, volBase * sfxMaster));
+      voices.push(audio);
+      audio.addEventListener('ended', () => {
+        const i = voices.indexOf(audio);
+        if (i >= 0) voices.splice(i, 1);
+      }, { once: true });
       audio.play().catch(() => {});
       if (maxDuration && maxDuration > 0) {
         setTimeout(() => {
@@ -6570,12 +6655,69 @@ class UI {
     } catch (_) {}
   }
 
+  // Apito do árbitro — UMA fonte por evento, com rate-limit global.
+  // Amostra real (~4s) só em início/fim (cortada em 1.2s); em jogo usa o sintético curto.
+  // Apito do árbitro — UMA fonte por evento.
+  // modo: 'longo' = amostra real (início/fim, cortada em 1.2s); 'curto' = sintético ~0.4s (cartão/VAR).
+  // Rate-limit em toques de jogo; o apito FINAL sempre passa.
+  playApito(fim, modo) {
+    const now = Date.now();
+    if (!fim && this._ultApito && now - this._ultApito < 2200) return;
+    this._ultApito = now;
+    if (modo === 'curto') {
+      this.synthApito(!!fim);
+      return;
+    }
+    if (AUDIO_ASSETS && AUDIO_ASSETS.sfx_whistle) {
+      this.playSFX('sfx_whistle', fim ? 0.65 : 0.55, 1200);
+    } else {
+      this.synthApito(!!fim);
+    }
+  }
+
+  // Recua a BGM por um instante (comemoração / locução) e restaura sozinha.
+  duckBGM(factor = 0.4, ms = 2000) {
+    if (!this.currentBGM) return;
+    const base = (typeof app !== 'undefined' && app.settings && typeof app.settings.bgmVol === 'number') ? app.settings.bgmVol : 0.12;
+    try { this.currentBGM.volume = Math.max(0, base * factor); } catch (_) {}
+    clearTimeout(this._duckBgmT);
+    this._duckBgmT = setTimeout(() => {
+      try { if (this.currentBGM) this.currentBGM.volume = base; } catch (_) {}
+    }, ms);
+  }
+
+  // Gol em cascata (orgânico): impacto → amostra de torcida → duck da BGM.
+  // Substitui o empilhamento playGoalSound + synthGolEstouro ao mesmo tempo.
+  playGolMoment(isPlayerGoal = true) {
+    this.synthGolEstouro();
+    const vol = isPlayerGoal ? 0.55 : 0.34;
+    setTimeout(() => this.playSFX('sfx_goal', vol, 2200), 100);
+    this.duckBGM(isPlayerGoal ? 0.32 : 0.5, isPlayerGoal ? 2800 : 1800);
+    this.vibrate(isPlayerGoal ? [50, 100, 50] : [30]);
+  }
+
   // Locução humana da pasta SONS DA NARRAÇÃO DO GAME/ (caminho relativo — GitHub Pages).
   // categoria: intro | introFinal | passe | drible | cruzamento | contra
   playNarracao(categoria, volume = 0.55, exclusive = false) {
     if (app && app.settings && !app.settings.sfx) return;
+    // Após o apito final não entra mais locução de partida (intro da preparação
+    // entra com exclusive e é liberado em startMatchRender).
+    if (this._narFim && !exclusive) return;
     const pool = (typeof NARRACAO_SOUNDS !== 'undefined' && NARRACAO_SOUNDS[categoria]) || null;
     if (!pool || !pool.length) return;
+    // Locução humana tem prioridade: recua BGM/torcida enquanto a voz fala.
+    this.duckBGM(0.28, 5000);
+    try {
+      if (typeof MatchUI !== 'undefined' && MatchUI._crowdNodes) {
+        const ctx = MatchUI._crowdCtx && MatchUI._crowdCtx();
+        if (ctx && MatchUI._crowdNodes.master) {
+          const t0 = ctx.currentTime || 0;
+          MatchUI._crowdNodes.master.gain.cancelScheduledValues(t0);
+          MatchUI._crowdNodes.master.gain.setValueAtTime(MatchUI._crowdNodes.master.gain.value || 0.05, t0);
+          MatchUI._crowdNodes.master.gain.linearRampToValueAtTime(MatchUI._crowdVol(0.05), t0 + 0.35);
+        }
+      }
+    } catch (_) {}
     const file = pool[Math.floor(Math.random() * pool.length)];
     const item = {
       url: encodeURI((typeof NARRACAO_DIR !== 'undefined' ? NARRACAO_DIR : '') + file),
@@ -6610,6 +6752,20 @@ class UI {
       const fim = () => {
         this._narTocando = false;
         this._narAudio = null;
+        // Devolve o leito de torcida ao nível da partida após a voz.
+        try {
+          if (typeof MatchUI !== 'undefined' && MatchUI._crowdNodes && MatchUI._crowdCtx) {
+            const ctx = MatchUI._crowdCtx();
+            const n = MatchUI._crowdNodes;
+            if (ctx && n && n.master) {
+              const t0 = ctx.currentTime || 0;
+              const alvo = MatchUI._crowdVol(MatchUI._crowdBedLevel || 0.11);
+              n.master.gain.cancelScheduledValues(t0);
+              n.master.gain.setValueAtTime(n.master.gain.value || 0.05, t0);
+              n.master.gain.linearRampToValueAtTime(alvo, t0 + 0.6);
+            }
+          }
+        } catch (_) {}
         this._processarFilaNarracao();
       };
       audio.addEventListener('ended', fim, { once: true });
@@ -6631,11 +6787,25 @@ class UI {
       this._narAudio = null;
     }
     this._narTocando = false;
+    this._narFim = true;
+    // Devolve o leito de torcida se a locução o tiver recuado.
+    try {
+      if (typeof MatchUI !== 'undefined' && MatchUI._crowdNodes && MatchUI._crowdCtx) {
+        const ctx = MatchUI._crowdCtx();
+        const n = MatchUI._crowdNodes;
+        if (ctx && n && n.master) {
+          const t0 = ctx.currentTime || 0;
+          const alvo = MatchUI._crowdVol(MatchUI._crowdBedLevel || 0.11);
+          n.master.gain.cancelScheduledValues(t0);
+          n.master.gain.setValueAtTime(n.master.gain.value || 0.05, t0);
+          n.master.gain.linearRampToValueAtTime(alvo, t0 + 0.5);
+        }
+      }
+    } catch (_) {}
   }
 
-  playGoalSound() {
-    this.playSFX('sfx_goal', 0.65, 1500);
-    this.vibrate([50, 100, 50]);
+  playGoalSound(isPlayerGoal = true) {
+    this.playGolMoment(!!isPlayerGoal);
   }
 
   vibrate(pattern) {
@@ -6712,9 +6882,14 @@ class UI {
 
   startMatchRender() {
     this.initAudio();
+    // Libera locução/rádio da partida (o apito final anterior bloqueava novos clips).
+    this._narFim = false;
+    try { MatchUI._radioFim = false; } catch (e) { }
     this.playBGM('match');
-    this.playSFX('sfx_whistle', 0.7);
-    this.synthApito(false); // C5: apito procedural no início
+    this.playApito(false, 'longo'); // um único apito inicial
+    this.duckBGM(0.45, 1400);
+    // Leito de torcida: murmúrio contínuo durante a partida (sobe em gols/lances).
+    try { MatchUI._crowdBedLevel = 0.11; MatchUI.startCrowdLoop(0.11); } catch (e) { }
     const clima = (typeof app !== 'undefined' && app._aplicarTemaPartida) ? app._aplicarTemaPartida() : null;
     const adv = (typeof app !== 'undefined' && app.league && app.getNextOpponent) ? app.getNextOpponent() : null;
     const meuNome = (typeof app !== 'undefined' && app.club && app.club.nome) || 'MEC';
@@ -6821,8 +6996,7 @@ class UI {
   showGoalAnimation(isPlayerGoal, autor, minuto, dramatico) {
     const notif = document.getElementById('ui-goal-notification');
     if (!notif) return;
-    this.synthGolEstouro(); // C5: estouro de gol (distinto do click)
-    // Torcida reage + badge de comemoração no campo 2D
+    // Torcida reage + badge de comemoração no campo 2D (som do gol já veio de playGolMoment)
     try { MatchUI.crowdCelebrate(!!isPlayerGoal); } catch (e) { }
     const h1 = notif.querySelector('h1');
     const titulo = isPlayerGoal ? 'GOOOOL!!' : 'GOL SOFRIDO';
@@ -6967,10 +7141,11 @@ class UI {
   }
 
   celebrateChampion() {
-    this.playSFX('sfx_goal', 1.0);
+    this.duckBGM(0.3, 3200);
     this.impactFlash();
     this.fxShake();
     [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => this.synthBip(f, 0.35, 0.3, 'triangle'), i * 120));
+    this.playSFX('sfx_contract', 0.75);
     this.burstParticles(window.innerWidth / 2, window.innerHeight / 2, 140, ['#f59e0b', '#fbbf24', '#f8fafc', '#fde68a']);
   }
 
@@ -7531,10 +7706,10 @@ class UI {
     if (tier.fanfarra) {
       this.impactFlash();
       [0, 4, 7, 12].forEach((s, i) => setTimeout(() => this.synthBip(440 * Math.pow(2, s / 12), 0.3, 0.3, 'triangle'), i * 110));
+      this.duckBGM(0.4, 1800);
     } else {
       this.synthBip(520, 0.13, 0.25, 'triangle');
     }
-    this.playSFX('sfx_goal', 0.5);
 
     setTimeout(() => {
       overlay.classList.add('hidden');
@@ -8493,7 +8668,7 @@ const TutorialManager = {
 
         if (typeof ui !== 'undefined') {
             ui.showActionFeedback('🏆 Treino Concluído com Sucesso! +150 XP', 'success');
-            try { ui.playGoalSound(); } catch (e) {}
+            try { ui.playSFX('sfx_contract', 0.7); ui.synthBip(784, 0.22, 0.28, 'triangle'); } catch (e) {}
         }
         if (app && app.club) {
             app.club.orcamento = (app.club.orcamento || 0) + 50000;
@@ -10822,7 +10997,7 @@ const app = {
         else if (this._isTorneio) adv = this._torneioAdversario() || adv;
         const onMatch = (data) => ui.updateMatchData(data);
         const onMatchEnd = (h, a, xpBase, scorers, pen) => {
-                if (typeof ui !== 'undefined') ui.playSFX('sfx_whistle', 0.7);
+                // Apito final já soa em MatchSim._finalizar — não repetir aqui.
                 this.lastResult = { h, a, pen: pen || null, adv: adv ? adv.nome : '—' };
                 // Rodada do Dia: vitória libera a recompensa (100k + jogador grátis), 1 tentativa por dia.
                 if (this._isDaily && h > a) {
@@ -11416,7 +11591,7 @@ const app = {
             });
             this.league.adicionarNoticia(`🔻 ${this.club.nome} foi rebaixado! Orçamento cortado e 2 jogadores vendidos compulsoriamente.`);
             statusExtra = `🔻 REBAIXADO — ${vendidos.map(p => p.nome).join(', ')} vendidos, orçamento cortado`;
-            if (typeof ui !== 'undefined') ui.playSFX('sfx_whistle', 0.5);
+            if (typeof ui !== 'undefined') { ui.playSFX('sfx_notify', 0.45); ui.synthBip(220, 0.35, 0.4, 'triangle'); }
         }
 
         // Fase 4: acesso da Série B — top 4 do usuário volta para a A na próxima temporada.
@@ -11588,7 +11763,8 @@ const app = {
         ui.showSubscreen('dashboard');
         ui.updateDashboard();
         if (typeof ui !== 'undefined') {
-            ui.playSFX('sfx_whistle', 0.7);
+            ui.playSFX('sfx_contract', 0.7);
+            [523, 659, 784].forEach((f, i) => setTimeout(() => ui.synthBip(f, 0.28, 0.28, 'triangle'), i * 110));
             ui.showActionFeedback(`Temporada ${this.league.temporada} iniciada!`, 'success');
         }
     }
