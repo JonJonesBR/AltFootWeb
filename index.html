@@ -961,6 +961,30 @@ body {
 .posse-bar-fill { height: 100%; width: 50%; border-radius: 999px; background: linear-gradient(90deg, #22c55e, #4ade80); transition: width 0.5s ease; }
 .posse-tag { font-size: 0.72rem; font-weight: 900; letter-spacing: 1px; color: var(--text-muted); min-width: 46px; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .posse-pct { font-family: ui-monospace, Consolas, 'Courier New', monospace; font-size: 0.72rem; color: #ffcf4d; min-width: 34px; text-align: right; }
+/* --- Barra de pressão/momentum ao vivo --- */
+.pressao-wrap {
+    flex: none; display: flex; align-items: center; gap: 8px; width: 100%; max-width: 380px;
+    background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 999px;
+    padding: 5px 12px;
+}
+.pressao-tag { font-size: 0.78rem; width: 18px; text-align: center; }
+.pressao-bar {
+    flex: 1; height: 10px; border-radius: 999px; background: rgba(255,255,255,0.07);
+    overflow: hidden; position: relative; display: flex;
+}
+.pressao-half { flex: 1; position: relative; overflow: hidden; }
+.pressao-half.h { display: flex; justify-content: flex-end; }
+.pressao-mid {
+    width: 2px; flex: none; background: rgba(255,255,255,0.22); z-index: 2;
+}
+.pressao-fill { height: 100%; width: 0%; border-radius: 999px; transition: width 0.45s ease; }
+.pressao-fill.p-home { background: linear-gradient(90deg, #22c55e, #4ade80); box-shadow: 0 0 8px rgba(74,222,128,0.45); }
+.pressao-fill.p-away { background: linear-gradient(90deg, #f87171, #dc2626); box-shadow: 0 0 8px rgba(248,113,113,0.4); }
+.pressao-label {
+    font-family: ui-monospace, Consolas, 'Courier New', monospace;
+    font-size: 0.64rem; font-weight: 900; letter-spacing: 0.5px;
+    color: var(--text-muted); min-width: 64px; text-align: right;
+}
 .team-block { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: 1; min-width: 0; }
 .team-side { font-size: 0.72rem; font-weight: 900; letter-spacing: 1.5px; color: var(--text-muted); opacity: 0.85; text-transform: uppercase; }
 /* --- Decisão do técnico (momento-chave, timer 8s) --- */
@@ -1135,6 +1159,13 @@ body {
 .rs-gol-chip.rs-gol { background: rgba(74,222,128,0.16); color: #4ade80; border-color: rgba(74,222,128,0.4); }
 .rs-gol-chip.rs-gol-rival { background: rgba(248,113,113,0.14); color: #f87171; border-color: rgba(248,113,113,0.35); }
 .rs-gol-chip.rs-exp { background: rgba(239,68,68,0.2); color: #fca5a5; border-color: rgba(239,68,68,0.45); }
+/* Gráfico de posse por tempo */
+.rs-chart-box { padding: 8px 10px 6px; text-align: left; }
+.rs-posse-svg { width: 100%; height: 88px; display: block; }
+.rs-chart-legend {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 0.64rem; font-weight: 800; letter-spacing: 0.5px; margin-top: 2px;
+}
 /* Guia de forma recente (V/E/D) no dashboard */
 .forma-recente {
     display: flex; justify-content: center; gap: 5px; margin: 0 0 10px; min-height: 0;
@@ -2981,6 +3012,15 @@ html, body, * {
         <span class="posse-tag" id="posse-tag-away">FORA</span>
         <span class="posse-pct" id="stat-posse">50%</span>
       </div>
+      <div class="pressao-wrap" title="Quem está pressionando agora (momento do jogo)">
+        <span class="pressao-tag">🔥</span>
+        <div class="pressao-bar">
+          <div class="pressao-half h"><div class="pressao-fill p-home" id="pressao-home"></div></div>
+          <div class="pressao-mid"></div>
+          <div class="pressao-half a"><div class="pressao-fill p-away" id="pressao-away"></div></div>
+        </div>
+        <span class="pressao-label" id="pressao-label">—</span>
+      </div>
       <span class="stat-chip">🎯 Chutes <b id="stat-chutes">0 – 0</b></span>
       <span class="stat-chip">🦶 Faltas <b id="stat-faltas">0 – 0</b></span>
       <span class="stat-chip">🟨 Cartões <b id="stat-cartoes">0 – 0</b></span>
@@ -4336,7 +4376,8 @@ const MatchUI = {
         const esc = this._el('match-escala'); if (esc) esc.innerText = forcaTexto || '';
         const log = this._el('match-log'); if (log) log.innerText = 'Bola rolando!';
         const feed = this._el('ui-match-feed'); if (feed) feed.innerHTML = '';
-        this.stats([50, 0, 0, 0, 0, 0, 0, 0, 0]);
+        this.stats([50, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+        this.pressao(0);
         const st = this._el('match-status'); if (st) st.innerText = 'BOLA ROLANDO...';
         document.querySelectorAll('.match-speed-btn').forEach(b => b.classList.toggle('active', String(b.dataset.speed) === '1'));
         this.clearPrompt();
@@ -4344,7 +4385,7 @@ const MatchUI = {
         this.fieldInit(nomeHome, nomeAdv);
         if (typeof ui !== 'undefined' && ui.atualizarFocoUI) ui.atualizarFocoUI({ _foco: 70 });
     },
-    stats(arr) { // [posse, chH, chA, faH, faA, caH, caA, escH, escA]
+    stats(arr) { // [posse, chH, chA, faH, faA, caH, caA, escH, escA, pressao?]
         const set = (id, v) => { const el = this._el(id); if (el) el.innerText = v; };
         const posse = Math.round(arr[0]);
         set('stat-posse', posse + '%');
@@ -4354,6 +4395,31 @@ const MatchUI = {
         set('stat-faltas', arr[3] + ' – ' + arr[4]);
         set('stat-cartoes', arr[5] + ' – ' + arr[6]);
         set('stat-escanteios', arr[7] + ' – ' + arr[8]);
+        if (arr.length > 9) this.pressao(arr[9]);
+    },
+    // Pressão/momentum: val -100..100 (>0 = casa). Barra central que cresce para o lado dominante.
+    pressao(val) {
+        const v = Math.max(-100, Math.min(100, val == null ? 0 : val));
+        const abs = Math.abs(v);
+        const home = this._el('pressao-home');
+        const away = this._el('pressao-away');
+        const label = this._el('pressao-label');
+        // Só preenche a partir de um limiar — abaixo disso o jogo está equilibrado.
+        const fill = abs < 12 ? 0 : Math.round(Math.min(100, ((abs - 12) / 88) * 100));
+        if (home) home.style.width = (v > 0 ? fill : 0) + '%';
+        if (away) away.style.width = (v < 0 ? fill : 0) + '%';
+        if (label) {
+            if (abs < 12) {
+                label.textContent = 'EQUILIBRADO';
+                label.style.color = 'var(--text-muted)';
+            } else if (v > 0) {
+                label.textContent = 'CASA ↑';
+                label.style.color = '#4ade80';
+            } else {
+                label.textContent = 'FORA ↑';
+                label.style.color = '#f87171';
+            }
+        }
     },
     score(h, a) {
         const el = this._el('match-score');
@@ -5224,6 +5290,10 @@ class MatchSim {
         this._ctxUsados = {};     // bordões contextuais já falados (1x / ocasiao)
         this._viradaPendente = false;
         this._golsMin = [];       // minutos dos últimos gols (sequência)
+        // Pressão/momentum ao vivo (>0 = casa, <0 = fora) + amostras de posse por tempo.
+        this._pressao = 0;
+        this._posseHist = [{ min: 0, posse: 50 }];
+        this._ultSampleMin = 0;
         this._t0 = Date.now();
         // Piso de tempo de parede (ms) — na final, o jogo dura ≥ 1min12s mesmo em 2×/4×,
         // para o INTRO PARA JOGOS DE FINAIS rodar por inteiro.
@@ -5250,6 +5320,23 @@ class MatchSim {
         if (!pool.length) pool = team.elenco || [];
         if (pos) { const f = pool.filter(p => (p.posicao || 'MID') === pos); if (f.length) pool = f; }
         return pool.length ? this._pick(pool) : null;
+    }
+    // Momentum/pressão: acumula peso do lado que ameaça e decai com o tempo.
+    _moverPressao(side, peso) {
+        const dir = side === 0 ? 1 : -1;
+        this._pressao = Math.max(-100, Math.min(100, (this._pressao || 0) + dir * peso));
+    }
+    _decairPressao() {
+        this._pressao = (this._pressao || 0) * 0.88;
+        if (Math.abs(this._pressao) < 1) this._pressao = 0;
+    }
+    _amostrarPosse() {
+        if (!this._posseHist) this._posseHist = [{ min: 0, posse: 50 }];
+        const min = this.minuto || 0;
+        if (min - (this._ultSampleMin || 0) < 5 && min < (this.tempoMin || 90)) return;
+        this._posseHist.push({ min: min, posse: Math.round(this.posse) });
+        this._ultSampleMin = min;
+        if (this._posseHist.length > 40) this._posseHist = this._posseHist.slice(-40);
     }
     _nomeXI(side, pos) {
         const p = this._pickXI(side, pos);
@@ -5877,6 +5964,8 @@ class MatchSim {
         const t = ev.tipo;
         this.posse += this._rnd(-2.5, 2.5);
         this.posse = Math.max(38, Math.min(62, this.posse));
+        this._decairPressao();
+        this._amostrarPosse();
         let log = '';
         let tipoFeed = 'info';
         let expulsoNome = null;
@@ -5903,6 +5992,7 @@ class MatchSim {
             log = ehChance ? this._fraseChance(teamAtk, prot.nomeAtk) : this._fraseLan(teamAtk, prot.nomeAtk);
             if (log.indexOf('PERIGO') >= 0 || log.indexOf('Contra-ataque') >= 0) tipoFeed = 'warn';
             this.chutes[ev.side] += this._roll(0.5) ? 1 : 0;
+            this._moverPressao(ev.side, ehChance ? 3.2 : 1.4);
             // Locução por tipo de lance (opção 3)
             if (typeof ui !== 'undefined' && ui.playNarracao) {
                 if (log.indexOf('Contra-ataque') >= 0) ui.playNarracao('contra');
@@ -5915,12 +6005,14 @@ class MatchSim {
             log = this._fraseFalta(teamAtk, prot.nomeAtk);
             this.faltas[ev.side]++;
             tipoFeed = 'foul';
+            this._moverPressao(ev.side, 1.6);
         } else if (t === 'cartao') {
             const prot = setCtx('DEF', 'ATT');
             log = this._fraseCartao(teamAtk, prot.nomeAtk);
             this.cartoes[ev.side]++;
             if (!this._eventos) this._eventos = [];
             this._eventos.push({ min: this.minuto, tipo: 'cartao', label: prot.nomeAtk || 'Cartão' });
+            this._moverPressao(ev.side, 2.2);
             // G6: 2ª amarela → expulsão com efeito real em _poder (A8).
             // Chance base 12%, sobe com o acumulo de cartoes do time.
             const pExp = 0.12 + Math.min(0.18, this.cartoes[ev.side] * 0.03);
@@ -5939,6 +6031,7 @@ class MatchSim {
             log = "Escanteio para o " + (ev.side === 0 ? "time da casa" : "visitante") + "!";
             this.escanteios[ev.side]++;
             this.chutes[ev.side]++;
+            this._moverPressao(ev.side, 2.8);
             if (typeof ui !== 'undefined' && ui.playNarracao) ui.playNarracao('cruzamento');
             // 5% chance of direct goal from corner
             if (this._roll(0.05)) {
@@ -5955,6 +6048,7 @@ class MatchSim {
             log = this._fraseDef(teamAtk, prot.nomeDef);
             this.chutes[ev.side ^ 1]++;
             tipoFeed = 'def';
+            this._moverPressao(ev.side, 3.0);
         } else if (t === 'autoGol') {
             const isHome = ev.side === 0;
             const autor = this._autorDoGol(isHome);
@@ -6018,6 +6112,8 @@ class MatchSim {
         // Eventos da partida para o resumo pós-jogo (minutos dos gols).
         if (!this._eventos) this._eventos = [];
         this._eventos.push({ min: this.minuto, tipo: isHome ? 'gol' : 'gol-rival', label: autor ? autor.nome : 'Gol' });
+        this._moverPressao(isHome ? 0 : 1, 8);
+        this._amostrarPosse();
         // Campo 2D: se o chamador não montou contexto, usa autor × goleiro adversário
         if (!this._campoCtx) {
             const atkSide = isHome ? 0 : 1;
@@ -6080,7 +6176,7 @@ class MatchSim {
     _emit(log, tipo, statOnly) {
         if (typeof ui !== 'undefined' && log) ui.narrate(log, this.minuto);
         MatchUI.score(this.scoreH, this.scoreA);
-        MatchUI.stats([this.posse, this.chutes[0], this.chutes[1], this.faltas[0], this.faltas[1], this.cartoes[0], this.cartoes[1], this.escanteios[0], this.escanteios[1]]);
+        MatchUI.stats([this.posse, this.chutes[0], this.chutes[1], this.faltas[0], this.faltas[1], this.cartoes[0], this.cartoes[1], this.escanteios[0], this.escanteios[1], this._pressao || 0]);
         // Campo 2D + timeline de transmissão (fichas reais do lance via _campoCtx)
         try {
             const t = tipo || 'info';
@@ -6306,6 +6402,9 @@ class MatchSim {
         this._segurandoFim = false;
         this.abortado = true;
         this.minuto = this.tempoMin || 90;
+        // Fecha a amostra de posse com o valor final (gráfico do resultado).
+        if (!this._posseHist) this._posseHist = [{ min: 0, posse: 50 }];
+        this._posseHist.push({ min: this.minuto, posse: Math.round(this.posse) });
         MatchUI.clearPrompt();
         const subModal = document.getElementById('modal-substituicao');
         if (subModal) subModal.classList.add('hidden');
@@ -6422,6 +6521,8 @@ const Engine = {
                     cartoes: (m.cartoes || [0, 0]).slice(),
                     escanteios: (m.escanteios || [0, 0]).slice(),
                     eventos: (m._eventos || []).slice(),
+                    posseHist: (m._posseHist || []).slice(),
+                    pressaoFinal: Math.round(m._pressao || 0),
                     casa: (m.home && m.home.nome) || 'Casa',
                     fora: (m.away && m.away.nome) || 'Visitante',
                     userHome: !!userHome
@@ -6456,6 +6557,8 @@ const Engine = {
                     cartoes: (m.cartoes || [0, 0]).slice(),
                     escanteios: (m.escanteios || [0, 0]).slice(),
                     eventos: (m._eventos || []).slice(),
+                    posseHist: (m._posseHist || []).slice(),
+                    pressaoFinal: Math.round(m._pressao || 0),
                     casa: (m.home && m.home.nome) || 'Casa',
                     fora: (m.away && m.away.nome) || 'Visitante',
                     userHome: true
@@ -7265,6 +7368,12 @@ class UI {
             ${barra('Cartões', (st.cartoes || [0, 0])[0], (st.cartoes || [0, 0])[1])}
             ${barra('Escanteios', (st.escanteios || [0, 0])[0], (st.escanteios || [0, 0])[1])}
         </div>`;
+        // Gráfico de posse por tempo (SVG leve, sem Chart.js).
+        const hist = s.posseHist || [];
+        if (hist.length >= 2) {
+            html += `<div class="rs-section-title">📈 POSSE AO LONGO DO JOGO</div>`;
+            html += `<div class="glass-ui rs-chart-box">${this._svgPosseChart(hist, st.posse, nomeC, nomeF)}</div>`;
+        }
         // Linha do tempo dos gols / expulsões.
         const evs = (s.eventos || []).filter(e => e.tipo === 'gol' || e.tipo === 'gol-rival' || e.tipo === 'expulsao');
         if (evs.length) {
@@ -7307,6 +7416,55 @@ class UI {
     html += `</div>`;
 
     return html;
+  }
+
+  // SVG de posse por tempo (leve, sem Chart.js). hist = [{min, posse}] em % da casa.
+  _svgPosseChart(hist, posseFinal, nomeC, nomeF) {
+    const W = 300, H = 88, padL = 28, padR = 8, padT = 10, padB = 18;
+    const innerW = W - padL - padR, innerH = H - padT - padB;
+    const total = Math.max(90, (hist.length && hist[hist.length - 1].min) || 90);
+    const xOf = (min) => padL + Math.max(0, Math.min(1, min / total)) * innerW;
+    // Mapeia 30–70% para a altura útil (fora disso corta) — fica mais legível que 0–100.
+    const yOf = (p) => {
+      const t = Math.max(0, Math.min(1, (p - 30) / 40));
+      return padT + (1 - t) * innerH;
+    };
+    const pts = hist.map(h => [xOf(h.min == null ? 0 : h.min), yOf(h.posse == null ? 50 : h.posse)]);
+    if (!pts.length) return '';
+    const line = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
+    const area = line + ' L' + pts[pts.length - 1][0].toFixed(1) + ',' + (padT + innerH) +
+      ' L' + pts[0][0].toFixed(1) + ',' + (padT + innerH) + ' Z';
+    const y50 = yOf(50);
+    const y60 = yOf(60), y40 = yOf(40);
+    const last = pts[pts.length - 1];
+    return `<svg class="rs-posse-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Posse de bola ao longo do jogo">
+      <defs>
+        <linearGradient id="rsPosseGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#4ade80" stop-opacity="0.45"/>
+          <stop offset="100%" stop-color="#4ade80" stop-opacity="0.05"/>
+        </linearGradient>
+      </defs>
+      <!-- grade 40/50/60 -->
+      <line x1="${padL}" y1="${y60}" x2="${W - padR}" y2="${y60}" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+      <line x1="${padL}" y1="${y50}" x2="${W - padR}" y2="${y50}" stroke="rgba(255,176,0,0.28)" stroke-width="1" stroke-dasharray="4 3"/>
+      <line x1="${padL}" y1="${y40}" x2="${W - padR}" y2="${y40}" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+      <!-- área + linha -->
+      <path d="${area}" fill="url(#rsPosseGrad)"/>
+      <path d="${line}" fill="none" stroke="#4ade80" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+      <!-- ponto final -->
+      <circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="3.2" fill="#4ade80" stroke="#0c0704" stroke-width="1.2"/>
+      <!-- eixos -->
+      <text x="4" y="${(y60 + 3).toFixed(1)}" fill="rgba(255,255,255,0.35)" font-size="8">60</text>
+      <text x="4" y="${(y50 + 3).toFixed(1)}" fill="rgba(255,176,0,0.7)" font-size="8">50</text>
+      <text x="4" y="${(y40 + 3).toFixed(1)}" fill="rgba(255,255,255,0.35)" font-size="8">40</text>
+      <text x="${padL}" y="${H - 4}" fill="rgba(255,255,255,0.35)" font-size="8">0'</text>
+      <text x="${W / 2 - 8}" y="${H - 4}" fill="rgba(255,255,255,0.35)" font-size="8">${Math.round(total / 2)}'</text>
+      <text x="${W - padR - 14}" y="${H - 4}" fill="rgba(255,255,255,0.35)" font-size="8">${total}'</text>
+    </svg>
+    <div class="rs-chart-legend">
+      <span class="rs-home-tag">${nomeC || 'Casa'} ${posseFinal != null ? posseFinal + '%' : ''}</span>
+      <span class="rs-away-tag">${nomeF || 'Fora'} ${posseFinal != null ? (100 - posseFinal) + '%' : ''}</span>
+    </div>`;
   }
 
   showSeasonEndModal(data) {
@@ -11413,6 +11571,8 @@ const app = {
                 escanteios: mp.escanteios
             } : null,
             eventos: mp ? mp.eventos : [],
+            posseHist: mp ? (mp.posseHist || []) : [],
+            pressaoFinal: mp ? (mp.pressaoFinal || 0) : 0,
             times: mp ? { casa: mp.casa, fora: mp.fora } : null,
             noticias: (this.league && this.league.noticias) ? this.league.noticias.slice(0, 3) : []
         };
