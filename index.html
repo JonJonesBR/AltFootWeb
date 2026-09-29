@@ -1168,6 +1168,10 @@ body {
     color: var(--text-muted); margin: 0 0 2px 2px;
 }
 .rs-spark-svg { width: 100%; height: 42px; display: block; }
+.rs-heat-svg { width: 100%; height: 150px; display: block; }
+.rs-dec-legend {
+    color: #ffb000; font-size: 0.62rem; font-weight: 900; letter-spacing: 0.5px;
+}
 .rs-chart-legend {
     display: flex; justify-content: space-between; align-items: center;
     font-size: 0.64rem; font-weight: 800; letter-spacing: 0.5px; margin-top: 2px;
@@ -5300,6 +5304,10 @@ class MatchSim {
         this._pressao = 0;
         this._posseHist = [{ min: 0, posse: 50, pressao: 0 }];
         this._ultSampleMin = 0;
+        // Decisões do técnico e zonas de perigo (heatmap pós-jogo).
+        this._decisoes = [];      // {min, label, isUserAtk, resultado}
+        this._zonas = [];         // {x, y, tipo, lado}
+        this._decisaoPendente = null;
         this._t0 = Date.now();
         // Piso de tempo de parede (ms) — na final, o jogo dura ≥ 1min12s mesmo em 2×/4×,
         // para o INTRO PARA JOGOS DE FINAIS rodar por inteiro.
@@ -5344,6 +5352,27 @@ class MatchSim {
         this._posseHist.push({ min: min, posse: Math.round(this.posse), pressao: Math.round(this._pressao || 0) });
         this._ultSampleMin = min;
         if (this._posseHist.length > 50) this._posseHist = this._posseHist.slice(-50);
+    }
+    // Zona do lance no campo 0–100 (casa ataca à direita). tipo: gol|chance|defesa|erro.
+    _registrarZona(isHome, tipo) {
+        if (!this._zonas) this._zonas = [];
+        // Gols e defesas ficam mais perto do gol; chances/erros espalham no terço final.
+        let x;
+        if (tipo === 'gol') x = isHome ? this._rnd(72, 90) : this._rnd(10, 28);
+        else if (tipo === 'defesa') x = isHome ? this._rnd(68, 88) : this._rnd(12, 32);
+        else x = isHome ? this._rnd(55, 88) : this._rnd(12, 45);
+        const y = this._rnd(18, 82);
+        this._zonas.push({ x: Math.round(x), y: Math.round(y), tipo, lado: isHome ? 0 : 1, min: this.minuto });
+        if (this._zonas.length > 80) this._zonas = this._zonas.slice(-80);
+    }
+    // Fecha a decisão pendente com o desfecho (para o gráfico pós-jogo).
+    _fecharDecisao(resultado) {
+        if (!this._decisaoPendente) return;
+        this._decisaoPendente.resultado = resultado;
+        if (!this._decisoes) this._decisoes = [];
+        this._decisoes.push(this._decisaoPendente);
+        this._decisaoPendente = null;
+        if (this._decisoes.length > 20) this._decisoes = this._decisoes.slice(-20);
     }
     _nomeXI(side, pos) {
         const p = this._pickXI(side, pos);
@@ -6000,6 +6029,7 @@ class MatchSim {
             if (log.indexOf('PERIGO') >= 0 || log.indexOf('Contra-ataque') >= 0) tipoFeed = 'warn';
             this.chutes[ev.side] += this._roll(0.5) ? 1 : 0;
             this._moverPressao(ev.side, ehChance ? 3.2 : 1.4);
+            if (ehChance || tipoFeed === 'warn') this._registrarZona(ev.side === 0, 'chance');
             // Locução por tipo de lance (opção 3)
             if (typeof ui !== 'undefined' && ui.playNarracao) {
                 if (log.indexOf('Contra-ataque') >= 0) ui.playNarracao('contra');
@@ -6056,6 +6086,7 @@ class MatchSim {
             this.chutes[ev.side ^ 1]++;
             tipoFeed = 'def';
             this._moverPressao(ev.side, 3.0);
+            this._registrarZona(ev.side === 0, 'defesa');
         } else if (t === 'autoGol') {
             const isHome = ev.side === 0;
             const autor = this._autorDoGol(isHome);
@@ -6120,6 +6151,7 @@ class MatchSim {
         if (!this._eventos) this._eventos = [];
         this._eventos.push({ min: this.minuto, tipo: isHome ? 'gol' : 'gol-rival', label: autor ? autor.nome : 'Gol' });
         this._moverPressao(isHome ? 0 : 1, 8);
+        this._registrarZona(isHome, 'gol');
         this._amostrarPosse();
         // Campo 2D: se o chamador não montou contexto, usa autor × goleiro adversário
         if (!this._campoCtx) {
@@ -6270,6 +6302,11 @@ class MatchSim {
                 const verbo = isUserAttack ? 'aposta no ' : 'manda ';
                 ui.narrate('🧠 O técnico ' + verbo + rotulo.toLowerCase() + '.', this.minuto);
             }
+            // Registra a decisão para o gráfico (desfecho preenchido em _resolverChance).
+            this._decisaoPendente = {
+                min: this.minuto, label: rotulo || 'Decisão',
+                isUserAtk: !!isUserAttack, isHome: isHome, resultado: null
+            };
             // Substituição saiu das decisões (2026-09-22): botão dedicado "⚤ SUB"
             // no rodapé da partida — a chance pendente aqui sempre é resolvida.
             this._resolverChance(isHome, p);
@@ -6366,13 +6403,18 @@ class MatchSim {
             if (this._roll(p)) {
                 const autor = jp || null;
                 const rec = this._marcar(isHome, autor);
+                this._fecharDecisao('gol');
                 this._emit((userScored ? "GOL! " + j + " converte a chance e explode a torcida!" : "GOL DO RIVAL! " + j + " não perdoa!") + rec, 'goal');
             } else if (this._roll(0.30)) {
                 // Mesmo goleiro do card-battle / campo 2D
+                this._registrarZona(isHome, 'defesa');
+                this._fecharDecisao('defesa');
                 this._emit(this._fraseDef(isHome ? this.home : this.away, nomeGk), 'def');
                 this.chutes[isHome ? 0 : 1]++;
             } else {
                 // Mesmo atacante do campo 2D
+                this._registrarZona(isHome, 'erro');
+                this._fecharDecisao('erro');
                 const missTxt = this._fraseMiss(isHome ? this.home : this.away, j);
                 this._emit(missTxt, 'info');
                 this.chutes[isHome ? 0 : 1]++;
@@ -6384,6 +6426,7 @@ class MatchSim {
         } catch (err) {
             // Erro ao resolver a chance não pode travar a partida: registra e segue.
             console.error('[MatchSim] erro ao resolver chance @' + this.minuto + ':', err);
+            this._fecharDecisao('erro');
         }
         clearTimeout(this._timer);
         this._timer = setTimeout(() => this._tick(), this._gap());
@@ -6530,6 +6573,8 @@ const Engine = {
                     eventos: (m._eventos || []).slice(),
                     posseHist: (m._posseHist || []).slice(),
                     pressaoFinal: Math.round(m._pressao || 0),
+                    decisoes: (m._decisoes || []).slice(),
+                    zonas: (m._zonas || []).slice(),
                     casa: (m.home && m.home.nome) || 'Casa',
                     fora: (m.away && m.away.nome) || 'Visitante',
                     userHome: !!userHome
@@ -6566,6 +6611,8 @@ const Engine = {
                     eventos: (m._eventos || []).slice(),
                     posseHist: (m._posseHist || []).slice(),
                     pressaoFinal: Math.round(m._pressao || 0),
+                    decisoes: (m._decisoes || []).slice(),
+                    zonas: (m._zonas || []).slice(),
                     casa: (m.home && m.home.nome) || 'Casa',
                     fora: (m.away && m.away.nome) || 'Visitante',
                     userHome: true
@@ -7379,8 +7426,13 @@ class UI {
         const hist = s.posseHist || [];
         if (hist.length >= 2) {
             html += `<div class="rs-section-title">📈 POSSE AO LONGO DO JOGO</div>`;
-            html += `<div class="glass-ui rs-chart-box">${this._svgPosseChart(hist, st.posse, nomeC, nomeF, s.eventos)}</div>`;
+            html += `<div class="glass-ui rs-chart-box">${this._svgPosseChart(hist, st.posse, nomeC, nomeF, s.eventos, s.decisoes)}</div>`;
             html += `<div class="rs-chart-box rs-spark-box">${this._svgPressaoSpark(hist, nomeC, nomeF)}</div>`;
+        }
+        // Mapa de calor dos lances perigosos.
+        if (s.zonas && s.zonas.length >= 2) {
+            html += `<div class="rs-section-title">🔥 MAPA DE CALOR — LANCES PERIGOSOS</div>`;
+            html += `<div class="glass-ui rs-chart-box">${this._svgHeatmap(s.zonas, nomeC, nomeF)}</div>`;
         }
         // Linha do tempo dos gols / expulsões.
         const evs = (s.eventos || []).filter(e => e.tipo === 'gol' || e.tipo === 'gol-rival' || e.tipo === 'expulsao');
@@ -7428,7 +7480,8 @@ class UI {
 
   // SVG de posse por tempo (leve, sem Chart.js). hist = [{min, posse}] em % da casa.
   // eventos: gols/expulsões marcados como pinos verticais no eixo do tempo.
-  _svgPosseChart(hist, posseFinal, nomeC, nomeF, eventos) {
+  // decisoes: escolhas do técnico como losangos âmbar no minuto.
+  _svgPosseChart(hist, posseFinal, nomeC, nomeF, eventos, decisoes) {
     const W = 300, H = 88, padL = 28, padR = 8, padT = 10, padB = 18;
     const innerW = W - padL - padR, innerH = H - padT - padB;
     const total = Math.max(90, (hist.length && hist[hist.length - 1].min) || 90);
@@ -7474,6 +7527,19 @@ class UI {
       marcas += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.4" fill="${cor}" stroke="#0c0704" stroke-width="1"/>`;
       marcas += `<text x="${x.toFixed(1)}" y="${(padT - 1).toFixed(1)}" text-anchor="middle" fill="${cor}" font-size="7.5" font-weight="700">${e.min}'</text>`;
     });
+    // Decisões do técnico: losango âmbar na linha de posse (★ se virou gol).
+    (decisoes || []).forEach(d => {
+      if (!d || d.min == null) return;
+      const x = xOf(d.min);
+      const y = yOf(posseEm(d.min));
+      const foiGol = d.resultado === 'gol';
+      const corD = foiGol ? '#fbbf24' : (d.resultado === 'defesa' ? '#38bdf8' : '#ffb000');
+      const lado = d.isUserAtk ? 'ataque' : 'defesa';
+      const tit = (d.min + "' · " + (d.label || 'Decisão') + ' · ' + lado + (d.resultado ? ' → ' + d.resultado : ''));
+      // losango (path de 4 pontos) sob o minuto
+      const r = foiGol ? 4.2 : 3.2;
+      marcas += `<path class="rs-dec-mark" d="M${x.toFixed(1)},${(y - r).toFixed(1)} L${(x + r).toFixed(1)},${y.toFixed(1)} L${x.toFixed(1)},${(y + r).toFixed(1)} L${(x - r).toFixed(1)},${y.toFixed(1)} Z" fill="${corD}" stroke="#0c0704" stroke-width="1"><title>${tit}</title></path>`;
+    });
     return `<svg class="rs-posse-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Posse de bola ao longo do jogo">
       <defs>
         <linearGradient id="rsPosseGrad" x1="0" y1="0" x2="0" y2="1">
@@ -7501,6 +7567,7 @@ class UI {
     </svg>
     <div class="rs-chart-legend">
       <span class="rs-home-tag">${nomeC || 'Casa'} ${posseFinal != null ? posseFinal + '%' : ''}</span>
+      ${decisoes && decisoes.length ? '<span class="rs-dec-legend">◆ decisão</span>' : ''}
       <span class="rs-away-tag">${nomeF || 'Fora'} ${posseFinal != null ? (100 - posseFinal) + '%' : ''}</span>
     </div>`;
   }
@@ -7539,6 +7606,66 @@ class UI {
       <span style="color:${cor};">${rotulo}</span>
       <span class="rs-home-tag">${nomeC || 'Casa'}↑</span>
       <span class="rs-away-tag">↑${nomeF || 'Fora'}</span>
+    </div>`;
+  }
+
+  // Mapa de calor dos lances perigosos. zonas = [{x,y,tipo,lado}] em 0–100 do campo.
+  // Casa ataca à direita; pontos se acumulam como blobs quentes (verde casa / vermelho fora).
+  _svgHeatmap(zonas, nomeC, nomeF) {
+    const lista = (zonas || []).filter(z => z && z.x != null && z.y != null);
+    if (!lista.length) return '';
+    const W = 300, H = 150;
+    // Campo 0–100 → viewBox com padding fino.
+    const xOf = (x) => 6 + (Math.max(0, Math.min(100, x)) / 100) * (W - 12);
+    const yOf = (y) => 6 + (Math.max(0, Math.min(100, y)) / 100) * (H - 12);
+    // Raio/opacidade por tipo: gol mais denso que um lance qualquer.
+    const peso = (t) => t === 'gol' ? 1 : (t === 'defesa' ? 0.7 : (t === 'chance' ? 0.55 : 0.35));
+    let blobs = '', pontos = '';
+    lista.forEach(z => {
+      const x = xOf(z.x), y = yOf(z.y);
+      const w = peso(z.tipo);
+      const casa = z.lado === 0;
+      const cor = casa ? '#4ade80' : '#f87171';
+      const r = 10 + w * 16;
+      const op = 0.14 + w * 0.28;
+      blobs += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r.toFixed(1)}" fill="${cor}" fill-opacity="${op.toFixed(2)}"/>`;
+      // núcleo + rótulo curto para gols
+      if (z.tipo === 'gol') {
+        pontos += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.4" fill="${cor}" stroke="#0c0704" stroke-width="1"><title>Gol aos ${z.min || '?'}'</title></circle>`;
+      } else if (z.tipo === 'defesa') {
+        pontos += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="2.4" fill="none" stroke="${cor}" stroke-width="1.2" opacity="0.85"><title>Defesa aos ${z.min || '?'}'</title></circle>`;
+      }
+    });
+    const nCasa = lista.filter(z => z.lado === 0).length;
+    const nFora = lista.length - nCasa;
+    return `<svg class="rs-heat-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Mapa de calor dos lances perigosos">
+      <defs>
+        <radialGradient id="rsHeatG" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="#4ade80" stop-opacity="0.55"/>
+          <stop offset="100%" stop-color="#4ade80" stop-opacity="0"/>
+        </radialGradient>
+      </defs>
+      <!-- gramado -->
+      <rect x="6" y="6" width="${W - 12}" height="${H - 12}" rx="6" fill="rgba(22,101,52,0.35)" stroke="rgba(255,255,255,0.18)" stroke-width="1"/>
+      <!-- linha central + círculo -->
+      <line x1="${W / 2}" y1="6" x2="${W / 2}" y2="${H - 6}" stroke="rgba(255,255,255,0.22)" stroke-width="1"/>
+      <circle cx="${W / 2}" cy="${H / 2}" r="18" fill="none" stroke="rgba(255,255,255,0.22)" stroke-width="1"/>
+      <!-- áreas -->
+      <rect x="6" y="${H / 2 - 28}" width="36" height="56" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+      <rect x="${W - 42}" y="${H / 2 - 28}" width="36" height="56" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+      <rect x="6" y="${H / 2 - 14}" width="14" height="28" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+      <rect x="${W - 20}" y="${H / 2 - 14}" width="14" height="28" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+      <!-- calor -->
+      ${blobs}
+      ${pontos}
+      <!-- setas de sentido -->
+      <text x="10" y="${H - 10}" fill="rgba(255,255,255,0.4)" font-size="8">← ${nomeF || 'Fora'}</text>
+      <text x="${W - 10}" y="${H - 10}" text-anchor="end" fill="rgba(255,255,255,0.4)" font-size="8">${nomeC || 'Casa'} →</text>
+    </svg>
+    <div class="rs-chart-legend">
+      <span class="rs-home-tag">${nomeC || 'Casa'} ${nCasa} lance(s)</span>
+      <span style="color:var(--text-muted);">● gol · ○ defesa</span>
+      <span class="rs-away-tag">${nFora} lance(s) ${nomeF || 'Fora'}</span>
     </div>`;
   }
 
@@ -11648,6 +11775,8 @@ const app = {
             eventos: mp ? mp.eventos : [],
             posseHist: mp ? (mp.posseHist || []) : [],
             pressaoFinal: mp ? (mp.pressaoFinal || 0) : 0,
+            decisoes: mp ? (mp.decisoes || []) : [],
+            zonas: mp ? (mp.zonas || []) : [],
             times: mp ? { casa: mp.casa, fora: mp.fora } : null,
             noticias: (this.league && this.league.noticias) ? this.league.noticias.slice(0, 3) : []
         };
