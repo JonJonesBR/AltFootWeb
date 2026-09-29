@@ -1090,6 +1090,66 @@ body {
 #modal-result-log {
     font-family: ui-monospace, Consolas, 'Courier New', monospace;
 }
+/* Estatísticas comparativas no modal de resultado */
+.rs-section-title {
+    margin: 14px 0 4px; font-size: 0.72rem; font-weight: 900; letter-spacing: 2px; color: var(--accent);
+}
+.rs-stats-box { padding: 10px 12px; text-align: left; }
+.rs-teams {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 0.68rem; font-weight: 900; letter-spacing: 1px; margin-bottom: 8px;
+}
+.rs-home-tag { color: #4ade80; }
+.rs-away-tag { color: #f87171; }
+.rs-stat-row {
+    display: grid; grid-template-columns: 28px 1fr 28px; gap: 6px;
+    align-items: center; margin: 6px 0;
+}
+.rs-val {
+    font-family: ui-monospace, Consolas, 'Courier New', monospace;
+    font-size: 0.72rem; font-weight: 900; color: var(--text); text-align: center;
+}
+.rs-bars { display: flex; gap: 3px; height: 7px; }
+.rs-half {
+    flex: 1; background: rgba(255,255,255,0.06); border-radius: 4px; overflow: hidden;
+}
+.rs-half:first-child { display: flex; justify-content: flex-end; }
+.rs-fill { height: 100%; border-radius: 4px; min-width: 2px; transition: width 0.4s ease; }
+.rs-fill.rs-home { background: linear-gradient(90deg, #16a34a, #4ade80); box-shadow: 0 0 6px rgba(74,222,128,0.45); }
+.rs-fill.rs-away { background: linear-gradient(90deg, #f87171, #dc2626); box-shadow: 0 0 6px rgba(248,113,113,0.4); }
+.rs-label {
+    grid-column: 1 / -1; text-align: center;
+    font-size: 0.62rem; font-weight: 800; letter-spacing: 1.5px;
+    color: var(--text-muted); text-transform: uppercase; margin-top: -2px;
+}
+.rs-goals-strip {
+    display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin: 10px 0 2px;
+}
+.rs-gol-chip {
+    display: inline-flex; align-items: center; gap: 3px;
+    padding: 3px 9px; border-radius: 999px;
+    font-family: ui-monospace, Consolas, 'Courier New', monospace;
+    font-size: 0.68rem; font-weight: 900;
+    border: 1px solid rgba(255,255,255,0.12);
+}
+.rs-gol-chip.rs-gol { background: rgba(74,222,128,0.16); color: #4ade80; border-color: rgba(74,222,128,0.4); }
+.rs-gol-chip.rs-gol-rival { background: rgba(248,113,113,0.14); color: #f87171; border-color: rgba(248,113,113,0.35); }
+.rs-gol-chip.rs-exp { background: rgba(239,68,68,0.2); color: #fca5a5; border-color: rgba(239,68,68,0.45); }
+/* Guia de forma recente (V/E/D) no dashboard */
+.forma-recente {
+    display: flex; justify-content: center; gap: 5px; margin: 0 0 10px; min-height: 0;
+}
+.forma-recente:empty { display: none; }
+.forma-chip {
+    width: 22px; height: 22px; border-radius: 6px;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-family: ui-monospace, Consolas, 'Courier New', monospace;
+    font-size: 0.68rem; font-weight: 900;
+    border: 1px solid transparent;
+}
+.forma-chip.V { background: rgba(74,222,128,0.2); color: #4ade80; border-color: rgba(74,222,128,0.45); }
+.forma-chip.E { background: rgba(255,176,0,0.18); color: #ffb000; border-color: rgba(255,176,0,0.4); }
+.forma-chip.D { background: rgba(248,113,113,0.16); color: #f87171; border-color: rgba(248,113,113,0.4); }
 /* ========================================================================= */
 /* MENU E LOADING — estúdio de rádio (Broadcast Retrô)                       */
 /* ========================================================================= */
@@ -2604,6 +2664,7 @@ html, body, * {
        <div id="ui-adv-formation" style="font-size: 0.72rem; color: var(--text-muted); font-weight: 800; margin-top: 2px;">—</div>
      </div>
    </div>  <div id="ui-streak-badge" style="text-align: center; font-size: 0.72rem; font-weight: 900; color: var(--accent); margin-bottom: 8px; min-height: 16px;"></div>
+   <div id="ui-forma-recente" class="forma-recente" aria-label="Forma recente (últimos 5 jogos)"></div>
   <button onclick="app.playMatch()" class="btn-end-turn" style="width: 100%; font-size: 0.95rem; padding: 13px;">
     ⚽ ENTRAR EM CAMPO
   </button>
@@ -3258,9 +3319,11 @@ html, body, * {
    <div class="modal-content" style="padding: 24px; width: 92%; max-width: 420px; text-align: center; max-height: 86vh; overflow-y: auto;">
      <h2 id="modal-result-title" style="font-size: 1.6rem; font-weight: 900; color: var(--text); margin-top: 0;">FIM DE JOGO</h2>
      <div id="modal-result-badge" style="display: inline-block; padding: 4px 14px; border-radius: 999px; font-size: 0.8rem; font-weight: 900; letter-spacing: 1px; margin-bottom: 6px; background: rgba(16,185,129,.2); color: var(--primary);">🏆 VITÓRIA</div>
+     <div id="modal-result-times" class="hidden" style="font-size: 0.82rem; font-weight: 700; letter-spacing: 1px; color: var(--text-muted); margin: 2px 0 0;"></div>
      <div id="modal-result-score" style="font-size: 3.2rem; font-weight: 900; color: var(--primary); letter-spacing: 5px; margin: 8px 0;">0 - 0</div>
      <div id="modal-result-pens" class="hidden" style="font-size: 0.95rem; font-weight: 900; letter-spacing: 2px; color: #ffb000; margin: -4px 0 8px;">NOS PÊNALTIS 0 – 0</div>
      <div id="modal-result-summary"></div>
+     <div id="modal-result-next" class="hidden" style="margin: 12px 0 0; padding: 8px 12px; border-radius: 10px; background: rgba(255,176,0,0.08); border: 1px solid rgba(255,176,0,0.22); font-size: 0.74rem; font-weight: 800; letter-spacing: 0.5px; color: var(--text-muted);"></div>
      <div style="display: flex; gap: 8px; margin-top: 16px;">
        <button onclick="app.closeMatchResult()" class="btn-end-turn" style="flex: 1; font-size: 0.9rem; padding: 12px;">CONTINUAR ▶</button>
        <button id="btn-next-match" onclick="app.playNextMatch()" class="btn-end-turn" style="flex: 1.4; font-size: 0.9rem; padding: 12px; background: linear-gradient(135deg, var(--primary), var(--primary-dark));">⚽ JOGAR PRÓXIMA</button>
@@ -4054,11 +4117,13 @@ class Club {
   registrarResultado(meusGols, golsAdv) {
     this.golsPro += meusGols;
     this.golsContra += golsAdv;
+    let letra = 'D';
     if (meusGols > golsAdv) {
       this.pontos += 3;
       this.vitorias++;
       this.consecVitorias++;
       this.consecDerrotas = 0;
+      letra = 'V';
       // Torcida: vitória +8, bônus +3 se sequência >= 3
       this.fans = Math.min(100, (this.fans || 50) + 8 + (this.consecVitorias >= 3 ? 3 : 0));
       if (this.isUser) this.checkMissoes('vitoria');
@@ -4067,6 +4132,7 @@ class Club {
       this.empates++;
       this.consecVitorias = 0;
       this.consecDerrotas = 0;
+      letra = 'E';
       // Torcida: empate +2
       this.fans = Math.min(100, (this.fans || 50) + 2);
     } else {
@@ -4076,6 +4142,10 @@ class Club {
       // Torcida: derrota -8, penalidade extra -3 se sequência >= 3
       this.fans = Math.max(0, (this.fans || 50) - 8 - ((this.consecDerrotas || 0) >= 3 ? 3 : 0));
     }
+    // Forma recente (últimos 5 jogos) para o guia V/E/D do dashboard.
+    if (!Array.isArray(this.formaRecente)) this.formaRecente = [];
+    this.formaRecente.push(letra);
+    if (this.formaRecente.length > 5) this.formaRecente = this.formaRecente.slice(-5);
     // Sequência de jogos sem sofrer gol (golsAdv === 0)
     this.consecSemSofrerGol = (golsAdv === 0) ? ((this.consecSemSofrerGol || 0) + 1) : 0;
   }
@@ -5849,6 +5919,8 @@ class MatchSim {
             const prot = setCtx('DEF', 'ATT');
             log = this._fraseCartao(teamAtk, prot.nomeAtk);
             this.cartoes[ev.side]++;
+            if (!this._eventos) this._eventos = [];
+            this._eventos.push({ min: this.minuto, tipo: 'cartao', label: prot.nomeAtk || 'Cartão' });
             // G6: 2ª amarela → expulsão com efeito real em _poder (A8).
             // Chance base 12%, sobe com o acumulo de cartoes do time.
             const pExp = 0.12 + Math.min(0.18, this.cartoes[ev.side] * 0.03);
@@ -5859,6 +5931,7 @@ class MatchSim {
                 expulsoNome = expulso;
                 this._expulsos[ev.side]++;
                 this._recalcDifs();
+                this._eventos.push({ min: this.minuto, tipo: 'expulsao', label: expulso });
             }
             tipoFeed = 'foul';
         } else if (t === 'escanteio') {
@@ -5942,6 +6015,9 @@ class MatchSim {
         if (isHome) this.scoreH++; else this.scoreA++;
         if (autor && autor.id) this.matchScorers[autor.id] = (this.matchScorers[autor.id] || 0) + 1;
         if (autor) autor.gols = (autor.gols || 0) + 1;
+        // Eventos da partida para o resumo pós-jogo (minutos dos gols).
+        if (!this._eventos) this._eventos = [];
+        this._eventos.push({ min: this.minuto, tipo: isHome ? 'gol' : 'gol-rival', label: autor ? autor.nome : 'Gol' });
         // Campo 2D: se o chamador não montou contexto, usa autor × goleiro adversário
         if (!this._campoCtx) {
             const atkSide = isHome ? 0 : 1;
@@ -6085,6 +6161,12 @@ class MatchSim {
             // G1: decisão respondida antes do timer recarrega Foco (opção central = assistente, menos).
             this._atualizarFoco(i === 1 ? 4 : 8);
             if (typeof ui !== 'undefined' && ui.atualizarFocoUI) ui.atualizarFocoUI(this);
+            // Feedback imediato da escolha do técnico (conecta o clique ao desfecho).
+            const rotulo = (opts[i] && opts[i].label) ? opts[i].label.replace(/^[^\wÀ-ÿ]+/, '').trim() : '';
+            if (rotulo && typeof ui !== 'undefined' && ui.narrate) {
+                const verbo = isUserAttack ? 'aposta no ' : 'manda ';
+                ui.narrate('🧠 O técnico ' + verbo + rotulo.toLowerCase() + '.', this.minuto);
+            }
             // Substituição saiu das decisões (2026-09-22): botão dedicado "⚤ SUB"
             // no rodapé da partida — a chance pendente aqui sempre é resolvida.
             this._resolverChance(isHome, p);
@@ -6330,6 +6412,21 @@ const Engine = {
             const matchScorers = (this.activeMatch && this.activeMatch.matchScorers) || {};
             // G3: guarda quem jogou para o drain pós-jogo não punir o banco.
             try { Engine._ultimosUsados = (this.activeMatch && this.activeMatch.usadosDoUsuario) ? this.activeMatch.usadosDoUsuario() : []; } catch (e) { Engine._ultimosUsados = []; }
+            // Snapshot das estatísticas/eventos para o resumo pós-jogo.
+            try {
+                const m = this.activeMatch;
+                Engine._ultimaPartida = m ? {
+                    posse: Math.round(m.posse || 50),
+                    chutes: (m.chutes || [0, 0]).slice(),
+                    faltas: (m.faltas || [0, 0]).slice(),
+                    cartoes: (m.cartoes || [0, 0]).slice(),
+                    escanteios: (m.escanteios || [0, 0]).slice(),
+                    eventos: (m._eventos || []).slice(),
+                    casa: (m.home && m.home.nome) || 'Casa',
+                    fora: (m.away && m.away.nome) || 'Visitante',
+                    userHome: !!userHome
+                } : null;
+            } catch (e) { Engine._ultimaPartida = null; }
             this.activeMatch = null;
             onFinish(ug, ag, xpBase, matchScorers);
         }, { estilo, craque, regra, seed, condicao: (typeof app !== 'undefined' && app._condicaoJogo) ? app._condicaoJogo : 'normal', minDurMs: (typeof app !== 'undefined' && app._partidaMinDurMs) ? app._partidaMinDurMs() : 0, tempoMin: (typeof app !== 'undefined' && app._tempoPartida) ? app._tempoPartida : 90, ritmo: (typeof app !== 'undefined' && app._climaPartida) ? app._climaPartida.ritmo : 'normal', tom: (typeof app !== 'undefined' && app._climaPartida) ? app._climaPartida.tom : 'normal', tema: (typeof app !== 'undefined' && app._climaPartida) ? app._climaPartida.tema : 'brasileirao' });
@@ -6350,6 +6447,20 @@ const Engine = {
             userClub.elenco.forEach(p => p.ganharXP(xpBase));
             const matchScorers = (this.activeMatch && this.activeMatch.matchScorers) || {};
             try { Engine._ultimosUsados = (this.activeMatch && this.activeMatch.usadosDoUsuario) ? this.activeMatch.usadosDoUsuario() : []; } catch (e) { Engine._ultimosUsados = []; }
+            try {
+                const m = this.activeMatch;
+                Engine._ultimaPartida = m ? {
+                    posse: Math.round(m.posse || 50),
+                    chutes: (m.chutes || [0, 0]).slice(),
+                    faltas: (m.faltas || [0, 0]).slice(),
+                    cartoes: (m.cartoes || [0, 0]).slice(),
+                    escanteios: (m.escanteios || [0, 0]).slice(),
+                    eventos: (m._eventos || []).slice(),
+                    casa: (m.home && m.home.nome) || 'Casa',
+                    fora: (m.away && m.away.nome) || 'Visitante',
+                    userHome: true
+                } : null;
+            } catch (e) { Engine._ultimaPartida = null; }
             this.activeMatch = null;
             onFinish(h, a, xpBase, matchScorers, pen || null);
         }, { estilo, craque, regra, seed, condicao: (typeof app !== 'undefined' && app._condicaoJogo) ? app._condicaoJogo : 'normal', minDurMs: (typeof app !== 'undefined' && app._partidaMinDurMs) ? app._partidaMinDurMs() : 0, tempoMin: (typeof app !== 'undefined' && app._tempoPartida) ? app._tempoPartida : 90, ritmo: (typeof app !== 'undefined' && app._climaPartida) ? app._climaPartida.ritmo : 'normal', tom: (typeof app !== 'undefined' && app._climaPartida) ? app._climaPartida.tom : 'normal', tema: (typeof app !== 'undefined' && app._climaPartida) ? app._climaPartida.tema : 'classico' });
@@ -6999,7 +7110,17 @@ class UI {
     // Torcida reage + badge de comemoração no campo 2D (som do gol já veio de playGolMoment)
     try { MatchUI.crowdCelebrate(!!isPlayerGoal); } catch (e) { }
     const h1 = notif.querySelector('h1');
-    const titulo = isPlayerGoal ? 'GOOOOL!!' : 'GOL SOFRIDO';
+    // Variedade do título: golaço em lances dramáticos / finais de jogo.
+    let titulo;
+    if (!isPlayerGoal) {
+        titulo = 'GOL SOFRIDO';
+    } else if (dramatico && minuto >= 75) {
+        titulo = 'GOLAÇO!';
+    } else if (dramatico) {
+        titulo = 'É GOL!';
+    } else {
+        titulo = 'GOOOOL!!';
+    }
     const sub = autor ? (autor.nome + (minuto ? ' aos ' + minuto + "'" : '')) : null;
     h1.innerHTML = titulo + (sub ? '<span>' + sub.toUpperCase() + '</span>' : '');
     h1.style.color = isPlayerGoal ? '#4ade80' : '#ff5c5c';
@@ -7007,8 +7128,16 @@ class UI {
     h1.style.transform = 'scale(0)';
     notif.classList.remove('hidden');
     requestAnimationFrame(() => { h1.style.transform = 'scale(1)'; });
+    // Juice do gol: flash de impacto + tremor do placar (mais forte em gol dramático).
+    try {
+        this.impactFlash();
+        if (isPlayerGoal || dramatico) this.fxShake();
+    } catch (e) { }
     if (isPlayerGoal && this.burstParticles) {
         this.burstParticles(window.innerWidth / 2, window.innerHeight * 0.4, dramatico ? 70 : 46, ['#10b981', '#f59e0b', '#f8fafc', '#fbbf24', '#38bdf8']);
+    } else if (!isPlayerGoal && dramatico && this.burstParticles) {
+        // Gol sofrido no sufoco: partículas vermelhas reforçam o impacto.
+        this.burstParticles(window.innerWidth / 2, window.innerHeight * 0.4, 28, ['#ff5c5c', '#f87171', '#7f1d1d']);
     }
     if (this._goalTimeout) clearTimeout(this._goalTimeout);
     this._goalTimeout = setTimeout(() => {
@@ -7029,6 +7158,14 @@ class UI {
         const logEl = document.getElementById('modal-result-log');
         const titleEl = document.getElementById('modal-result-title');
         const badgeEl = document.getElementById('modal-result-badge');
+        // Nomes dos times acima do placar (snapshot da partida).
+        const namesEl = document.getElementById('modal-result-times');
+        if (namesEl && summary && summary.times) {
+            namesEl.innerText = (summary.times.casa || 'Casa') + '  ×  ' + (summary.times.fora || 'Visitante');
+            namesEl.classList.remove('hidden');
+        } else if (namesEl) {
+            namesEl.classList.add('hidden');
+        }
         if (scoreEl) {
             scoreEl.innerText = `${scoreH} - ${scoreA}`;
             if (scoreH > scoreA) { scoreEl.style.color = '#4ade80'; scoreEl.style.textShadow = '0 0 12px rgba(74,222,128,0.9), 0 0 36px rgba(16,185,129,0.55)'; }
@@ -7050,6 +7187,34 @@ class UI {
         }
         const cont = document.getElementById('modal-result-summary');
         if (cont) cont.innerHTML = this.renderResultSummary(summary || {});
+        // Teaser do PRÓXIMO jogo (rodada seguinte — a atual ainda não avançou aqui).
+        const nextEl = document.getElementById('modal-result-next');
+        if (nextEl) {
+            try {
+                const lg = (typeof app !== 'undefined') ? app.league : null;
+                const cl = (typeof app !== 'undefined') ? app.club : null;
+                let nxt = null, mand = '', proxRodada = 0;
+                if (lg && cl && lg.getFixturesForRound && lg.getClubesAtuais) {
+                    const clubes = lg.getClubesAtuais();
+                    const userIdx = clubes.indexOf(cl);
+                    proxRodada = (lg.rodada || 0) + 1;
+                    const fixtures = lg.getFixturesForRound(proxRodada, lg.divisaoUser);
+                    const fx = fixtures.find(([h, a]) => h === userIdx || a === userIdx);
+                    if (fx !== undefined) {
+                        nxt = clubes[fx[0] === userIdx ? fx[1] : fx[0]];
+                        mand = fx[0] === userIdx ? 'CASA' : 'FORA';
+                    }
+                }
+                if (nxt && nxt.nome) {
+                    nextEl.innerHTML = 'PRÓXIMO · R' + proxRodada + (mand ? ' · ' + mand : '') +
+                        ' — <b style="color:var(--accent);">' + nxt.nome + '</b>' +
+                        (nxt.formacao ? ' <span style="opacity:0.75;">(' + nxt.formacao + ')</span>' : '');
+                    nextEl.classList.remove('hidden');
+                } else {
+                    nextEl.classList.add('hidden');
+                }
+            } catch (e) { nextEl.classList.add('hidden'); }
+        }
         modal.classList.remove('hidden');
     }
   }
@@ -7064,7 +7229,56 @@ class UI {
     const netSign = net >= 0 ? '+' : '-';
     const row = (label, valHtml) => `<div style="display:flex; justify-content:space-between; align-items:center; padding:3px 0;"><span style="color:var(--text-muted);">${label}</span><span>${valHtml}</span></div>`;
 
-    let html = `<div style="margin:14px 0 4px; font-size:0.72rem; font-weight:900; letter-spacing:2px; color:var(--accent);">RESUMO FINANCEIRO & XP</div>`;
+    let html = '';
+
+    // Estatísticas comparativas da partida (casa × fora) + minutos dos gols.
+    if (s.stats) {
+        const st = s.stats;
+        const nomeC = (s.times && s.times.casa) || 'Casa';
+        const nomeF = (s.times && s.times.fora) || 'Visitante';
+        const pct = (h, a) => {
+            const tot = (h || 0) + (a || 0);
+            if (!tot) return [50, 50];
+            const ph = Math.round((h / tot) * 100);
+            return [ph, 100 - ph];
+        };
+        const barra = (label, h, a, ehPct) => {
+            const [ph, pa] = ehPct ? [Math.max(0, Math.min(100, h || 0)), Math.max(0, Math.min(100, a || 0))] : pct(h, a);
+            const vH = ehPct ? (h || 0) + '%' : (h || 0);
+            const vA = ehPct ? (a || 0) + '%' : (a || 0);
+            return `<div class="rs-stat-row">
+                <span class="rs-val">${vH}</span>
+                <div class="rs-bars">
+                    <div class="rs-half"><div class="rs-fill rs-home" style="width:${ph}%"></div></div>
+                    <div class="rs-half"><div class="rs-fill rs-away" style="width:${pa}%"></div></div>
+                </div>
+                <span class="rs-val">${vA}</span>
+                <div class="rs-label">${label}</div>
+            </div>`;
+        };
+        html += `<div class="rs-section-title">📊 ESTATÍSTICAS DA PARTIDA</div>`;
+        html += `<div class="glass-ui rs-stats-box">
+            <div class="rs-teams"><span class="rs-home-tag">${nomeC}</span><span class="rs-away-tag">${nomeF}</span></div>
+            ${barra('Posse de bola', st.posse, 100 - (st.posse || 50), true)}
+            ${barra('Chutes', (st.chutes || [0, 0])[0], (st.chutes || [0, 0])[1])}
+            ${barra('Faltas', (st.faltas || [0, 0])[0], (st.faltas || [0, 0])[1])}
+            ${barra('Cartões', (st.cartoes || [0, 0])[0], (st.cartoes || [0, 0])[1])}
+            ${barra('Escanteios', (st.escanteios || [0, 0])[0], (st.escanteios || [0, 0])[1])}
+        </div>`;
+        // Linha do tempo dos gols / expulsões.
+        const evs = (s.eventos || []).filter(e => e.tipo === 'gol' || e.tipo === 'gol-rival' || e.tipo === 'expulsao');
+        if (evs.length) {
+            html += `<div class="rs-goals-strip">`;
+            evs.forEach(e => {
+                const cls = e.tipo === 'gol' ? 'rs-gol' : (e.tipo === 'gol-rival' ? 'rs-gol-rival' : 'rs-exp');
+                const icon = e.tipo === 'expulsao' ? '🟥' : '⚽';
+                html += `<span class="rs-gol-chip ${cls}" title="${e.label || ''}">${e.min}' ${icon}</span>`;
+            });
+            html += `</div>`;
+        }
+    }
+
+    html += `<div style="margin:14px 0 4px; font-size:0.72rem; font-weight:900; letter-spacing:2px; color:var(--accent);">RESUMO FINANCEIRO & XP</div>`;
     html += `<div class="glass-ui" style="padding:10px 12px; font-size:0.78rem; text-align:left;">`;
     html += row('Bilheteria (Estádio)', `<b style="color:var(--primary);">+ R$ ${moneyK(s.gate || 0)}</b>`);
     html += row('Folha Salarial', `<b style="color:var(--danger);">- R$ ${moneyK(s.folha || 0)}</b>`);
@@ -7265,6 +7479,16 @@ class UI {
     const advNameEl = document.getElementById('ui-adv-team-name');
     if (myNameEl) myNameEl.innerText = app.club.nome;
     if (advNameEl) advNameEl.innerText = adv ? adv.nome : "Rival";
+    // Guia de forma recente (últimos 5 resultados como chips V/E/D).
+    const formaEl = document.getElementById('ui-forma-recente');
+    if (formaEl) {
+        const forma = Array.isArray(app.club.formaRecente) ? app.club.formaRecente.slice(-5) : [];
+        formaEl.innerHTML = forma.map((letra, i) => {
+            const cls = letra === 'V' ? 'V' : (letra === 'E' ? 'E' : 'D');
+            const title = letra === 'V' ? 'Vitória' : (letra === 'E' ? 'Empate' : 'Derrota');
+            return `<span class="forma-chip ${cls}" title="${title}">${letra}</span>`;
+        }).join('');
+    }
     const advFormEl = document.getElementById('ui-adv-formation');
     if (advFormEl) {
         const perfilTxt = (adv && adv.perfilJogo)
@@ -9638,6 +9862,7 @@ const app = {
         if (club.eventosVistos == null || !Array.isArray(club.eventosVistos)) club.eventosVistos = [];
         if (club.consecVitorias == null) club.consecVitorias = 0;
         if (club.consecSemSofrerGol == null) club.consecSemSofrerGol = 0;
+        if (club.formaRecente == null || !Array.isArray(club.formaRecente)) club.formaRecente = [];
         if (club.staminaGlobal == null) club.staminaGlobal = 100;
         if (club.packPity == null) club.packPity = 0;
         if (club.lastPlayDay == null) club.lastPlayDay = 0;
@@ -11170,6 +11395,8 @@ const app = {
         const lesionados = this.club.elenco.filter(p => p.machucado).length;
 
         const mvp = this._melhorEmCampo(scorers);
+        // Estatísticas e eventos da partida (snapshot do MatchSim via Engine._ultimaPartida).
+        const mp = (typeof Engine !== 'undefined' && Engine._ultimaPartida) ? Engine._ultimaPartida : null;
         return {
             gate, folha, net,
             streakGateBonus, diasBonus,
@@ -11178,6 +11405,15 @@ const app = {
             destaques: this._buildDestaques(scorers),
             melhorEmCampo: mvp,
             mvpXp: 0,
+            stats: mp ? {
+                posse: mp.posse,
+                chutes: mp.chutes,
+                faltas: mp.faltas,
+                cartoes: mp.cartoes,
+                escanteios: mp.escanteios
+            } : null,
+            eventos: mp ? mp.eventos : [],
+            times: mp ? { casa: mp.casa, fora: mp.fora } : null,
             noticias: (this.league && this.league.noticias) ? this.league.noticias.slice(0, 3) : []
         };
     },
