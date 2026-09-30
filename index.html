@@ -2775,6 +2775,7 @@ html, body, * {
 #ui-streak-badge:empty { display:none; }
 #ui-my-team-name,#ui-adv-team-name { overflow-wrap:anywhere; }
 .squad-alerts { display:flex; flex-wrap:wrap; gap:6px; margin:12px 0; }
+.squad-alerts.hidden { display:none; }
 .squad-alerts button { flex:1 1 140px; min-height:44px; text-align:left; padding:9px 12px; border:1px solid #f59e0b66; border-radius:10px; background:#f59e0b12; color:#f5d79d; font-size:.76rem; cursor:pointer; }
 .squad-alerts button:hover { background:#f59e0b25; }
 .club-crest { display:block; width:44px; height:50px; margin:0 auto 8px; }
@@ -2797,6 +2798,7 @@ html, body, * {
 #market-list .card-portrait svg { max-height:110px; }
 button:focus-visible,summary:focus-visible { outline:3px solid #fff0bd; outline-offset:3px; }
 @media(max-width:380px) { .prep-scroll { padding:14px 12px 10px; } .prep-footer { padding-left:12px; padding-right:12px; } #prep-modos .style-btn { padding:9px; font-size:.82rem; } #prep-modos small { font-size:.69rem; } .fut-back { inset:6px; } }
+@media(max-width:340px) { body { min-width:0; } #squad-list .player-card,#market-list .player-card { width:calc(50% - 5px); min-width:0; } #squad-list .player-card:has(.fut-front) { height:320px; min-height:320px; } .fut-back { font-size:.7rem; } }
  </style>
 </head>
 <body>
