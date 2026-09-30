@@ -2799,6 +2799,32 @@ html, body, * {
 button:focus-visible,summary:focus-visible { outline:3px solid #fff0bd; outline-offset:3px; }
 @media(max-width:380px) { .prep-scroll { padding:14px 12px 10px; } .prep-footer { padding-left:12px; padding-right:12px; } #prep-modos .style-btn { padding:9px; font-size:.82rem; } #prep-modos small { font-size:.69rem; } .fut-back { inset:6px; } }
 @media(max-width:340px) { body { min-width:0; } #squad-list .player-card,#market-list .player-card { width:calc(50% - 5px); min-width:0; } #squad-list .player-card:has(.fut-front) { height:320px; min-height:320px; } .fut-back { font-size:.7rem; } }
+/* Transmissão: painéis legíveis e gramado restrito à representação da partida. */
+#screen-match .estadio-gramado { opacity:.22; }
+#screen-match::before,#screen-match::after { opacity:.08; pointer-events:none; }
+#screen-match .match-narrative-section,#screen-match .match-stats-row,#screen-match #match-decision { background:#101b2b; border:1px solid #40516a; border-radius:12px; padding:12px; color:#f1f5f9; }
+#screen-match .stat-chip { background:#1b2b40; color:#f1f5f9; }
+#screen-match #match-log { color:#fff; line-height:1.45; }
+#screen-match .feed-item { background:#17263a; line-height:1.4; border-left:3px solid #64748b; }
+#screen-match .feed-goal { border-left-color:#4ade80; }
+#screen-match .feed-def { border-left-color:#60a5fa; }
+#screen-match .feed-red { border-left-color:#fb7185; }
+#screen-match .feed-foul { border-left-color:#facc15; }
+#screen-match .feed-var { border-left-color:#c4b5fd; }
+#screen-match .decision-btn { min-height:52px; background:#23344b; border-color:#64748b; color:#fff; }
+#screen-match .decision-btn:focus-visible { outline:3px solid #facc15; outline-offset:2px; }
+#screen-match .campo-2d { background:repeating-linear-gradient(90deg,#155c39 0 12.5%,#196741 12.5% 25%); border:3px solid #b9dbc6; }
+#screen-match .campo-linhas { inset:5px; border:1px solid rgba(255,255,255,.65); }
+#screen-match .campo-area { border-color:rgba(255,255,255,.65); }
+#screen-match .campo-chip.casa { border-radius:3px; }
+#screen-match .campo-chip.fora { border-radius:50%; border-style:double; }
+#screen-match .chip-label { opacity:1; background:#081624; border-radius:3px; padding:1px 3px; }
+#modal-match-result .modal-content { display:flex; flex-direction:column; overflow:hidden!important; padding:0!important; }
+.result-scroll { overflow-y:auto; min-height:0; padding:20px; }
+.result-actions { flex:none; display:flex; gap:8px; padding:12px; border-top:1px solid #40516a; background:#101b2b; }
+.result-actions button { min-height:48px; }
+.result-analysis summary { cursor:pointer; padding:14px; margin-top:12px; border:1px solid #40516a; border-radius:8px; font-weight:800; color:var(--text); }
+@media(max-width:600px) { #screen-match .match-narrative-section,#screen-match .match-stats-row,#screen-match #match-decision { padding:7px; } #screen-match .decision-btn { font-size:.7rem; padding:8px 4px; } .result-scroll { padding:14px; } }
  </style>
 </head>
 <body>
@@ -3612,6 +3638,7 @@ button:focus-visible,summary:focus-visible { outline:3px solid #fff0bd; outline-
  <!-- Match Result Modal -->
  <div id="modal-match-result" class="modal hidden">
    <div class="modal-content" style="padding: 24px; width: 92%; max-width: 420px; text-align: center; max-height: 86vh; overflow-y: auto;">
+     <div class="result-scroll">
      <h2 id="modal-result-title" style="font-size: 1.6rem; font-weight: 900; color: var(--text); margin-top: 0;">FIM DE JOGO</h2>
      <div id="modal-result-badge" style="display: inline-block; padding: 4px 14px; border-radius: 999px; font-size: 0.8rem; font-weight: 900; letter-spacing: 1px; margin-bottom: 6px; background: rgba(16,185,129,.2); color: var(--primary);">🏆 VITÓRIA</div>
      <div id="modal-result-times" class="hidden" style="font-size: 0.82rem; font-weight: 700; letter-spacing: 1px; color: var(--text-muted); margin: 2px 0 0;"></div>
@@ -3619,7 +3646,8 @@ button:focus-visible,summary:focus-visible { outline:3px solid #fff0bd; outline-
      <div id="modal-result-pens" class="hidden" style="font-size: 0.95rem; font-weight: 900; letter-spacing: 2px; color: #ffb000; margin: -4px 0 8px;">NOS PÊNALTIS 0 – 0</div>
      <div id="modal-result-summary"></div>
      <div id="modal-result-next" class="hidden" style="margin: 12px 0 0; padding: 8px 12px; border-radius: 10px; background: rgba(255,176,0,0.08); border: 1px solid rgba(255,176,0,0.22); font-size: 0.74rem; font-weight: 800; letter-spacing: 0.5px; color: var(--text-muted);"></div>
-     <div style="display: flex; gap: 8px; margin-top: 16px;">
+     </div>
+     <div class="result-actions">
        <button onclick="app.closeMatchResult()" class="btn-end-turn" style="flex: 1; font-size: 0.9rem; padding: 12px;">CONTINUAR ▶</button>
        <button id="btn-next-match" onclick="app.playNextMatch()" class="btn-end-turn" style="flex: 1.4; font-size: 0.9rem; padding: 12px; background: linear-gradient(135deg, var(--primary), var(--primary-dark));">⚽ JOGAR PRÓXIMA</button>
      </div>
@@ -7309,7 +7337,7 @@ class MatchSim {
     }
 
     _emit(log, tipo, statOnly) {
-        if (typeof ui !== 'undefined' && log) ui.narrate(log, this.minuto);
+        if (typeof ui !== 'undefined' && log) ui.narrate(log, this.minuto, tipo || 'info');
         MatchUI.score(this.scoreH, this.scoreA);
         MatchUI.stats([this.posse, this.chutes[0], this.chutes[1], this.faltas[0], this.faltas[1], this.cartoes[0], this.cartoes[1], this.escanteios[0], this.escanteios[1], this._pressao || 0]);
         try {
@@ -7388,6 +7416,12 @@ class MatchSim {
         // Escala pela diferença de força: time superior converte mais, time fraco erra mais.
         const dif = isHome ? (this._difA || 0) : (this._difD || 0);
         const pBase = this._chanceXG == null ? this._modeloXG(ev.side).qualidade : this._chanceXG;
+        // Mesma probabilidade usada na resolução; o VAR ainda pode anular o gol.
+        opts.forEach(opcao => {
+            const chance = Math.max(0.04, Math.min(0.72, pBase + opcao.eff.d * 0.5));
+            opcao.hint = (isUserAttack ? 'Chance de gol: ' : 'Risco de sofrer gol: ') + Math.round(chance * 100) + '%';
+        });
+        desc += ' Percentuais antes da revisão do VAR.';
         MatchUI.prompt(desc, opts, (i, automatico) => {
             const eff = opts[i].eff;
             const p = Math.max(0.04, Math.min(0.72, pBase + eff.d * 0.5));
@@ -8217,7 +8251,7 @@ class UI {
     if (navigator.vibrate) navigator.vibrate(pattern);
   }
 
-  narrate(text, minuto = null) {
+  narrate(text, minuto = null, tipo = null) {
     const log = document.getElementById('match-log');
     if (log && log.innerText !== text) {
       log.innerText = text;
@@ -8244,15 +8278,21 @@ class UI {
       const minText = minuto != null ? (minuto + "'") : "⏱️";
       let icon = "⚡";
       let badgeClass = "feed-info";
-      if (text.includes("GOOOOL") || text.includes("GOL!") || text.includes("GOL DO RIVAL") || text.includes("GOL DE")) {
+      if (tipo === 'goal' || /go+ol|gol!|gol do rival|gol de/i.test(text) && !/anulad|VAR/i.test(text)) {
         icon = "⚽"; badgeClass = "feed-goal";
-      } else if (text.includes("DEFESA") || text.includes("DEFENDEU") || text.includes("Milagre") || text.includes("ESPALMA")) {
+      } else if (/VAR/i.test(text)) {
+        icon = '📺'; badgeClass = 'feed-var';
+      } else if (/expuls|vermelho/i.test(text)) {
+        icon = '🟥'; badgeClass = 'feed-red';
+      } else if (tipo === 'def' || /defesa|defendeu|milagre|espalma/i.test(text)) {
         icon = "🧤"; badgeClass = "feed-def";
-      } else if (text.includes("Desarme") || text.includes("Zaga") || text.includes("afasta")) {
+      } else if (/desarme|zaga|afasta/i.test(text)) {
         icon = "🛡️"; badgeClass = "feed-tackle";
-      } else if (text.includes("FALTA") || text.includes("PÊNALTI") || text.includes("VAR")) {
+      } else if (/cart[aã]o|amarelo/i.test(text)) {
         icon = "🟨"; badgeClass = "feed-foul";
-      } else if (text.includes("PERIGO") || text.includes("Contra-ataque")) {
+      } else if (tipo === 'foul' || /falta|p[eê]nalti/i.test(text)) {
+        icon = '🛑'; badgeClass = 'feed-foul';
+      } else if (tipo === 'warn' || /perigo|contra-ataque|chance clara/i.test(text)) {
         icon = "⚠️"; badgeClass = "feed-warn";
       }
 
@@ -8709,6 +8749,12 @@ class UI {
         </div>`;
     }
 
+    if (s.melhorEmCampo && s.melhorEmCampo.nome) {
+        const nomeSeguro = document.createElement('span');
+        nomeSeguro.textContent = s.melhorEmCampo.nome;
+        html += '<div class="rs-lance"><div class="rs-lance-icon">⭐</div><div class="rs-lance-body"><div class="rs-lance-tag">MELHOR EM CAMPO</div><div class="rs-lance-text">' + nomeSeguro.innerHTML + '</div></div></div>';
+    }
+    html += '<details class="result-analysis"><summary>📊 Análise completa · estatísticas, gráficos e finanças</summary>';
     // Estatísticas comparativas da partida (casa × fora) + minutos dos gols.
     if (s.stats) {
         const st = s.stats;
@@ -8803,6 +8849,7 @@ class UI {
     destaques.forEach(t => { html += `<div style="padding:2px 0;">• ${t}</div>`; });
     html += `</div>`;
 
+    html += '</details>';
     return html;
   }
 
