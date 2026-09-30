@@ -2824,6 +2824,15 @@ button:focus-visible,summary:focus-visible { outline:3px solid #fff0bd; outline-
 .result-actions { flex:none; display:flex; gap:8px; padding:12px; border-top:1px solid #40516a; background:#101b2b; }
 .result-actions button { min-height:48px; }
 .result-analysis summary { cursor:pointer; padding:14px; margin-top:12px; border:1px solid #40516a; border-radius:8px; font-weight:800; color:var(--text); }
+#modal-jornal .modal-content { display:flex; flex-direction:column; overflow:hidden!important; }
+#jornal-body { min-height:0; overflow-y:auto; }
+#modal-jornal .btn-end-turn { flex:none; min-height:48px; }
+.jrn-lances,.jrn-ficha { font-size:.8rem; line-height:1.5; }
+.jrn-edbar,.jrn-tagline,.jrn-dateline,.jrn-kicker,.jrn-rodape { font-size:.68rem; letter-spacing:.6px; }
+@media(max-width:600px) {
+    #screen-match #match-decision { position:fixed; left:10px; right:10px; bottom:96px; z-index:20; margin:0; max-height:calc(100dvh - 120px); overflow-y:auto; box-shadow:0 8px 30px #000; }
+    .jrn-cols { column-count:1; }
+}
 @media(max-width:600px) { #screen-match .match-narrative-section,#screen-match .match-stats-row,#screen-match #match-decision { padding:7px; } #screen-match .decision-btn { font-size:.7rem; padding:8px 4px; } .result-scroll { padding:14px; } }
  </style>
 </head>
