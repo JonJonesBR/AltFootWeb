@@ -10959,6 +10959,7 @@ const app = {
         this.closeSettings();
         this.renderMenuSlots();
         ui.showScreen('screen-menu');
+        UIRenderer.measureFrames();
     },
     toggleSetting(key) {
         this.settings[key] = !this.settings[key];
