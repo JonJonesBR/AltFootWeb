@@ -2846,12 +2846,12 @@ html, body, * {
    <div style="display: flex; align-items: center; justify-content: space-around; margin: 12px 0 16px; padding: 10px 0; background: rgba(0,0,0,0.25); border-radius: 12px;">
      <div style="text-align: center; flex: 1;">
        <div id="ui-my-team-name" style="font-weight: 900; font-size: 1.1rem; color: #fff;">VOCÊ</div>
-      <div style="font-size: 0.72rem; color: var(--primary); font-weight: 800; margin-top: 2px;">MANDANTE</div>
+      <div id="ui-my-home-tag" style="font-size: 0.72rem; color: var(--primary); font-weight: 800; margin-top: 2px;">MANDANTE</div>
      </div>
      <div style="font-weight: 900; font-size: 0.85rem; color: var(--accent); padding: 4px 10px; background: rgba(245, 158, 11, 0.15); border-radius: 999px;">VS</div>
      <div style="text-align: center; flex: 1;">
        <div id="ui-adv-team-name" style="font-weight: 900; font-size: 1.1rem; color: #fff;">RIVAL</div>
-      <div style="font-size: 0.72rem; color: var(--danger); font-weight: 800; margin-top: 2px;">VISITANTE</div>
+      <div id="ui-adv-home-tag" style="font-size: 0.72rem; color: var(--danger); font-weight: 800; margin-top: 2px;">VISITANTE</div>
        <div id="ui-adv-formation" style="font-size: 0.72rem; color: var(--text-muted); font-weight: 800; margin-top: 2px;">—</div>
      </div>
    </div>  <div id="ui-streak-badge" style="text-align: center; font-size: 0.72rem; font-weight: 900; color: var(--accent); margin-bottom: 8px; min-height: 16px;"></div>
@@ -7060,6 +7060,10 @@ class UI {
     this.synthEstatica();
     // Ao sair da partida: encerra torcida contínua / fita de rádio do replay.
     if (screenId !== 'screen-match') {
+      ['modal-cartas', 'modal-substituicao'].forEach(id => {
+        const modal = document.getElementById(id);
+        if (modal) modal.classList.add('hidden');
+      });
       try { MatchUI.stopCrowdLoop(300); MatchUI.radioHide(); } catch (e) { }
     }
   }
@@ -8365,6 +8369,12 @@ class UI {
     const advNameEl = document.getElementById('ui-adv-team-name');
     if (myNameEl) myNameEl.innerText = app.club.nome;
     if (advNameEl) advNameEl.innerText = adv ? adv.nome : "Rival";
+    const fixture = app.league.getUserFixture(app.club);
+    const home = !fixture || fixture.userHome;
+    const myTag = document.getElementById('ui-my-home-tag');
+    const advTag = document.getElementById('ui-adv-home-tag');
+    if (myTag) myTag.textContent = home ? 'MANDANTE' : 'VISITANTE';
+    if (advTag) advTag.textContent = home ? 'VISITANTE' : 'MANDANTE';
     // Guia de forma recente (últimos 5 resultados como chips V/E/D).
     const formaEl = document.getElementById('ui-forma-recente');
     if (formaEl) {
@@ -10075,6 +10085,7 @@ const app = {
 
     getNextOpponent() {
         if (!this.league || !this.club) return null;
+        if (this._isDaily) return this._dailyChallengeRival();
         return this.league.getUserOpponent(this.club);
     },
 
@@ -11442,10 +11453,20 @@ const app = {
 
     _dailyChallengeRival() {
         if (!this.league || !this.league.getClubesAtuais) return null;
-        const rivais = this.league.getClubesAtuais().filter(c => c !== this.club);
+        // A tabela muda de ordem após a rodada: sorteie sobre nomes estáveis.
+        const rivais = this.league.getClubesAtuais().filter(c => c !== this.club && !c.isUser)
+            .slice().sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
         if (!rivais.length) return null;
-        const base = (this.league.seed || 1) ^ this._dailyChallengeKey();
-        return rivais[Math.abs(base) % rivais.length];
+        const dia = this._dailyChallengeKey();
+        const escolha = this.club.rivalDiario;
+        if (escolha && escolha.dia === dia) {
+            const salvo = rivais.find(c => c.nome === escolha.nome);
+            if (salvo) return salvo;
+        }
+        const base = ((this.league.seed || 1) ^ dia) >>> 0;
+        const rival = rivais[base % rivais.length];
+        this.club.rivalDiario = { dia, nome: rival.nome };
+        return rival;
     },
 
     playDesafioDia() {
@@ -11453,10 +11474,8 @@ const app = {
             ui.showActionFeedback('Rodada do Dia já foi disputada hoje!', 'info');
             return;
         }
-        this.club.lastDaily = this._dailyChallengeKey(); // 1 tentativa por dia
-        this.club.diasRodada = (this.club.diasRodada || 0) + 1;
-        this.conquista('dedicado', this.club.diasRodada >= 7);
         this._isDaily = true;
+        this._isDesafio = true;
         this.playMatch();
     },
 
@@ -12174,18 +12193,27 @@ const app = {
         const modal = document.getElementById('modal-preparacao');
         if (modal) modal.classList.add('hidden');
         if (this._craquePartida) this.club.lastCraqueDay = this._craqueKey();
+        if (this._isDaily) {
+            this.club.lastDaily = this._dailyChallengeKey();
+            this.club.diasRodada = (this.club.diasRodada || 0) + 1;
+            this.conquista('dedicado', this.club.diasRodada >= 7);
+            this.saveGame();
+        }
         ui.showScreen('screen-match');
         ui.startMatchRender();
         this._aplicarTemaPartida();
 
-        const ehDesafio = this._isClassico || this._isTorneio;
+        const ehDesafio = this._isClassico || this._isTorneio || this._isDaily;
         let adv = this.getNextOpponent();
         if (this._isClassico) adv = this._classicoRival() || adv;
         else if (this._isTorneio) adv = this._torneioAdversario() || adv;
         const onMatch = (data) => ui.updateMatchData(data);
         const onMatchEnd = (h, a, xpBase, scorers, pen) => {
+                this.fecharCartasTaticas();
+                this.cancelarSubstituicao();
                 // Apito final já soa em MatchSim._finalizar — não repetir aqui.
                 this.lastResult = { h, a, pen: pen || null, adv: adv ? adv.nome : '—' };
+                this._resultadoPendente = true;
                 // Rodada do Dia: vitória libera a recompensa (100k + jogador grátis), 1 tentativa por dia.
                 if (this._isDaily && h > a) {
                     this.club.lastDaily = this._dailyChallengeKey();
@@ -12264,6 +12292,7 @@ const app = {
         if (modal) modal.classList.add('hidden');
         this._estiloPartida = null;
         this._craquePartida = null;
+        this._isDaily = false; this._isClassico = false; this._isTorneio = false; this._isDesafio = false;
         this._regraPartida = null;
         if (this.league && this.club) ui.showScreen('screen-club');
         else ui.showScreen('screen-menu');
@@ -12521,6 +12550,8 @@ const app = {
     },
 
     closeMatchResult() {
+        if (!this._resultadoPendente) return;
+        this._resultadoPendente = false;
         const modal = document.getElementById('modal-match-result');
         if (modal) modal.classList.add('hidden');
 
