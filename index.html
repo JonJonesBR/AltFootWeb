@@ -2772,6 +2772,7 @@ html, body, * {
 #prep-craques .ov { font-size:.75rem; font-weight:900; }
 #subscreen-dashboard .hero-match-card { background:radial-gradient(ellipse at 50% 0,#bb741f24,transparent 70%),linear-gradient(145deg,#281b10,#15110e); border:1px solid #dca65066; box-shadow:0 8px 24px #0004; }
 #ui-club-stats { max-width:48%; text-align:right; line-height:1.5; }
+#ui-streak-badge:empty { display:none; }
 #ui-my-team-name,#ui-adv-team-name { overflow-wrap:anywhere; }
 .squad-alerts { display:flex; flex-wrap:wrap; gap:6px; margin:12px 0; }
 .squad-alerts button { flex:1 1 140px; min-height:44px; text-align:left; padding:9px 12px; border:1px solid #f59e0b66; border-radius:10px; background:#f59e0b12; color:#f5d79d; font-size:.76rem; cursor:pointer; }
@@ -2783,7 +2784,7 @@ html, body, * {
 #ui-patrocinio-msg button { min-height:44px; font-size:.72rem !important; }
 .player-card:has(.fut-front) { height:300px; min-height:300px; }
 .player-card .card-portrait { width:100%; min-height:0; flex:1; display:flex; align-items:end; justify-content:center; overflow:hidden; }
-.card-portrait svg { width:100%; height:100%; max-height:126px; }
+.card-portrait svg { width:100%; height:100%; max-height:150px; }
 .player-card .card-name { white-space:normal; font-size:.75rem; line-height:1.25; min-height:2.5em; display:flex; align-items:center; justify-content:center; overflow-wrap:anywhere; }
 .card-condition { font-size:.69rem; margin:3px 0 5px; font-weight:800; color:#fff; text-shadow:0 1px 2px #000; }
 .fut-front .card-actions { margin-top:auto; width:100%; }
@@ -13542,7 +13543,10 @@ const app = {
         this._craquePartida = null;
         this._isDaily = false; this._isClassico = false; this._isTorneio = false; this._isDesafio = false;
         this._regraPartida = null;
-        if (this.league && this.club) ui.showScreen('screen-club');
+        if (this.league && this.club) {
+            ui.showScreen('screen-game');
+            ui.showSubscreen('dashboard');
+        }
         else ui.showScreen('screen-menu');
     },
 
