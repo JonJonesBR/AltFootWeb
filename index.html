@@ -667,6 +667,12 @@ body {
 }
 .escala-chip .ovr, .sub-player-btn .ovr { font-weight: 900; color: var(--text-muted); }
 .sub-player-btn .fleg { font-size: 0.62rem; color: var(--cyan); font-weight: 800; }
+.sub-player-btn { min-height: 44px; }
+.sub-player-btn .fleg { flex-shrink: 0; }
+.sub-player-btn .fleg.fleg-medio { color: #fbbf24; }
+.sub-player-btn .fleg.fleg-bajo { color: #fca5a5; }
+.sub-troca-resumo { margin-top: 10px; padding: 9px; border: 1px solid var(--border); border-radius: 8px; text-align: left; font-size: 0.7rem; line-height: 1.45; color: var(--text-muted); }
+.sub-troca-resumo.alerta { color: #fbbf24; border-color: rgba(251,191,36,0.4); }
 /* G3: fôlego + sugestão de rodízio na escalação */
 .escala-chip .fleg { font-size: 0.62rem; font-weight: 800; color: var(--cyan); font-family: ui-monospace, Consolas, monospace; }
 .escala-chip .fleg.fleg-bajo { color: var(--danger); }
@@ -1006,6 +1012,11 @@ body {
 .decision-btn:active { transform: scale(0.96); }
 #match-decision-timer { height: 4px; border-radius: 2px; background: rgba(255,255,255,0.1); overflow: hidden; }
 #match-decision-timer-bar { height: 100%; width: 100%; background: #ffb000; box-shadow: 0 0 10px rgba(255,176,0,0.7); transition: width 0.12s linear; }
+.match-decision-meta { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 8px; font-size: 0.65rem; color: var(--text-muted); }
+#match-decision-countdown { color: var(--accent); font-weight: 900; font-variant-numeric: tabular-nums; }
+#match-decision.urgente #match-decision-countdown { color: #fca5a5; }
+#match-decision.urgente #match-decision-timer-bar { background: #f87171; }
+.decision-shortcut { display: inline-block; margin-right: 4px; padding: 1px 4px; border: 1px solid currentColor; border-radius: 4px; font-size: 0.65rem; opacity: 0.8; }
 
 /* --- Rodapé: velocidade / pular --- */
 .match-footer-row { flex: none; display: flex; align-items: center; gap: 6px; justify-content: center; }
@@ -1015,6 +1026,15 @@ body {
 .foco-bar-fill { height: 100%; width: 70%; border-radius: 999px; background: linear-gradient(90deg, #a78bfa, #c4b5fd); transition: width 0.35s ease; }
 .foco-bar-fill.bajo { background: linear-gradient(90deg, #f87171, #fca5a5); }
 .foco-pct { font-size: 0.78rem; font-weight: 900; color: #c4b5fd; font-family: ui-monospace, Consolas, 'Courier New', monospace; min-width: 40px; text-align: right; }
+.cartas-efeitos-ativos { margin: 0 0 10px; padding: 9px 10px; border: 1px solid rgba(167,139,250,0.38); border-radius: 12px; background: linear-gradient(135deg, rgba(167,139,250,0.12), rgba(255,176,0,0.06)); text-align: left; }
+.cartas-efeitos-cabecalho { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 6px; color: #c4b5fd; font-size: 0.66rem; font-weight: 900; letter-spacing: 0.8px; }
+.cartas-efeito-item + .cartas-efeito-item { margin-top: 7px; padding-top: 7px; border-top: 1px solid rgba(255,255,255,0.08); }
+.cartas-efeito-topo { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.cartas-efeito-nome { overflow: hidden; color: #f5f3ff; font-size: 0.76rem; font-weight: 900; text-overflow: ellipsis; white-space: nowrap; }
+.cartas-efeito-tempo { flex: none; color: #fbbf24; font: 800 0.68rem ui-monospace, Consolas, monospace; }
+.cartas-efeito-barra { height: 5px; margin-top: 5px; overflow: hidden; border-radius: 99px; background: rgba(255,255,255,0.1); }
+.cartas-efeito-progresso { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #8b5cf6, #c4b5fd); transition: width 0.25s ease; }
+.cartas-efeito-bonus { margin-top: 4px; color: var(--text-muted); font-size: 0.64rem; font-weight: 700; }
 .carta-mao-btn {
     width: 100%; text-align: left; padding: 10px 12px; border-radius: 12px; cursor: pointer;
     background: rgba(167, 139, 250, 0.12); border: 1px solid rgba(167, 139, 250, 0.45);
@@ -1728,6 +1748,13 @@ html, body, * {
 }
 .campo-2d .campo-area.esq { left: 0; border-left: none; }
 .campo-2d .campo-area.dir { right: 0; border-right: none; }
+.campo-2d .campo-formacao-label {
+    position: absolute; top: 8px; right: 8px; z-index: 4; padding: 4px 8px;
+    border: 1px solid rgba(255,255,255,0.35); border-radius: 999px;
+    background: rgba(5,12,24,0.76); color: #f8fafc; font-size: 0.55rem;
+    font-weight: 900; letter-spacing: 0.7px; pointer-events: none;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.28);
+}
 .campo-chip {
     position: absolute;
     width: 12px;
@@ -1739,8 +1766,8 @@ html, body, * {
     transition: left 0.8s ease, top 0.8s ease, transform 0.25s ease;
     z-index: 2;
 }
-.campo-chip.casa { background: #3b82f6; }
-.campo-chip.fora { background: #ef4444; }
+.campo-chip.casa { background: var(--kit-cor, #3b82f6); }
+.campo-chip.fora { background: var(--kit-cor, #ef4444); }
 .campo-chip.gk { background: #f59e0b; }
 .campo-chip.ativo {
     transform: translate(-50%, -50%) scale(1.55);
@@ -1796,7 +1823,7 @@ html, body, * {
     left: 50%; top: 50%;
     transform: translate(-50%, -50%) scale(0.85);
     display: flex;
-    gap: 10px;
+    gap: 6px;
     align-items: center;
     z-index: 5;
     opacity: 0;
@@ -1817,11 +1844,11 @@ html, body, * {
     background: linear-gradient(165deg, rgba(28,32,48,0.95), rgba(12,16,28,0.95));
     border: 1px solid rgba(255,176,0,0.55);
     border-radius: 12px;
-    padding: 8px 12px;
-    min-width: 92px;
+    padding: 6px 8px;
+    min-width: 68px;
     text-align: center;
     color: #fff;
-    font-size: 0.62rem;
+    font-size: 0.6rem;
     font-weight: 900;
     box-shadow: 0 8px 22px rgba(0,0,0,0.55), 0 0 18px rgba(255,176,0,0.25);
     animation: cardSlideL 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -1832,7 +1859,7 @@ html, body, * {
     animation: cardSlideR 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 .campo-duelo .duelo-mini .dm-ovr {
-    font-size: 1.15rem;
+    font-size: 1rem;
     line-height: 1;
     letter-spacing: -0.5px;
     color: #ffd97a;
@@ -1849,12 +1876,12 @@ html, body, * {
     margin: 2px 0;
 }
 .campo-duelo .duelo-mini .dm-nome {
-    font-size: 0.68rem;
+    font-size: 0.62rem;
     margin-top: 2px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 110px;
+    max-width: 84px;
 }
 @keyframes cardSlideL {
     from { transform: translateX(-28px) rotate(-6deg); opacity: 0; }
@@ -1866,7 +1893,7 @@ html, body, * {
 }
 .campo-duelo .duelo-vs {
     color: #ffb000;
-    font-size: 0.85rem;
+    font-size: 0.72rem;
     font-weight: 900;
     text-shadow: 0 0 12px rgba(255,176,0,0.9);
     animation: vsPulse 0.5s ease;
@@ -3168,6 +3195,7 @@ html, body, * {
       <div id="match-decision-title">DECISÃO DO TÉCNICO</div>
       <div id="match-decision-desc"></div>
       <div id="match-decision-btns"></div>
+      <div class="match-decision-meta"><span id="match-decision-countdown"></span><span id="match-decision-default"></span></div>
       <div id="match-decision-timer"><div id="match-decision-timer-bar"></div></div>
     </div>
 
@@ -3269,6 +3297,10 @@ html, body, * {
         <span class="foco-pct" id="cartas-foco-pct">70%</span>
       </div>
     </div>
+    <div id="cartas-efeitos-ativos" class="cartas-efeitos-ativos hidden" aria-label="Efeitos táticos ativos">
+      <div class="cartas-efeitos-cabecalho"><span>⚡ EFEITOS ATIVOS</span><span id="cartas-efeitos-contagem"></span></div>
+      <div id="cartas-efeitos-lista" role="list"></div>
+    </div>
     <div id="cartas-mao" style="display: flex; flex-direction: column; gap: 8px;"></div>
     <div class="prep-note" style="margin-top: 10px; text-align: left;">
       Cartas gastam <strong>Foco</strong> e valem por alguns minutos simulados. O Foco recarrega sozinho e a cada decisão respondida a tempo.
@@ -3314,10 +3346,11 @@ html, body, * {
       <h2 style="margin: 0; font-weight: 900; font-size: 1.15rem; color: var(--accent);">⚤ SUBSTITUIÇÃO</h2>
       <button onclick="app.cancelarSubstituicao()" style="background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; padding: 4px;">&times;</button>
     </div>
-    <div style="font-size: 0.66rem; font-weight: 900; letter-spacing: 1px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px; text-align: left;">SAI — EM CAMPO (fôlego)</div>
+    <div style="font-size: 0.66rem; font-weight: 900; letter-spacing: 1px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px; text-align: left;">SAI — MAIS CANSADOS PRIMEIRO</div>
     <div id="sub-sai-list" style="display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px;"></div>
-    <div style="font-size: 0.66rem; font-weight: 900; letter-spacing: 1px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px; text-align: left;">ENTRA — BANCO</div>
+    <div style="font-size: 0.66rem; font-weight: 900; letter-spacing: 1px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px; text-align: left;">ENTRA — BANCO (OVR E FÔLEGO)</div>
     <div id="sub-entra-list" style="display: flex; flex-direction: column; gap: 4px;"></div>
+    <div id="sub-troca-resumo" class="sub-troca-resumo" role="status" aria-live="polite">Escolha quem sai e quem entra para comparar a troca.</div>
     <div style="display: flex; gap: 8px; margin-top: 14px;">
       <button class="btn-secondary" style="flex: 1; padding: 10px;" onclick="app.cancelarSubstituicao()">CANCELAR</button>
       <button id="btn-confirm-sub" class="btn-end-turn" style="flex: 2; padding: 10px; font-size: 0.8rem;" onclick="app.confirmarSubstituicao()" disabled>CONFIRMAR TROCA</button>
@@ -4428,8 +4461,12 @@ class League {
   }
 
   getFixturesForRound(round, div) {
-    const cal = this.getCalendario(div);
-    if (!cal || cal.length === 0) (div === 2 ? this.gerarCalendarioB() : this.gerarCalendario());
+    let cal = this.getCalendario(div);
+    if (!cal || cal.length === 0) {
+      if (div === 2) this.gerarCalendarioB();
+      else this.gerarCalendario();
+      cal = this.getCalendario(div);
+    }
     return (cal && cal.length) ? cal[(round - 1) % cal.length] || [] : [];
   }
 
@@ -4572,23 +4609,34 @@ const MatchUI = {
     },
     // Decisão do técnico: opções + timer que escala com a velocidade (8s a 1×, 2s a 4×, piso 1,2s; default = opção central)
     prompt(desc, opts, onPick, timeoutMs) {
+        this.clearPrompt();
         const box = this._el('match-decision');
         if (!box) { if (typeof onPick === 'function') onPick(1); return; }
         box.classList.remove('hidden');
         const d = this._el('match-decision-desc'); if (d) d.innerText = desc;
         const btns = this._el('match-decision-btns'); if (btns) btns.innerHTML = '';
         let picked = false;
-        const done = (i) => {
+        const done = (i, automatico = false) => {
             if (picked) return; picked = true;
-            if (this._promptTimer) { clearInterval(this._promptTimer); this._promptTimer = null; }
-            box.classList.add('hidden');
-            onPick(i);
+            this.clearPrompt();
+            onPick(i, automatico);
             if (typeof TutorialManager !== 'undefined' && TutorialManager.isActive) TutorialManager.notifyAction('decisao');
         };
         opts.forEach((o, i) => {
             const b = document.createElement('button');
+            b.type = 'button';
             b.className = 'decision-btn';
-            b.innerHTML = o.label + (o.hint ? '<small style="display:block; font-weight:600; opacity:0.8; margin-top:2px;">' + o.hint + '</small>' : '');
+            b.setAttribute('aria-keyshortcuts', String(i + 1));
+            const tecla = document.createElement('kbd');
+            tecla.className = 'decision-shortcut';
+            tecla.textContent = String(i + 1);
+            b.append(tecla, document.createTextNode(o.label));
+            if (o.hint) {
+                const dica = document.createElement('small');
+                dica.style.cssText = 'display:block; font-weight:600; opacity:0.8; margin-top:2px;';
+                dica.textContent = o.hint;
+                b.appendChild(dica);
+            }
             b.onclick = () => done(i);
             btns.appendChild(b);
         });
@@ -4596,17 +4644,37 @@ const MatchUI = {
         if (bar) bar.style.width = '100%';
         const total = timeoutMs || 8000;
         const start = Date.now();
+        const contador = this._el('match-decision-countdown');
+        const padrao = this._el('match-decision-default');
+        if (padrao) padrao.textContent = 'Sem escolha: ' + opts[1].label + ' · Teclas 1/2/3';
+        const atualizarPrazo = (restante) => {
+            if (contador) contador.textContent = (Math.max(0, restante) / 1000).toFixed(1).replace('.', ',') + ' s';
+            box.classList.toggle('urgente', restante <= Math.min(1500, total * 0.25));
+        };
+        atualizarPrazo(total);
+        this._promptKeyHandler = (event) => {
+            if (event.repeat || event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) return;
+            if (event.target && event.target.closest && event.target.closest('input, textarea, select, [contenteditable]')) return;
+            if (document.querySelector('.modal:not(.hidden)') || box.classList.contains('hidden')) return;
+            const i = Number(event.key) - 1;
+            if (!/^[1-3]$/.test(event.key) || !opts[i]) return;
+            event.preventDefault();
+            done(i);
+        };
+        document.addEventListener('keydown', this._promptKeyHandler);
         this._promptTimer = setInterval(() => {
             const el = Date.now() - start;
             if (bar) bar.style.width = Math.max(0, 100 - (el / total) * 100) + '%';
-            if (el >= total) done(1); // padrão: opção central (assistente decide)
+            atualizarPrazo(total - el);
+            if (el >= total) done(1, true); // padrão: opção central (assistente decide)
         }, 80);
         return done;
     },
     clearPrompt() {
         if (this._promptTimer) { clearInterval(this._promptTimer); this._promptTimer = null; }
+        if (this._promptKeyHandler) { document.removeEventListener('keydown', this._promptKeyHandler); this._promptKeyHandler = null; }
         const box = this._el('match-decision');
-        if (box) box.classList.add('hidden');
+        if (box) { box.classList.add('hidden'); box.classList.remove('urgente'); }
     },
     // --- Campo 2D (fichas 11×11 + bola) ligadas ao MatchSim ---
     // Slots por formação real (x: 0=defesa casa → 100=ataque casa; y: 0=topo → 100=base).
@@ -4634,6 +4702,22 @@ const MatchUI = {
             ]
         };
         return F[String(formacao || '4-4-2')] || F['4-4-2'];
+    },
+    corCamisa(nome) {
+        const cores = {
+            Azul: '#2563eb', Vermelha: '#dc2626', Branca: '#e5e7eb',
+            Preta: '#111827', Verde: '#16a34a', Amarela: '#eab308',
+            'Alvi-negra': '#f8fafc', 'Rubro-negra': '#7f1d1d'
+        };
+        return cores[nome] || '#3b82f6';
+    },
+    corRivalContraste(nomeUsuario, corBase) {
+        const rgb = hex => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
+        const a = rgb(this.corCamisa(nomeUsuario));
+        const b = rgb(corBase);
+        const distancia = Math.sqrt(a.reduce((soma, v, i) => soma + (v - b[i]) ** 2, 0));
+        if (distancia >= 140) return corBase;
+        return corBase.toLowerCase() === '#ef4444' ? '#3b82f6' : '#ef4444';
     },
     fieldInit(homeNome, advNome, homeForm, advForm) {
         const campo = this._el('campo-2d');
@@ -4706,8 +4790,10 @@ const MatchUI = {
         });
     },
     // Liga cada jogador do XI à sua ficha (GK→DEF→MID→ATT nas linhas da formação real).
-    fieldBindXI(homeXI, awayXI, homeForm, advForm) {
+    fieldBindXI(homeXI, awayXI, homeForm, advForm, homeColor, awayColor) {
         if (!this._chipSlots) return;
+        if (homeColor) this._corCamisaCasa = homeColor;
+        if (awayColor) this._corCamisaFora = awayColor;
         // Se a formação mudou (ou é a 1ª chamada), recria as fichas nos slots certos.
         const fH = homeForm || this._formCasa || '4-4-2';
         const fA = advForm || this._formFora || '4-4-2';
@@ -4739,10 +4825,16 @@ const MatchUI = {
                 mk('fora', fA, this._nomeFora || 'Fora');
             }
         }
+        const pintarCamisas = (side, color) => {
+            if (!color) return;
+            (this._chipSlots[side] || []).forEach(chip => chip.style.setProperty('--kit-cor', color));
+        };
+        pintarCamisas('casa', this._corCamisaCasa);
+        pintarCamisas('fora', this._corCamisaFora);
         const bind = (side, lista) => {
             const chips = this._chipSlots[side] || [];
             const ordem = { GK: 0, DEF: 1, MID: 2, ATT: 3 };
-            const ordenado = (lista || []).slice().sort((a, b) => (ordem[a.posicao] || 9) - (ordem[b.posicao] || 9));
+            const ordenado = (lista || []).slice().sort((a, b) => (ordem[a.posicao] ?? 9) - (ordem[b.posicao] ?? 9));
             chips.forEach((chip, i) => {
                 const p = ordenado[i];
                 if (p && p.id != null) {
@@ -5911,9 +6003,17 @@ class MatchSim {
                 const el = team.elenco || [];
                 return ids.map(id => el.find(p => p.id === id)).filter(Boolean);
             };
+            const ladoUsuario = this._userSide();
+            const timeUsuario = ladoUsuario === 0 ? this.home : this.away;
+            const nomeCamisa = (timeUsuario && timeUsuario.camisaNome) || 'Azul';
+            const corUsuario = MatchUI.corCamisa(nomeCamisa);
+            const corRivalBase = ladoUsuario === 0 ? '#ef4444' : '#3b82f6';
+            const corRival = MatchUI.corRivalContraste(nomeCamisa, corRivalBase);
             MatchUI.fieldBindXI(
                 toPlayers(0, this.home), toPlayers(1, this.away),
-                this.home.formacao, this.away.formacao
+                this.home.formacao, this.away.formacao,
+                ladoUsuario === 0 ? corUsuario : corRival,
+                ladoUsuario === 1 ? corUsuario : corRival
             );
         } catch (e) { /* campo 2D é cosmético */ }
         // G3: registra os titulares como "usados" (dreno pós-jogo).
@@ -6008,13 +6108,16 @@ class MatchSim {
 
     // G3: fôlego cai dentro dos 90' — só quem está em campo; estilo ofensivo e lama cansam mais.
     _drenarFolego() {
-        const base = this.estilo === 'ofensivo' ? 1.15 : this.estilo === 'retranca' ? 0.75 : 0.95;
+        const ladoUsuario = this._userSide();
         const campo = (this.condicao === 'lama') ? 1.3 : (this.condicao === 'chuva' ? 1.12 : 1);
-        const porEvento = 0.52 * base * campo;
         for (let side = 0; side <= 1; side++) {
             const team = side === 0 ? this.home : this.away;
             const em = (this._emCampo && this._emCampo[side]) || [];
             if (!em.length || !team || !team.elenco) continue;
+            const estilo = side === ladoUsuario
+                ? (this.estilo === 'ofensivo' ? 1.15 : this.estilo === 'retranca' ? 0.75 : 0.95)
+                : 1;
+            const porEvento = 0.52 * estilo * campo;
             if (!this._usados[side]) this._usados[side] = {};
             team.elenco.forEach(p => {
                 if (em.indexOf(p.id) < 0) return;
@@ -6068,6 +6171,7 @@ class MatchSim {
         this._buffs.push({
             id: card.id, nome: card.nome,
             difA: difA, difD: difD,
+            inicioMin: this.minuto, durMin: dur,
             fimMin: this.minuto + dur
         });
         this._cartasUsadas++;
@@ -6339,6 +6443,9 @@ class MatchSim {
         if (typeof ui !== 'undefined' && log) ui.narrate(log, this.minuto);
         MatchUI.score(this.scoreH, this.scoreA);
         MatchUI.stats([this.posse, this.chutes[0], this.chutes[1], this.faltas[0], this.faltas[1], this.cartoes[0], this.cartoes[1], this.escanteios[0], this.escanteios[1], this._pressao || 0]);
+        try {
+            if (typeof ui !== 'undefined' && ui.atualizarEfeitosCartas) ui.atualizarEfeitosCartas(this);
+        } catch (e) { /* painel tático é cosmético — não interrompe o lance */ }
         // Campo 2D + timeline de transmissão (fichas reais do lance via _campoCtx)
         try {
             const t = tipo || 'info';
@@ -6413,7 +6520,7 @@ class MatchSim {
         const pBase = isUserAttack
             ? Math.max(0.14, Math.min(0.60, 0.26 + dif * 0.008))
             : Math.max(0.16, Math.min(0.66, 0.30 + dif * 0.010));
-        MatchUI.prompt(desc, opts, (i) => {
+        MatchUI.prompt(desc, opts, (i, automatico) => {
             const eff = opts[i].eff;
             const p = Math.max(0.08, Math.min(0.72, pBase + eff.d));
             // G1: decisão respondida antes do timer recarrega Foco (opção central = assistente, menos).
@@ -6423,7 +6530,8 @@ class MatchSim {
             const rotulo = (opts[i] && opts[i].label) ? opts[i].label.replace(/^[^\wÀ-ÿ]+/, '').trim() : '';
             if (rotulo && typeof ui !== 'undefined' && ui.narrate) {
                 const verbo = isUserAttack ? 'aposta no ' : 'manda ';
-                ui.narrate('🧠 O técnico ' + verbo + rotulo.toLowerCase() + '.', this.minuto);
+                const sujeito = automatico ? '🧠 Tempo esgotado: o auxiliar ' : '🧠 O técnico ';
+                ui.narrate(sujeito + verbo + rotulo.toLowerCase() + '.', this.minuto);
             }
             // Registra a decisão para o gráfico (desfecho preenchido em _resolverChance).
             this._decisaoPendente = {
@@ -6835,6 +6943,9 @@ class UI {
     this.screens = {};
     this.currentScreen = null;
     this.audioContext = null;
+    this._audioUnlocked = false;
+    this._audioUnlockEvents = ['pointerdown', 'touchstart', 'keydown'];
+    this._audioUnlockHandler = null;
     this._bgmTarget = null;
     this.squadFilter = 'ALL';
   }
@@ -6850,6 +6961,14 @@ class UI {
   }
 
   setupGlobalListeners() {
+    // Web Audio só é inicializado após um gesto real, respeitando autoplay policy.
+    this._audioUnlockHandler = () => this._unlockAudio();
+    this._audioUnlockEvents.forEach((type) => {
+      document.addEventListener(type, this._audioUnlockHandler, {
+        capture: true,
+        passive: type === 'touchstart'
+      });
+    });
     // C4: tilt holográfico em cartas Ouro/Diamante (só hover real — sem lutar com o scroll no toque).
     if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
       document.addEventListener('pointermove', (e) => {
@@ -6898,6 +7017,18 @@ class UI {
         if (!this.bgm) this.initAudio();
         if (!this.currentBGM && this.currentScreen !== 'screen-match') this.playBGM('menu');
     }, { once: true });
+  }
+
+  _unlockAudio() {
+    if (this._audioUnlocked) return;
+    this._audioUnlocked = true;
+    if (this._audioUnlockHandler && typeof document !== 'undefined') {
+      this._audioUnlockEvents.forEach((type) => {
+        document.removeEventListener(type, this._audioUnlockHandler, true);
+      });
+    }
+    // Cria e retoma o contexto dentro do próprio gesto, antes de handlers assíncronos.
+    this._synthCtx();
   }
 
 
@@ -7370,8 +7501,76 @@ class UI {
     if (pct) pct.innerText = v + '%';
   }
 
+  atualizarEfeitosCartas(sim) {
+    const painel = document.getElementById('cartas-efeitos-ativos');
+    const lista = document.getElementById('cartas-efeitos-lista');
+    const contador = document.getElementById('cartas-efeitos-contagem');
+    if (!painel || !sim) return;
+    const ativos = typeof sim._buffsAtivos === 'function' ? sim._buffsAtivos() : [];
+    painel.classList.toggle('hidden', ativos.length === 0);
+    if (contador) contador.textContent = ativos.length
+      ? ativos.length + (ativos.length === 1 ? ' ativo' : ' ativos')
+      : '';
+    if (!lista) return;
+    lista.replaceChildren();
+    const modal = document.getElementById('modal-cartas');
+    if (!ativos.length || (modal && modal.classList.contains('hidden'))) return;
+
+    const minutoAtual = Number.isFinite(Number(sim.minuto)) ? Number(sim.minuto) : 0;
+    ativos.forEach(buff => {
+      const fimMin = Number.isFinite(Number(buff.fimMin)) ? Number(buff.fimMin) : minutoAtual;
+      const inicio = Number(buff.inicioMin);
+      const inicioMin = buff.inicioMin != null && Number.isFinite(inicio) ? inicio : null;
+      const durMin = Math.max(1, Number(buff.durMin) || (inicioMin != null ? fimMin - inicioMin : 6));
+      const restantes = Math.max(0, Math.ceil(fimMin - minutoAtual));
+      const progresso = Math.max(0, Math.min(100, Math.round((fimMin - minutoAtual) / durMin * 100)));
+      const nome = buff.nome || 'Efeito tático';
+      const item = document.createElement('div');
+      item.className = 'cartas-efeito-item';
+      item.setAttribute('role', 'listitem');
+
+      const topo = document.createElement('div');
+      topo.className = 'cartas-efeito-topo';
+      const rotulo = document.createElement('span');
+      rotulo.className = 'cartas-efeito-nome';
+      rotulo.textContent = nome;
+      const tempo = document.createElement('span');
+      tempo.className = 'cartas-efeito-tempo';
+      tempo.textContent = restantes === 0 ? 'expira neste lance' : restantes + (restantes === 1 ? ' min restante' : ' min restantes');
+      topo.appendChild(rotulo);
+      topo.appendChild(tempo);
+
+      const barra = document.createElement('div');
+      barra.className = 'cartas-efeito-barra';
+      barra.setAttribute('role', 'progressbar');
+      barra.setAttribute('aria-valuemin', '0');
+      barra.setAttribute('aria-valuemax', '100');
+      barra.setAttribute('aria-valuenow', String(progresso));
+      barra.setAttribute('aria-label', 'Duração restante de ' + nome + ': ' + restantes + ' minutos');
+      const fill = document.createElement('span');
+      fill.className = 'cartas-efeito-progresso';
+      fill.style.width = progresso + '%';
+      barra.appendChild(fill);
+
+      const bonus = document.createElement('div');
+      bonus.className = 'cartas-efeito-bonus';
+      const deltas = [];
+      [['Ataque', buff.difA], ['Defesa', buff.difD]].forEach(par => {
+        const valor = Number(par[1]) || 0;
+        if (Math.abs(valor) >= 0.5) deltas.push(par[0] + ' ' + (valor > 0 ? '+' : '') + Math.round(valor));
+      });
+      bonus.textContent = deltas.length ? deltas.join(' · ') : 'Efeito tático em andamento';
+
+      item.appendChild(topo);
+      item.appendChild(barra);
+      item.appendChild(bonus);
+      lista.appendChild(item);
+    });
+  }
+
   atualizarMaoCartas(sim) {
     this.atualizarFocoUI(sim);
+    this.atualizarEfeitosCartas(sim);
     const box = document.getElementById('cartas-mao');
     if (!box || !sim) return;
     box.innerHTML = '';
@@ -8806,6 +9005,7 @@ class UI {
 
   synthBip(freq = 600, dur = 0.08, vol = 0.25, type = 'square') {
     try {
+      if (!this._audioUnlocked) return;
       if (app && app.settings && !app.settings.sfx) return;
       // Respeita o slider de volume EFX (sfxVol 0–1).
       const sfxMul = (app && app.settings && typeof app.settings.sfxVol === 'number')
@@ -8818,7 +9018,10 @@ class UI {
         this.audioContext = new AC();
       }
       const ctx = this.audioContext;
-      if (ctx.state === 'suspended') ctx.resume();
+      if (ctx.state === 'suspended') {
+        const resume = ctx.resume();
+        if (resume && typeof resume.catch === 'function') resume.catch(() => {});
+      }
       const t0 = ctx.currentTime;
       const attack = Math.min(0.015, dur * 0.25);
 
@@ -8858,6 +9061,7 @@ class UI {
   // Respeita settings.sfx / sfxVol; guarda para browsers sem AudioContext (como synthBip).
   _synthCtx() {
     try {
+      if (!this._audioUnlocked) return null;
       if (typeof app !== 'undefined' && app.settings && !app.settings.sfx) return null;
       if (!this.audioContext) {
         const AC = window.AudioContext || window.webkitAudioContext;
@@ -8865,7 +9069,10 @@ class UI {
         this.audioContext = new AC();
       }
       const ctx = this.audioContext;
-      if (ctx.state === 'suspended') ctx.resume();
+      if (ctx.state === 'suspended') {
+        const resume = ctx.resume();
+        if (resume && typeof resume.catch === 'function') resume.catch(() => {});
+      }
       return ctx;
     } catch (_) { return null; }
   }
@@ -9875,6 +10082,8 @@ const app = {
         if (!this.club) return;
         this.club.formacao = form;
         if (typeof ui !== 'undefined') ui.renderFormation(form);
+        const telaDeck = document.getElementById('subscreen-squad');
+        if (telaDeck && !telaDeck.classList.contains('hidden')) this.renderEscalacao();
         this.saveGame();
     },
 
@@ -9948,22 +10157,46 @@ const app = {
             else if (cansados > 0) status.textContent = '⚠ ' + cansados + ' titular(es) com fôlego baixo e sem reserva pronto no banco.';
             else status.textContent = '✓ Escalação completa (11 titulares, goleiro definido).';
         }
-        this._renderCampoXI(xi);
+        this._renderCampoXI(xi, (this.club && this.club.formacao) || '4-4-2');
     },
 
     // Campo 2D compacto do XI (prancheta visual) — só cosmético.
-    _renderCampoXI(xi) {
+    _renderCampoXI(xi, formacao) {
         const campo = document.getElementById('campo-xi');
         if (!campo) return;
         campo.innerHTML = '<div class="campo-linhas"></div><div class="campo-area esq"></div><div class="campo-area dir"></div>';
-        const slots = [
-            { x: 8, y: 50 }, { x: 22, y: 18 }, { x: 22, y: 40 }, { x: 22, y: 60 }, { x: 22, y: 82 },
-            { x: 42, y: 22 }, { x: 42, y: 50 }, { x: 42, y: 78 },
-            { x: 62, y: 30 }, { x: 62, y: 70 }, { x: 78, y: 50 }
-        ];
+        const esquemas = {
+            '4-4-2': [
+                { x: 8, y: 50 }, { x: 24, y: 18 }, { x: 24, y: 40 }, { x: 24, y: 60 }, { x: 24, y: 82 },
+                { x: 50, y: 18 }, { x: 50, y: 40 }, { x: 50, y: 60 }, { x: 50, y: 82 },
+                { x: 76, y: 36 }, { x: 76, y: 64 }
+            ],
+            '4-3-3': [
+                { x: 8, y: 50 }, { x: 24, y: 18 }, { x: 24, y: 40 }, { x: 24, y: 60 }, { x: 24, y: 82 },
+                { x: 50, y: 25 }, { x: 50, y: 50 }, { x: 50, y: 75 },
+                { x: 76, y: 18 }, { x: 76, y: 50 }, { x: 76, y: 82 }
+            ],
+            '3-5-2': [
+                { x: 8, y: 50 }, { x: 24, y: 30 }, { x: 24, y: 50 }, { x: 24, y: 70 },
+                { x: 50, y: 16 }, { x: 50, y: 33 }, { x: 50, y: 50 }, { x: 50, y: 67 }, { x: 50, y: 84 },
+                { x: 76, y: 36 }, { x: 76, y: 64 }
+            ],
+            '5-3-2': [
+                { x: 8, y: 50 }, { x: 24, y: 12 }, { x: 24, y: 30 }, { x: 24, y: 50 }, { x: 24, y: 70 }, { x: 24, y: 84 },
+                { x: 50, y: 25 }, { x: 50, y: 50 }, { x: 50, y: 75 },
+                { x: 76, y: 36 }, { x: 76, y: 64 }
+            ]
+        };
+        const esquema = String(formacao || (this.club && this.club.formacao) || '4-4-2');
+        const slots = esquemas[esquema] || esquemas['4-4-2'];
+        if (campo.setAttribute) campo.setAttribute('aria-label', 'Prancheta tática no esquema ' + (esquemas[esquema] ? esquema : '4-4-2'));
+        const selo = document.createElement('span');
+        selo.className = 'campo-formacao-label';
+        selo.textContent = 'ESQUEMA ' + (esquemas[esquema] ? esquema : '4-4-2');
+        campo.appendChild(selo);
         // Ordena: GK, DEF, MID, ATT para preencher as posições da prancheta
         const ordem = { GK: 0, DEF: 1, MID: 2, ATT: 3 };
-        const ordenado = (xi || []).slice().sort((a, b) => (ordem[a.posicao] || 9) - (ordem[b.posicao] || 9));
+        const ordenado = (xi || []).slice().sort((a, b) => (ordem[a.posicao] ?? 9) - (ordem[b.posicao] ?? 9));
         ordenado.forEach((p, i) => {
             const s = slots[i] || { x: 50, y: 50 };
             const chip = document.createElement('div');
@@ -10080,6 +10313,7 @@ const app = {
         this._subSel = { sai: null, entra: null };
         this._renderSubList('sub-sai-list', emCampo, 'sai');
         this._renderSubList('sub-entra-list', banco, 'entra');
+        this._subAtualizarResumo();
         const okBtn = document.getElementById('btn-confirm-sub');
         if (okBtn) okBtn.disabled = true;
         m.classList.remove('hidden');
@@ -10090,12 +10324,26 @@ const app = {
         const box = document.getElementById(containerId);
         if (!box) return;
         box.innerHTML = '';
-        lista.slice().sort((a, b) => (b.overall || 0) - (a.overall || 0)).forEach(p => {
+        const folego = p => p.folego == null ? 100 : p.folego;
+        lista.slice().sort((a, b) => (lado === 'sai' ? folego(a) - folego(b) : 0) || (b.overall || 0) - (a.overall || 0)).forEach(p => {
             const btn = document.createElement('button');
+            btn.type = 'button';
             btn.className = 'sub-player-btn';
             btn.dataset.id = String(p.id);
-            btn.innerHTML = '<span class="pos">' + this.subPosLabel(p) + '</span><span class="nome">' + p.nome + '</span><span class="ovr">' + (p.overall || 0) + '</span>'
-                + (lado === 'sai' ? '<span class="fleg">' + Math.round(p.folego == null ? 100 : p.folego) + '%</span>' : '');
+            btn.setAttribute('aria-pressed', 'false');
+            [['pos', this.subPosLabel(p)], ['nome', p.nome], ['ovr', 'OVR ' + (p.overall || 0)]].forEach(([classe, texto]) => {
+                const span = document.createElement('span');
+                span.className = classe;
+                span.textContent = texto;
+                btn.appendChild(span);
+            });
+            const f = folego(p);
+            const fadiga = document.createElement('span');
+            fadiga.className = 'fleg' + (f < 60 ? ' fleg-bajo' : f < 75 ? ' fleg-medio' : '');
+            fadiga.textContent = '⚡ ' + Math.round(f) + '%';
+            const penalidade = f < 40 ? 5 : f < 60 ? 3 : f < 75 ? 1 : 0;
+            fadiga.title = 'Fôlego ' + Math.round(f) + '%' + (penalidade ? ' · Rendimento −' + penalidade + ' por cansaço' : ' · Sem penalidade de cansaço');
+            btn.appendChild(fadiga);
             btn.onclick = () => this._subSelecionar(lado, p.id);
             box.appendChild(btn);
         });
@@ -10104,11 +10352,33 @@ const app = {
     _subSelecionar(lado, id) {
         this._subSel[lado] = (id === this._subSel[lado]) ? null : id;
         document.querySelectorAll('#sub-sai-list .sub-player-btn, #sub-entra-list .sub-player-btn').forEach(b => {
-            b.classList.toggle('selected',
-                b.dataset.id === String(this._subSel.sai) || b.dataset.id === String(this._subSel.entra));
+            const selected = b.dataset.id === String(this._subSel.sai) || b.dataset.id === String(this._subSel.entra);
+            b.classList.toggle('selected', selected);
+            b.setAttribute('aria-pressed', String(selected));
         });
         const okBtn = document.getElementById('btn-confirm-sub');
         if (okBtn) okBtn.disabled = !(this._subSel.sai != null && this._subSel.entra != null);
+        this._subAtualizarResumo();
+    },
+
+    _subAtualizarResumo() {
+        const resumo = document.getElementById('sub-troca-resumo');
+        if (!resumo) return;
+        resumo.classList.remove('alerta');
+        resumo.textContent = 'Escolha quem sai e quem entra para comparar a troca.';
+        const sim = (typeof Engine !== 'undefined') ? Engine.activeMatch : null;
+        if (!sim || !this._subSel || this._subSel.sai == null || this._subSel.entra == null) return;
+        const team = sim._userSide() === 0 ? sim.home : sim.away;
+        const elenco = team.elenco || [];
+        const sai = elenco.find(p => p.id === this._subSel.sai);
+        const entra = elenco.find(p => p.id === this._subSel.entra);
+        if (!sai || !entra) return;
+        const f = Math.round(entra.folego == null ? 100 : entra.folego);
+        const foraPosicao = (sai.posicao || 'MID') !== (entra.posicao || 'MID');
+        resumo.textContent = 'Sai ' + sai.nome + ' (' + this.subPosLabel(sai) + '), entra ' + entra.nome + ' (' + this.subPosLabel(entra) + ') · Fôlego do reserva: ' + f + '%.'
+            + (foraPosicao ? ' Posições diferentes: revise a composição do time.' : '')
+            + (f < 60 ? ' O reserva também está cansado.' : '');
+        resumo.classList.toggle('alerta', foraPosicao || f < 60);
     },
 
     cancelarSubstituicao() {
@@ -10134,8 +10404,8 @@ const app = {
             ui.showActionFeedback('Resolva a decisão do técnico antes!', 'warning');
             return;
         }
-        if (typeof ui !== 'undefined') ui.atualizarMaoCartas(sim);
         m.classList.remove('hidden');
+        if (typeof ui !== 'undefined') ui.atualizarMaoCartas(sim);
         if (typeof ui !== 'undefined') ui.playSFX('sfx_click', 0.3);
     },
 
