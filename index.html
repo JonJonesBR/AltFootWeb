@@ -9420,7 +9420,7 @@ class UI {
             ${FUTCards.portrait(p, app.club)}
             <div class="card-name"></div>
             <div class="card-condition">${p.machucado > 0 ? '🏥 Lesionado' : '🫁 Fôlego ' + Math.round(p.folego ?? 100) + '%'}</div>
-            ${p.trainingPoints > 0 ? `<div style="position:absolute; top:-4px; right:-4px; background:var(--accent); color:white; width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:0.65rem; border:2px solid white; box-shadow:0 0 8px var(--accent);">${p.trainingPoints}</div>` : ''}
+            ${p.trainingPoints > 0 ? `<div title="Pontos de treino disponíveis" style="position:absolute; top:42px; right:8px; background:var(--accent); color:#21160d; width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:0.75rem; border:2px solid white;">${p.trainingPoints}</div>` : ''}
             <div class="card-actions">
               <button onclick="FUTCards.flip(this)" class="btn-secondary">Virar</button>
               <button onclick="app.sellPlayerWithConfirmation('${p.id}')" class="btn-secondary" style="background:rgba(239,68,68,0.2); border-color:rgba(239,68,68,0.4); color:#fca5a5;">Vender</button>
