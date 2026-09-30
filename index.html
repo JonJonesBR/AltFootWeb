@@ -3763,6 +3763,7 @@ const AUDIO_ASSETS = Object.freeze({}); // Música e SFX sintetizados; locução
 
 // audio-synthesizer.js — uma fonte procedural por canal, sem dados de áudio embutidos.
 const AudioSynthesizer = {
+    buffersRuido: new WeakMap(),
     contexto(owner) {
         if (!owner._audioUnlocked) return null;
         const AC = window.AudioContext || window.webkitAudioContext;
@@ -3774,9 +3775,14 @@ const AudioSynthesizer = {
         } catch (_) { return null; }
     },
     ruido(ctx, dur) {
-        const buffer = ctx.createBuffer(1,Math.max(1,Math.floor(ctx.sampleRate * dur)),ctx.sampleRate);
+        const length = Math.max(1, Math.floor(ctx.sampleRate * dur));
+        let cache = this.buffersRuido.get(ctx);
+        if (!cache) { cache = new Map(); this.buffersRuido.set(ctx, cache); }
+        if (cache.has(length)) return cache.get(length);
+        const buffer = ctx.createBuffer(1,length,ctx.sampleRate);
         const canal = buffer.getChannelData(0);
         for (let i=0;i<canal.length;i++) canal[i]=Math.random()*2-1;
+        cache.set(length, buffer);
         return buffer;
     },
     faixa(owner, track) {
@@ -8240,11 +8246,8 @@ class UI {
     // A2/Q1: score/stats/feed já são pintados em MatchSim._emit (MatchUI).
     // Aqui só o que _emit não cobre: relógio e side-effect de BGM.
     MatchUI.clock(data.minuto || 0);
-    const alvo = (data.tipo === 'goal' || data.tipo === 'warn') ? 'tension' : 'match';
-    if (this._bgmTarget !== alvo) {
-        this._bgmTarget = alvo;
-        this.playBGM(alvo);
-    }
+    // O filtro da faixa ativa acompanha a pressão em MatchSim._emit.
+    // Mantém a fonte contínua, evitando reiniciar o ruído a cada chance narrada.
   }
 
   // G1: barra de Foco + mão de cartas táticas
