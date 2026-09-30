@@ -5532,11 +5532,11 @@ const MatchUI = {
             let icon = '•';
             if (tipo === 'goal') { cls += 'gol'; icon = '⚽'; }
             else if (tipo === 'goal-rival') { cls += 'gol-rival'; icon = '⚽'; }
-            else if (tipo === 'cartao') { cls += 'cartao'; icon = '🟨'; }
+            else if (tipo === 'cartao') { cls += 'cartao'; icon = /🟥/.test(label || '') ? '🟥' : '🟨'; }
             else { cls += 'var'; icon = '📺'; }
             m.className = cls;
             m.style.left = Math.min(98, Math.max(2, (minuto / total) * 100)) + '%';
-            m.title = minuto + "' " + (label || '');
+            m.title = Math.max(0, Number(min) || 0) + "' " + (label || '');
             m.textContent = icon;
             track.appendChild(m);
         }
@@ -7239,10 +7239,10 @@ class MatchSim {
                 MatchUI.fieldEvent('goal-rival', this.minuto, log, ctx);
                 MatchUI.timeline(this.minuto, 'goal-rival', '⚽ RIVAL');
             } else if (t === 'warn' || t === 'foul') {
-                MatchUI.fieldEvent('cartao', this.minuto, log, ctx);
-                if (t === 'warn') MatchUI.timeline(this.minuto, 'cartao', '🟨');
                 // Só cartão de verdade apita — warn também cobre PERIGO/contra-ataque.
                 const ehCartao = (t === 'foul') && /amarelo|expulso|cart[aã]o|vermelho/i.test(log || '');
+                MatchUI.fieldEvent(ehCartao ? 'cartao' : t === 'warn' ? 'chance' : 'info', this.minuto, log, ctx);
+                if (ehCartao) MatchUI.timeline(this.minuto, 'cartao', /expuls|vermelho/i.test(log || '') ? '🟥 EXPULSÃO' : '🟨');
                 if (ehCartao && typeof ui !== 'undefined' && ui.playApito) {
                     ui.playApito(false, 'curto');
                 }
@@ -8652,7 +8652,7 @@ class UI {
             ${barra('Escanteios', (st.escanteios || [0, 0])[0], (st.escanteios || [0, 0])[1])}
         </div>`;
         // Gráfico de posse por tempo + sparkline de pressão (SVG leve, sem Chart.js).
-        if (st.arbitro) html += '<div class="prep-note">Apitou: ' + ({conivente:'Conivente',equilibrado:'Equilibrado',rigoroso:'Rigoroso'}[st.arbitro] || 'Equilibrado') + ' · Estatísticas de casa e visitante.</div>';
+        if (st.arbitro) html += '<div class="prep-note">Apitou: ' + ({conivente:'Conivente',equilibrado:'Equilibrado',rigoroso:'Rigoroso'}[String(st.arbitro).toLowerCase()] || 'Equilibrado') + ' · Estatísticas de casa e visitante.</div>';
         const hist = s.posseHist || [];
         if (hist.length >= 2) {
             html += `<div class="rs-section-title">📈 POSSE AO LONGO DO JOGO</div>`;
