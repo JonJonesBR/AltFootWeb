@@ -2732,11 +2732,12 @@ html, body, * {
 }
 
 /* FUT: faces em composição de transform/opacity; sem filtros pesados. */
-.player-card:has(.fut-front) { min-height:260px; transform-style:preserve-3d; perspective:900px; }
+.player-card:has(.fut-front) { width:clamp(140px,27vw,164px); height:310px; min-height:310px; transform-style:preserve-3d; perspective:900px; overflow:visible; }
 .fut-front { width:100%; height:100%; display:flex; flex-direction:column; align-items:center; transition:opacity .18s; backface-visibility:hidden; }
-.fut-back { position:absolute; inset:8px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; font-size:.65rem; opacity:0; visibility:hidden; transform:rotateY(180deg); backface-visibility:hidden; }
+.fut-back { position:absolute; inset:8px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; font-size:.65rem; opacity:0; visibility:hidden; transform:rotateY(180deg); backface-visibility:hidden; overflow-wrap:anywhere; }
 .fut-back svg { width:100%; max-height:118px; }
-.fut-back button { min-height:30px; width:100%; font-size:.65rem; }
+.fut-back button { min-height:44px; width:100%; font-size:.65rem; }
+.fut-front .card-actions button { min-height:44px; }
 .player-card.is-flipped { transform:perspective(900px) rotateY(180deg) !important; }
 .player-card.is-flipped .fut-front { opacity:0; visibility:hidden; }
 .player-card.is-flipped .fut-back { opacity:1; visibility:visible; }
@@ -8433,8 +8434,9 @@ class UI {
         } else if (namesEl) {
             namesEl.classList.add('hidden');
         }
+        const userHome = !summary || summary.userHome !== false;
         if (scoreEl) {
-            scoreEl.innerText = `${scoreH} - ${scoreA}`;
+            scoreEl.innerText = `${userHome ? scoreH : scoreA} - ${userHome ? scoreA : scoreH}`;
             if (scoreH > scoreA) { scoreEl.style.color = '#4ade80'; scoreEl.style.textShadow = '0 0 12px rgba(74,222,128,0.9), 0 0 36px rgba(16,185,129,0.55)'; }
             else if (scoreH < scoreA) { scoreEl.style.color = '#ff5c5c'; scoreEl.style.textShadow = '0 0 12px rgba(255,92,92,0.85), 0 0 32px rgba(239,68,68,0.5)'; }
             else { scoreEl.style.color = '#ffb000'; scoreEl.style.textShadow = '0 0 12px rgba(255,176,0,0.85), 0 0 32px rgba(255,176,0,0.5)'; }
@@ -8457,7 +8459,7 @@ class UI {
         // Fase 4: placa "NOS PÊNALTIS X – Y" quando o empate foi decidido na disputa.
         const pensEl = document.getElementById('modal-result-pens');
         if (pensEl) {
-            if (pen) { pensEl.innerText = 'NOS PÊNALTIS ' + pen.h + ' – ' + pen.a; pensEl.classList.remove('hidden'); }
+            if (pen) { pensEl.innerText = 'NOS PÊNALTIS ' + (userHome ? pen.h : pen.a) + ' – ' + (userHome ? pen.a : pen.h); pensEl.classList.remove('hidden'); }
             else { pensEl.classList.add('hidden'); }
         }
         const cont = document.getElementById('modal-result-summary');
