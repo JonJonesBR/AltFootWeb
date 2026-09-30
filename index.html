@@ -8721,6 +8721,7 @@ class UI {
     if (best.tipo === 'gol') texto = nome + ' balança a rede — o estádio explode!';
     else if (best.tipo === 'gol-rival') texto = nome + ' cala a torcida da casa.';
     else if (best.tipo === 'expulsao') texto = nome + ' é expulso e deixa o time com um a menos.';
+    else if (best.tipo === 'cartao') texto = 'Cartão amarelo para ' + nome + '.';
     else texto = nome + ' marca o lance.';
     return { min: best.min || 0, icone, texto };
   }
