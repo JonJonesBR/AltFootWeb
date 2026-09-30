@@ -2746,6 +2746,56 @@ html, body, * {
 .player-card.rarity-Ouro { background-image:linear-gradient(120deg,#775016,#e5bf5a 37%,#a17025 60%,#ead178 78%,#604019); }
 .player-card.rarity-Diamante { background-image:linear-gradient(135deg,#243249,#85b8b9 28%,#7483c4 45%,#d0b0c5 60%,#346676); }
 @media (prefers-reduced-motion:reduce) { .player-card,.fut-front,.fut-back { transition:none !important; } }
+/* Preparação, painel e coleção: leitura rápida e controles ao alcance. */
+#modal-preparacao .prep-content { padding:0 !important; width:calc(100% - 24px) !important; max-width:560px !important; max-height:min(92dvh,860px); overflow:hidden; display:flex; flex-direction:column; text-align:center; }
+.prep-scroll { min-height:0; overflow-y:auto; padding:18px 18px 12px; overscroll-behavior:contain; }
+.prep-close { width:44px; height:44px; flex-shrink:0; border:1px solid var(--border); border-radius:12px; background:#ffffff08; color:#fff; font-size:1.6rem; cursor:pointer; }
+.prep-footer { flex-shrink:0; padding:10px 18px max(12px,env(safe-area-inset-bottom)); background:#21160d; border-top:1px solid #ffb00055; }
+.prep-footer .btn-end-turn { width:100%; min-height:48px; margin-top:6px; }
+.prep-section-label { text-align:left; font-size:.72rem; font-weight:900; letter-spacing:1px; margin:14px 0 7px; color:var(--text-muted); }
+#prep-modos { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:16px; }
+#prep-modos .style-btn { text-align:left; padding:12px; font-size:.9rem; min-height:68px; }
+#prep-modos small { display:block; font-size:.72rem; font-weight:600; line-height:1.4; margin-top:5px; }
+#modal-preparacao .style-btn { min-height:44px; }
+#modal-preparacao .prep-club { flex:1; min-width:0; padding:0 6px; overflow-wrap:anywhere; }
+#modal-preparacao .prep-club .name { font-size:clamp(.8rem,3vw,1rem); }
+#prep-formacoes { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; }
+.prep-choice-summary { font-size:.76rem; line-height:1.45; color:#e6d1af; text-align:left; margin:8px 0; min-height:2.9em; }
+.prep-scout { text-align:left; border:1px solid var(--border); border-radius:10px; margin-top:14px; padding:0 10px; }
+.prep-scout summary { cursor:pointer; min-height:44px; display:flex; align-items:center; font-size:.78rem; font-weight:800; }
+.prep-scout[open] { padding-bottom:10px; }
+#prep-craques { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:7px; }
+#prep-craques .craque-card { min-width:0; min-height:88px; padding:8px 5px; font-family:inherit; color:#fff; cursor:pointer; }
+#prep-craques .pos,#prep-craques .nm,#prep-craques .ov { display:block; }
+#prep-craques .nm { font-size:.76rem; line-height:1.25; min-height:2.5em; margin:4px 0; overflow-wrap:anywhere; }
+#prep-craques .pos { font-size:.7rem; color:#ffc85a; }
+#prep-craques .ov { font-size:.75rem; font-weight:900; }
+#subscreen-dashboard .hero-match-card { background:radial-gradient(ellipse at 50% 0,#bb741f24,transparent 70%),linear-gradient(145deg,#281b10,#15110e); border:1px solid #dca65066; box-shadow:0 8px 24px #0004; }
+#ui-club-stats { max-width:48%; text-align:right; line-height:1.5; }
+#ui-my-team-name,#ui-adv-team-name { overflow-wrap:anywhere; }
+.squad-alerts { display:flex; flex-wrap:wrap; gap:6px; margin:12px 0; }
+.squad-alerts button { flex:1 1 140px; min-height:44px; text-align:left; padding:9px 12px; border:1px solid #f59e0b66; border-radius:10px; background:#f59e0b12; color:#f5d79d; font-size:.76rem; cursor:pointer; }
+.squad-alerts button:hover { background:#f59e0b25; }
+.club-crest { display:block; width:44px; height:50px; margin:0 auto 8px; }
+.hud-metric { min-width:0; }
+.hud-metric .hm-value { font-variant-numeric:tabular-nums; }
+#ui-patrocinio-msg { flex-wrap:wrap; font-size:.76rem !important; }
+#ui-patrocinio-msg button { min-height:44px; font-size:.72rem !important; }
+.player-card:has(.fut-front) { height:300px; min-height:300px; }
+.player-card .card-portrait { width:100%; min-height:0; flex:1; display:flex; align-items:end; justify-content:center; overflow:hidden; }
+.card-portrait svg { width:100%; height:100%; max-height:126px; }
+.player-card .card-name { white-space:normal; font-size:.75rem; line-height:1.25; min-height:2.5em; display:flex; align-items:center; justify-content:center; overflow-wrap:anywhere; }
+.card-condition { font-size:.69rem; margin:3px 0 5px; font-weight:800; color:#fff; text-shadow:0 1px 2px #000; }
+.fut-front .card-actions { margin-top:auto; width:100%; }
+.fut-front .card-actions button { font-size:.7rem; padding:5px; }
+.fut-back { font-size:.72rem; gap:3px; }
+.fut-back strong { font-size:.78rem; line-height:1.2; text-align:center; }
+.fut-back svg { max-height:96px; }
+.fut-back button { font-size:.72rem; }
+#market-list .player-card { min-height:220px; height:220px; }
+#market-list .card-portrait svg { max-height:110px; }
+button:focus-visible,summary:focus-visible { outline:3px solid #fff0bd; outline-offset:3px; }
+@media(max-width:380px) { .prep-scroll { padding:14px 12px 10px; } .prep-footer { padding-left:12px; padding-right:12px; } #prep-modos .style-btn { padding:9px; font-size:.82rem; } #prep-modos small { font-size:.69rem; } .fut-back { inset:6px; } }
  </style>
 </head>
 <body>
@@ -2878,6 +2928,7 @@ html, body, * {
  </div>
 
  <!-- HUD compacto de métricas do clube -->
+ <div id="ui-squad-alerts" class="squad-alerts hidden" aria-label="Atenção ao elenco"></div>
  <div class="hud-metrics" id="hud-metrics">
    <div class="hud-metric">
      <div class="hm-label">💰 Grana</div>
@@ -3244,11 +3295,12 @@ html, body, * {
 
 
 <!-- Preparação da Partida: estilo + craque do dia -->
-<div id="modal-preparacao" class="modal hidden">
-  <div class="modal-content" style="padding: 22px; width: 92%; max-width: 400px; text-align: center; max-height: 90vh; overflow-y: auto;">
+<div id="modal-preparacao" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="prep-title">
+  <div class="modal-content prep-content">
+   <div class="prep-scroll">
     <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 8px;">
-      <h2 style="margin: 0; font-weight: 900; font-size: 1.2rem; color: var(--accent);">🎙 PREPARAÇÃO</h2>
-      <button onclick="app.cancelarPreparacao()" style="background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; padding: 4px;">&times;</button>
+      <h2 id="prep-title" style="margin: 0; font-weight: 900; font-size: 1.2rem; color: var(--accent);">🎙 PREPARAÇÃO</h2>
+      <button class="prep-close" aria-label="Cancelar preparação" onclick="app.cancelarPreparacao()">&times;</button>
     </div>
     <div class="prep-clubs">
       <div class="prep-club"><div class="name" id="prep-my-name">VOCÊ</div><div class="tag" id="prep-my-tag">MANDANTE</div></div>
@@ -3256,6 +3308,11 @@ html, body, * {
       <div class="prep-club"><div class="name" id="prep-adv-name">RIVAL</div><div class="tag" id="prep-adv-tag">VISITANTE</div></div>
     </div>
     <div id="prep-apresentacao" class="prep-note" style="margin: 8px 0 10px; text-align: left;"></div>
+    <div class="prep-section-label">COMO VOCÊ QUER JOGAR?</div>
+    <div class="style-grid" id="prep-modos">
+      <button class="style-btn active" data-modo="detalhado" onclick="app.escolherModoPartida('detalhado')">📻 Rádio <small>60–90 s · decisões ao vivo</small></button>
+      <button class="style-btn" data-modo="instantaneo" onclick="app.escolherModoPartida('instantaneo')">⚡ Brasfoot <small>3–5 s · resultado direto</small></button>
+    </div>
 
     <div class="tabs-bar" id="prep-tabs">
       <button class="tab-btn active" data-prep-tab="estrategia" onclick="app.switchPrepTab('estrategia')">⚔️ Estratégia</button>
@@ -3277,6 +3334,7 @@ html, body, * {
         <button class="style-btn active" data-estilo="equilibrado" onclick="app.escolherEstilo('equilibrado')"><span class="ib">⚖️</span>EQUILIBRADO</button>
         <button class="style-btn" data-estilo="retranca" onclick="app.escolherEstilo('retranca')"><span class="ib">🧱</span>RETRANCA</button>
       </div>
+      <p id="prep-estilo-resumo" class="prep-choice-summary" aria-live="polite">Equilibrado: distribui a força entre ataque e defesa.</p>
       <div style="font-size: 0.68rem; font-weight: 900; letter-spacing: 1.5px; color: var(--text-muted); text-transform: uppercase; margin-top: 12px; margin-bottom: 6px;">🌟 CRAQUE DA RODADA <span style="color: var(--accent);">(1/dia)</span></div>
       <div class="craque-row" id="prep-craques"></div>
       <div style="font-size: 0.66rem; font-weight: 900; letter-spacing: 1px; color: var(--text-muted); text-transform: uppercase; margin-top: 12px; margin-bottom: 6px;">TEU TIME</div>
@@ -3295,15 +3353,14 @@ html, body, * {
         <button class="style-btn" data-tempo="45" onclick="app.escolherTempo(45)">1º TEMPO · 45'</button>
         <button class="style-btn active" data-tempo="90" onclick="app.escolherTempo(90)">JOGO INTEIRO · 90'</button>
       </div>
-      <div style="margin-top:12px;font-weight:900;">📻 MODO DE TRANSMISSÃO</div>
-      <div class="style-grid" id="prep-modos">
-        <button class="style-btn active" data-modo="detalhado" onclick="app.escolherModoPartida('detalhado')">RÁDIO · 60–90 s</button>
-        <button class="style-btn" data-modo="instantaneo" onclick="app.escolherModoPartida('instantaneo')">BRASFOOT · 3–5 s</button>
-      </div>
     </div>
 
-    <div class="prep-note" id="prep-obs" style="margin-top: 8px;">Escolha um craque emprestado para reforçar o time SÓ nesta partida. O estilo define o equilíbrio entre ataque e defesa. A escalação titular vale para as próximas partidas.</div>
-    <button class="btn-end-turn" style="width: 100%; margin-top: 12px; padding: 12px;" onclick="app.confirmarPreparacao()">⚽ ENTRAR EM CAMPO</button>
+    <details class="prep-scout"><summary>📋 Análise do rival e condições</summary><div class="prep-note" id="prep-obs">Escolha a estratégia para esta partida.</div></details>
+   </div>
+   <div class="prep-footer">
+    <div id="prep-confirm-summary" class="prep-note" aria-live="polite">4-4-2 · Equilibrado · Rádio</div>
+    <button class="btn-end-turn" onclick="app.confirmarPreparacao()">⚽ ENTRAR EM CAMPO</button>
+   </div>
   </div>
 </div>
 
@@ -5093,6 +5150,34 @@ const CompetitionSystem = {
 };
 // fut-cards.js — radar vetorial leve e inspeção no verso da carta.
 const FUTCards = {
+    // Identidade vetorial determinística, sem mídia extra nem campo de save.
+    visualSeed(texto) {
+        let h = 2166136261;
+        for (const c of String(texto || 'AltFoot')) h = Math.imul(h ^ c.charCodeAt(0), 16777619) >>> 0;
+        return h;
+    },
+    kitColor(club) {
+        const cores = { Azul:'#2563eb', Vermelha:'#dc2626', Branca:'#e5e7eb', Preta:'#374151', Verde:'#15803d', Amarela:'#eab308', 'Alvi-negra':'#e5e7eb', 'Rubro-negra':'#b91c1c' };
+        return cores[club && club.camisaNome] || ['#2563eb','#b91c1c','#15803d','#7c3aed'][this.visualSeed(club && club.nome) % 4];
+    },
+    crest(club) {
+        const cor = this.kitColor(club);
+        return '<svg class="club-crest" viewBox="0 0 64 74" aria-hidden="true"><path d="M4 4L32 1 60 4V36Q59 56 32 71Q5 56 4 36Z" fill="'+cor+'" stroke="#f5d792" stroke-width="3"/><path d="M25 6H39V60L32 65 25 60Z" fill="#ffffff55"/><circle cx="32" cy="31" r="13" fill="#15100a" stroke="#f5d792" stroke-width="2"/><path d="M32 23L40 29 37 38H27L24 29Z" fill="#f5d792"/></svg>';
+    },
+    portrait(p, club) {
+        const h = this.visualSeed(p.nome);
+        const pele = ['#efc39b','#d89b6a','#a96943','#70452f'][h % 4];
+        const cabelo = ['#241915','#49332a','#a07440','#18181b'][(h >>> 4) % 4];
+        const cor = this.kitColor(club);
+        const penteado = [
+            'M42 39Q42 14 70 16Q98 17 98 39L89 34 85 27 53 31 51 40Z',
+            'M42 42V29Q50 13 70 14Q94 15 98 31V43L91 34 49 35Z',
+            'M44 36Q42 20 54 20Q60 8 69 17Q80 9 86 20Q99 18 98 36L90 32 48 34Z',
+            'M44 35Q44 18 70 18Q95 18 96 35L89 29Q70 23 51 30Z'
+        ][(h >>> 8) % 4];
+        const barba = (h >>> 12) % 3 === 0 ? '<path d="M48 50Q51 76 70 76Q90 75 92 50L87 66 76 71H64L52 64Z" fill="'+cabelo+'" opacity=".7"/>' : '';
+        return '<div class="card-portrait" aria-hidden="true"><svg viewBox="0 0 140 138"><ellipse cx="70" cy="127" rx="60" ry="8" fill="#0003"/><path d="M13 135L19 99Q29 86 55 82H85Q111 86 121 99L127 135Z" fill="'+cor+'" stroke="#ffffff55"/><path d="M54 82L70 98 86 82 93 135H47Z" fill="#ffffff30"/><path d="M58 70H82V86Q70 100 58 86Z" fill="'+pele+'"/><ellipse cx="46" cy="48" rx="5" ry="9" fill="'+pele+'"/><ellipse cx="94" cy="48" rx="5" ry="9" fill="'+pele+'"/><path d="M45 33Q47 17 70 17Q94 17 95 33V51Q94 75 70 80Q46 74 45 51Z" fill="'+pele+'"/><path d="'+penteado+'" fill="'+cabelo+'"/>'+barba+'<path d="M53 42H63M78 42H88" stroke="'+cabelo+'" stroke-width="3" stroke-linecap="round"/><circle cx="58" cy="47" r="2" fill="#231b17"/><circle cx="83" cy="47" r="2" fill="#231b17"/><path d="M70 48L67 58H73M61 65Q70 70 79 65" fill="none" stroke="#734532" stroke-width="2" stroke-linecap="round"/><path d="M56 82L70 95 84 82" fill="none" stroke="#f8fafc" stroke-width="4"/></svg></div>';
+    },
     initTouch() {
         let active=null;
         document.addEventListener('pointerdown',e=>{
@@ -9125,10 +9210,29 @@ class UI {
     }
 
     const adv = app.getNextOpponent();
+    const alertas = document.getElementById('ui-squad-alerts');
+    if (alertas) {
+        alertas.replaceChildren();
+        const elenco = app.club.elenco || [];
+        const itens = [
+            [elenco.filter(p => !p.machucado && (p.folego ?? 100) < 60).length, 'com fôlego baixo', 'squad'],
+            [elenco.filter(p => p.machucado > 0).length, 'no departamento médico', 'squad'],
+            [elenco.filter(p => p.contratoRodadas != null && p.contratoRodadas <= 3).length, 'com contrato no fim', 'squad']
+        ];
+        for (const [n, rotulo, tela] of itens) if (n) {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.textContent = '⚠ ' + n + ' ' + (n === 1 ? 'atleta ' : 'atletas ') + rotulo + ' →';
+            b.onclick = () => this.showSubscreen(tela);
+            alertas.appendChild(b);
+        }
+        alertas.classList.toggle('hidden', !alertas.childElementCount);
+    }
     const myNameEl = document.getElementById('ui-my-team-name');
     const advNameEl = document.getElementById('ui-adv-team-name');
     if (myNameEl) myNameEl.innerText = app.club.nome;
     if (advNameEl) advNameEl.innerText = adv ? adv.nome : "Rival";
+    for (const [el, clube] of [[myNameEl, app.club], [advNameEl, adv]]) if (el && clube) el.insertAdjacentHTML('afterbegin', FUTCards.crest(clube));
     const fixture = app.league.getUserFixture(app.club);
     const home = !fixture || fixture.userHome;
     const myTag = document.getElementById('ui-my-home-tag');
@@ -9312,14 +9416,19 @@ class UI {
               <div class="card-ovr">${typeof TransferMarket !== 'undefined' ? TransferMarket.ovrVisivel(p) : p.overall}</div>
               <div class="card-pos">${p.posicao || '—'}</div>
             </div>
-            <div class="card-silh"></div>
-            <div class="card-name" title="${p.nome}">${this.cardLabel(p.nome)}</div>
+            ${FUTCards.portrait(p, app.club)}
+            <div class="card-name"></div>
+            <div class="card-condition">${p.machucado > 0 ? '🏥 Lesionado' : '🫁 Fôlego ' + Math.round(p.folego ?? 100) + '%'}</div>
             ${p.trainingPoints > 0 ? `<div style="position:absolute; top:-4px; right:-4px; background:var(--accent); color:white; width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:0.65rem; border:2px solid white; box-shadow:0 0 8px var(--accent);">${p.trainingPoints}</div>` : ''}
             <div class="card-actions">
               <button onclick="FUTCards.flip(this)" class="btn-secondary">Virar</button>
-              <button onclick="app.sellPlayerWithConfirmation('${p.id}')" class="btn-secondary" style="background:rgba(239,68,68,0.2); border-color:rgba(239,68,68,0.4); color:#fca5a5;">$</button>
+              <button onclick="app.sellPlayerWithConfirmation('${p.id}')" class="btn-secondary" style="background:rgba(239,68,68,0.2); border-color:rgba(239,68,68,0.4); color:#fca5a5;">Vender</button>
             </div></div>${FUTCards.back(p)}
         `;
+        el.querySelector('.card-name').textContent = p.nome;
+        el.querySelector('.card-name').title = p.nome;
+        el.querySelector('.card-actions button').setAttribute('aria-label', 'Virar carta de ' + p.nome);
+        el.querySelector('.card-actions button:last-child').setAttribute('aria-label', 'Vender ' + p.nome);
         list.appendChild(el);
     });
 
@@ -9538,10 +9647,12 @@ class UI {
               <div class="card-ovr">${p.overall}</div>
               <div class="card-pos">${p.posicao || '—'}</div>
             </div>
-            <div class="card-silh"></div>
-            <div class="card-name" title="${p.nome}">${this.cardLabel(p.nome)}</div>
+            ${FUTCards.portrait(p)}
+            <div class="card-name"></div>
             <div class="card-price ${semSaldo ? 'sem-saldo' : ''}">${app.fmtMoneyShort(preco)}</div>
         `;
+        el.querySelector('.card-name').textContent = p.nome;
+        el.querySelector('.card-name').title = p.nome;
         el.setAttribute('role', 'button'); el.tabIndex = 0;
         el.setAttribute('aria-label', 'Negociar contrato de ' + p.nome);
         el.onclick = () => app.openMarketNegotiation(p.id);
@@ -11251,6 +11362,7 @@ const app = {
     },
 
     abrirEscalacaoPreparacao() {
+        this._retomarEscolhasPrep = true;
         const m = document.getElementById('modal-preparacao');
         if (m) m.classList.add('hidden');
         this._veioDaPreparacao = true;
@@ -13124,12 +13236,28 @@ const app = {
         if (this._condicaoJogo) txt += '  ·  🌡️ ' + cinfo.rotulo;
         if (ehFinal) txt += '  ·  🏆 FINAL — introdução de estreia';
         el.innerText = txt;
+        this._renderResumoPreparacao();
     },
     // ---- Escolhas do menu de pré-jogo ----
+    _renderResumoPreparacao() {
+        const estilo = this._estiloPartida || 'equilibrado';
+        const nomes = { equilibrado: 'Equilibrado', ofensivo: 'Ofensivo', retranca: 'Retranca' };
+        const resumo = document.getElementById('prep-confirm-summary');
+        if (resumo) resumo.textContent = ((this.club && this.club.formacao) || '4-4-2') + ' · ' + nomes[estilo] + ' · ' + (this._modoPartida === 'instantaneo' ? 'Brasfoot' : 'Rádio');
+        const ajuda = document.getElementById('prep-estilo-resumo');
+        if (ajuda) ajuda.textContent = {
+            equilibrado: 'Equilibrado: distribui a força entre ataque e defesa.',
+            ofensivo: 'Ofensivo: cria mais chances, expõe a defesa e aumenta o desgaste.',
+            retranca: 'Retranca: reduz as chances do rival e exige mais fôlego do meio-campo.'
+        }[estilo];
+        document.querySelectorAll('#modal-preparacao .style-btn').forEach(b => b.setAttribute('aria-pressed', String(b.classList.contains('active'))));
+    },
     switchPrepTab(nome) {
         const alvo = (nome === 'detalhes') ? 'detalhes' : 'estrategia';
-        document.querySelectorAll('#prep-tabs .tab-btn').forEach(b =>
-            b.classList.toggle('active', (b.dataset.prepTab || '') === alvo));
+        document.querySelectorAll('#prep-tabs .tab-btn').forEach(b => {
+            b.classList.toggle('active', (b.dataset.prepTab || '') === alvo);
+            b.setAttribute('aria-pressed', String(b.classList.contains('active')));
+        });
         const a = document.getElementById('prep-tab-estrategia');
         const d = document.getElementById('prep-tab-detalhes');
         if (a) a.classList.toggle('active', alvo === 'estrategia');
@@ -13146,6 +13274,7 @@ const app = {
     escolherModoPartida(modo) {
         this._modoPartida = modo === 'instantaneo' ? 'instantaneo' : 'detalhado';
         document.querySelectorAll('#prep-modos [data-modo]').forEach(b => b.classList.toggle('active',b.dataset.modo === this._modoPartida));
+        this._renderResumoPreparacao();
         if (typeof ui !== 'undefined') ui.playSFX('sfx_click',0.3);
     },
 
@@ -13291,11 +13420,15 @@ const app = {
             // Outras partidas: um INTRO aleatório, exclusivo neste menu (sem repetir na partida).
             ui.playNarracao(ehFinal ? 'introFinal' : 'intro', 0.55, true);
         }
-        this._estiloPartida = 'equilibrado';
-        this._craquePartida = null;
-        document.querySelectorAll('.style-btn[data-estilo]').forEach(b => b.classList.toggle('active', b.dataset.estilo === 'equilibrado'));
+        if (!this._retomarEscolhasPrep) {
+            this._estiloPartida = 'equilibrado';
+            this._craquePartida = null;
+        }
+        this._retomarEscolhasPrep = false;
+        document.querySelectorAll('.style-btn[data-estilo]').forEach(b => b.classList.toggle('active', b.dataset.estilo === (this._estiloPartida || 'equilibrado')));
         document.querySelectorAll('#prep-modos [data-modo]').forEach(b => b.classList.toggle('active', b.dataset.modo === (this._modoPartida || 'detalhado')));
         this._renderCraques();
+        this._renderResumoPreparacao();
         const modal = document.getElementById('modal-preparacao');
         if (modal) modal.classList.remove('hidden');
     },
@@ -13402,6 +13535,7 @@ const app = {
     },
 
     cancelarPreparacao() {
+        this._retomarEscolhasPrep = false;
         const modal = document.getElementById('modal-preparacao');
         if (modal) modal.classList.add('hidden');
         this._estiloPartida = null;
@@ -13414,7 +13548,8 @@ const app = {
 
     escolherEstilo(e) {
         this._estiloPartida = e;
-        document.querySelectorAll('.style-btn').forEach(b => b.classList.toggle('active', (b.dataset.estilo || '') === e));
+        document.querySelectorAll('.style-btn[data-estilo]').forEach(b => b.classList.toggle('active', b.dataset.estilo === e));
+        this._renderResumoPreparacao();
         if (typeof TutorialManager !== 'undefined' && TutorialManager.isActive) TutorialManager.notifyAction('escolher_estilo');
     },
 
@@ -13424,6 +13559,7 @@ const app = {
         document.querySelectorAll('.craque-card').forEach(c => {
             const nm = c.querySelector('.nm');
             c.classList.toggle('active', !!nm && nm.innerText === p.nome);
+            c.setAttribute('aria-pressed', String(c.classList.contains('active')));
         });
         if (typeof TutorialManager !== 'undefined' && TutorialManager.isActive) TutorialManager.notifyAction('escolher_craque');
     },
@@ -13445,10 +13581,14 @@ const app = {
             wrap.innerHTML = '<div style="grid-column:1/-1; font-size:0.75rem; color:var(--text-muted);">🌟 Craque já usado hoje. O time entra com a força normal.</div>';
             return;
         }
-        this._craqueCandidatos().forEach(p => {
-            const card = document.createElement('div');
-            card.className = 'craque-card';
-            card.innerHTML = '<span class="pos">' + p.posicao + '</span><span class="nm">' + p.nome + '</span><span class="ov">' + p.overall + '</span>';
+        const candidatos = this._craqueCandidatos();
+        if (this._craquePartida) candidatos[0] = this._craquePartida;
+        candidatos.filter((p, i, arr) => arr.findIndex(q => q.nome === p.nome) === i).forEach(p => {
+            const card = document.createElement('button');
+            card.type = 'button';
+            card.className = 'craque-card' + (this._craquePartida === p ? ' active' : '');
+            card.setAttribute('aria-pressed', String(this._craquePartida === p));
+            card.innerHTML = '<span class="pos">' + p.posicao + '</span><span class="nm">' + p.nome + '</span><span class="ov">OVR ' + p.overall + '</span>';
             card.onclick = () => this.escolherCraque(p);
             wrap.appendChild(card);
         });
