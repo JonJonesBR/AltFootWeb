@@ -3510,6 +3510,7 @@ html, body, * {
      <button onclick="app.closeSettings()" class="btn-end-turn" style="width: 100%; margin-top: 18px; font-size: 0.85rem; padding: 10px;">
        SALVAR & FECHAR
      </button>
+     <button onclick="app.voltarAoMenu()" class="btn-secondary" style="width:100%;margin-top:10px;padding:12px">SALVAR E VOLTAR AO MENU</button>
    </div>
  </div>
  <!-- Club Name Modal -->
@@ -10943,6 +10944,16 @@ const app = {
     closeSettings() {
         const m = document.getElementById('modal-settings');
         if (m) m.classList.add('hidden');
+    },
+    voltarAoMenu() {
+        if (Engine.activeMatch || this._resultadoPendente || TutorialManager.isActive) {
+            ui.showActionFeedback('Conclua a partida ou o treino antes de trocar de carreira.', 'warning');
+            return;
+        }
+        if (this.club && this.league) this.saveGame();
+        this.closeSettings();
+        this.renderMenuSlots();
+        ui.showScreen('screen-menu');
     },
     toggleSetting(key) {
         this.settings[key] = !this.settings[key];
