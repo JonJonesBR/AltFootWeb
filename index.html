@@ -10793,7 +10793,7 @@ const app = {
     },
 
     hasSaveInSlot(n) {
-        try { return !!SaveRepository.read(n) || !!localStorage.getItem(this.STORAGE_KEYS.CLUB + '_s' + n); }
+        try { return !!SaveRepository.read(n) || !!SaveRepository.read(n, true) || !!localStorage.getItem(this.STORAGE_KEYS.CLUB + '_s' + n); }
         catch (e) { return false; }
     },
 
@@ -10815,7 +10815,7 @@ const app = {
             if (!btn) continue;
             let label = 'S' + n + ' · VAZIO';
             try {
-                const atual = SaveRepository.read(n);
+                const atual = SaveRepository.read(n) || SaveRepository.read(n, true);
                 const clubRaw = atual ? atual.data.club : JSON.parse(localStorage.getItem(this.STORAGE_KEYS.CLUB + '_s' + n) || 'null');
                 const leagueRaw = atual ? atual.data.league : JSON.parse(localStorage.getItem(this.STORAGE_KEYS.LEAGUE + '_s' + n) || 'null');
                 if (clubRaw && leagueRaw) {
