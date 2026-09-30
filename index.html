@@ -3294,6 +3294,11 @@ html, body, * {
         <button class="style-btn" data-tempo="45" onclick="app.escolherTempo(45)">1º TEMPO · 45'</button>
         <button class="style-btn active" data-tempo="90" onclick="app.escolherTempo(90)">JOGO INTEIRO · 90'</button>
       </div>
+      <div style="margin-top:12px;font-weight:900;">📻 MODO DE TRANSMISSÃO</div>
+      <div class="style-grid" id="prep-modos">
+        <button class="style-btn active" data-modo="detalhado" onclick="app.escolherModoPartida('detalhado')">RÁDIO · 60–90 s</button>
+        <button class="style-btn" data-modo="instantaneo" onclick="app.escolherModoPartida('instantaneo')">BRASFOOT · 3–5 s</button>
+      </div>
     </div>
 
     <div class="prep-note" id="prep-obs" style="margin-top: 8px;">Escolha um craque emprestado para reforçar o time SÓ nesta partida. O estilo define o equilíbrio entre ataque e defesa. A escalação titular vale para as próximas partidas.</div>
@@ -3313,11 +3318,6 @@ html, body, * {
       <div class="foco-wrap">
         <div class="foco-bar"><div class="foco-bar-fill" id="cartas-foco-fill"></div></div>
         <span class="foco-pct" id="cartas-foco-pct">70%</span>
-      </div>
-      <div style="margin-top:12px;font-weight:900;">📻 MODO DE TRANSMISSÃO</div>
-      <div class="style-grid" id="prep-modos">
-        <button class="style-btn active" data-modo="detalhado" onclick="app.escolherModoPartida('detalhado')">RÁDIO · 60–90 s</button>
-        <button class="style-btn" data-modo="instantaneo" onclick="app.escolherModoPartida('instantaneo')">BRASFOOT · 3–5 s</button>
       </div>
     </div>
     <div id="cartas-efeitos-ativos" class="cartas-efeitos-ativos hidden" aria-label="Efeitos táticos ativos">
@@ -13287,7 +13287,8 @@ const app = {
         }
         this._estiloPartida = 'equilibrado';
         this._craquePartida = null;
-        document.querySelectorAll('.style-btn').forEach(b => b.classList.toggle('active', (b.dataset.estilo || '') === 'equilibrado'));
+        document.querySelectorAll('.style-btn[data-estilo]').forEach(b => b.classList.toggle('active', b.dataset.estilo === 'equilibrado'));
+        document.querySelectorAll('#prep-modos [data-modo]').forEach(b => b.classList.toggle('active', b.dataset.modo === (this._modoPartida || 'detalhado')));
         this._renderCraques();
         const modal = document.getElementById('modal-preparacao');
         if (modal) modal.classList.remove('hidden');
