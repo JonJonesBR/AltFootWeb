@@ -2863,6 +2863,41 @@ button:focus-visible,summary:focus-visible { outline:3px solid #fff0bd; outline-
     #screen-match .campo-chip.ativo .chip-label,#screen-match .campo-chip.atacante .chip-label,#screen-match .campo-chip.defensor .chip-label { display:block!important; max-width:88px; font-size:.58rem; top:calc(100% + 3px); z-index:6; }
     #screen-match .score-big { min-width:88px; padding:4px 6px; font-size:1.65rem; }
 }
+/* A transmissão rola; decisões e controles sempre ficam ao alcance do toque. */
+.match-content-scroll { display:contents; }
+@media (max-width:1099px) {
+    #screen-match .match-board { display:grid; grid-template-rows:minmax(0,1fr) auto auto; overflow:hidden; min-height:0; gap:6px; padding:6px; }
+    #screen-match .match-content-scroll { display:flex; flex-direction:column; min-height:0; overflow-y:auto; overscroll-behavior:contain; gap:8px; padding-bottom:8px; -webkit-overflow-scrolling:touch; }
+    #screen-match .match-header-card { order:1; padding-top:48px; }
+    #screen-match .campo-2d { order:2; width:100%; flex:none; }
+    #screen-match .match-narrative-section { order:3; flex:none; min-height:148px; max-height:none; }
+    #screen-match .match-stats-row { order:4; }
+    #screen-match .brasfoot-feed { min-height:0; overflow-y:auto; justify-content:flex-start; }
+    #screen-match .feed-item { flex:none; }
+    #screen-match #match-log { font-size:.78rem!important; }
+    #screen-match .feed-item,#screen-match .stat-chip { font-size:.75rem; }
+    #screen-match .match-timeline .tl-flash:not(.on) { display:none; }
+    #screen-match #match-decision { position:static; margin:0; max-height:42dvh; min-height:0; overflow-y:auto; z-index:20; padding:8px; }
+    #screen-match .decision-btn { font-size:.75rem; min-height:44px; }
+    #screen-match .match-footer-row { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:5px; padding:6px 0 max(6px,env(safe-area-inset-bottom)); background:#0c1520; }
+    #screen-match #match-status { grid-column:1/-1; text-align:center; font-size:.75rem; line-height:1.35; }
+    #screen-match .match-speed-btn,#screen-match .match-skip-btn { width:100%; min-width:0; min-height:44px; font-size:.75rem; padding:6px 3px; }
+    #screen-match .estadio-selo { top:12px; left:18px; right:auto; max-width:calc(100% - 78px); }
+}
+@media (max-width:479px) {
+    #screen-match .match-footer-row { grid-template-columns:repeat(3,minmax(0,1fr)); }
+    #screen-match .campo-chip .chip-label { display:none; }
+    #screen-match .campo-duelo { top:18%; gap:4px; }
+    #screen-match .campo-duelo .duelo-mini { display:flex; align-items:center; gap:4px; min-width:0; padding:4px 6px; border-radius:6px; }
+    #screen-match .campo-duelo .dm-pos { display:none; }
+    #screen-match .campo-duelo .duelo-mini .dm-ovr { font-size:.78rem; }
+    #screen-match .campo-duelo .duelo-mini .dm-nome { font-size:.65rem; max-width:80px; margin:0; }
+}
+@media (max-height:480px) and (orientation:landscape) and (max-width:1099px) {
+    #screen-match #match-decision { max-height:45dvh; }
+    #screen-match .match-footer-row { grid-template-columns:repeat(7,minmax(0,1fr)); }
+    #screen-match #match-status { grid-column:auto; align-self:center; }
+}
  </style>
 </head>
 <body>
@@ -3259,6 +3294,7 @@ button:focus-visible,summary:focus-visible { outline:3px solid #fff0bd; outline-
   </div>
   <div class="estadio-selo" id="match-tema-selo">BRASILEIRÃO</div>
   <div class="match-board">
+    <div class="match-content-scroll" aria-label="Transmissão da partida">
     <!-- Placar ao vivo -->
     <div class="match-header-card">
       <div class="match-top-bar">
@@ -3326,6 +3362,7 @@ button:focus-visible,summary:focus-visible { outline:3px solid #fff0bd; outline-
 
     <!-- Campo 2D com fichas (preenche o gramado e anima os lances) -->
     <div id="campo-2d" class="campo-2d" aria-label="Campo tático 2D"></div>
+    </div><!-- /.match-content-scroll -->
 
     <!-- Decisão do técnico -->
     <div id="match-decision" class="hidden">
@@ -3887,11 +3924,80 @@ button:focus-visible,summary:focus-visible { outline:3px solid #fff0bd; outline-
 
 const AUDIO_ASSETS = Object.freeze({}); // Música e SFX sintetizados; locução humana relativa preservada.
 
+// tempo-pagina.js — prazos do jogo contam apenas enquanto a página está aberta.
+const TempoPagina = (() => {
+    const nativo = window.setTimeout.bind(window), cancelar = window.clearTimeout.bind(window);
+    const tarefas = new Map();
+    let sequencia = 0, oculto = !!document.hidden, desde = oculto ? Date.now() : null, descontado = 0;
+    const agora = () => (oculto ? desde : Date.now()) - descontado;
+    const armar = tarefa => {
+        tarefa.inicio = agora();
+        tarefa.nativo = nativo(() => {
+            if (oculto || !tarefas.has(tarefa.id)) return;
+            if (!tarefa.intervalo) tarefas.delete(tarefa.id);
+            tarefa.fn(...tarefa.args);
+            if (tarefa.intervalo && tarefas.has(tarefa.id)) {
+                tarefa.restante = tarefa.intervalo;
+                if (!oculto) armar(tarefa);
+            }
+        }, tarefa.restante);
+    };
+    const criar = (fn, ms, intervalo, args) => {
+        const id = --sequencia;
+        const duracao = Math.max(intervalo ? 1 : 0, Number(ms) || 0);
+        const tarefa = { id, fn, args, restante: duracao, intervalo: intervalo ? duracao : 0 };
+        tarefas.set(id, tarefa);
+        if (!oculto) armar(tarefa);
+        return id;
+    };
+    const limpar = id => {
+        const tarefa = tarefas.get(id);
+        if (tarefa) { cancelar(tarefa.nativo); tarefas.delete(id); }
+        else cancelar(id);
+    };
+    const mudar = suspender => {
+        if (suspender === oculto) return;
+        const instante = agora();
+        if (suspender) {
+            desde = Date.now(); oculto = true;
+            tarefas.forEach(t => {
+                cancelar(t.nativo);
+                t.restante = Math.max(0, t.restante - (instante - t.inicio));
+            });
+        } else {
+            descontado += Date.now() - desde; oculto = false; desde = null;
+            tarefas.forEach(armar);
+        }
+        document.documentElement.classList.toggle('pagina-pausada', oculto);
+        // Web Animations também inclui as transições de fichas/bola e overlays.
+        if (suspender) {
+            api.animacoes = (document.getAnimations ? document.getAnimations() : []).filter(a => a.playState === 'running');
+            api.animacoes.forEach(a => { try { a.pause(); } catch (_) {} });
+        } else {
+            (api.animacoes || []).forEach(a => { try { if (a.playState === 'paused') a.play(); } catch (_) {} });
+            api.animacoes = [];
+        }
+        if (typeof ui !== 'undefined' && ui.suspenderAudioPagina) ui.suspenderAudioPagina(oculto);
+    };
+    const api = {
+        agora, get pausado() { return oculto; },
+        agendar: (fn, ms, ...args) => criar(fn, ms, false, args),
+        repetir: (fn, ms, ...args) => criar(fn, ms, true, args), limpar
+    };
+    document.addEventListener('visibilitychange', () => mudar(!!document.hidden));
+    window.addEventListener('pagehide', () => mudar(true));
+    window.addEventListener('pageshow', () => mudar(!!document.hidden));
+    return api;
+})();
+// Aliases do jogo; as APIs nativas de window permanecem intactas.
+const setTimeout = TempoPagina.agendar, clearTimeout = TempoPagina.limpar;
+const setInterval = TempoPagina.repetir, clearInterval = TempoPagina.limpar;
+
 // audio-synthesizer.js — uma fonte procedural por canal, sem dados de áudio embutidos.
 const AudioSynthesizer = {
     buffersRuido: new WeakMap(),
     contexto(owner) {
-        if (!owner._audioUnlocked) return null;
+        if (!owner._audioUnlocked || TempoPagina.pausado) return null;
         const AC = window.AudioContext || window.webkitAudioContext;
         if (!AC) return null;
         try {
@@ -5496,7 +5602,7 @@ const MatchUI = {
         const bar = this._el('match-decision-timer-bar');
         if (bar) bar.style.width = '100%';
         const total = timeoutMs || 8000;
-        const start = Date.now();
+        const start = TempoPagina.agora();
         const contador = this._el('match-decision-countdown');
         const padrao = this._el('match-decision-default');
         if (padrao) padrao.textContent = 'Sem escolha: ' + opts[defaultIndex].label + ' · Teclas ' + opts.map((_,i) => i + 1).join('/');
@@ -5516,7 +5622,7 @@ const MatchUI = {
         };
         document.addEventListener('keydown', this._promptKeyHandler);
         this._promptTimer = setInterval(() => {
-            const el = Date.now() - start;
+            const el = TempoPagina.agora() - start;
             if (bar) bar.style.width = Math.max(0, 100 - (el / total) * 100) + '%';
             atualizarPrazo(total - el);
             if (el >= total) done(defaultIndex, true);
@@ -5754,6 +5860,7 @@ const MatchUI = {
     },
     // ctx: { atk:{id,nome}, def:{id,nome}, atkSide:0|1, defSide:0|1 } — jogadores REAIS do MatchSim
     fieldEvent(tipo, min, label, ctx) {
+        if (this._radioFim) return;
         const campo = this._el('campo-2d');
         if (!campo) return;
         // Torcida acompanha a tensão do lance (sobe em chance/defesa, volta ao leito).
@@ -6049,7 +6156,7 @@ const MatchUI = {
         this._radioFim = true;
         const ts = ['_radioSeq','_radioTypeT','_radioTypeI','_replayT1','_replayT2','_replayT3',
             '_replayGoalT','_varT1','_varT2','_varT3','_varT4','_varT5','_varHideT',
-            '_crowdSwellT','_crowdBedT','_celebraT','_crowdT','_dueloT','_bolaT3'];
+            '_crowdSwellT','_crowdBedT','_celebraT','_crowdT','_dueloT','_bolaT1','_bolaT3','_tlFlashT'];
         ts.forEach(k => { try { clearTimeout(this[k]); clearInterval(this[k]); this[k] = null; } catch (_) {} });
         this._replayAtivo = false;
         try { this.radioHide(); } catch (_) {}
@@ -6062,12 +6169,15 @@ const MatchUI = {
                 campo.querySelectorAll('.var-linha').forEach(l => l.remove());
                 const rb = campo.querySelector('.replay-badge');
                 if (rb) rb.classList.remove('on');
+                campo.querySelectorAll('.celebra-mini,.card-duel').forEach(el => el.classList.remove('on'));
+                campo.classList.remove('celebra');
             }
         } catch (_) {}
     },
     // VAR estilo transmissão: varre o lance em etapas e mostra a decisão do juiz.
     // opts: { anulado: bool, autor: {nome}, def: {nome}, motivo: 'impedimento'|'falta'|'mao'|'bola' }
     varReview(opts = {}) {
+        if (this._radioFim) return;
         const campo = this._el('campo-2d');
         if (!campo) return;
         const anulado = !!opts.anulado;
@@ -6395,7 +6505,7 @@ class MatchSim {
         this._decisoes = [];      // {min, label, isUserAtk, resultado}
         this._zonas = [];         // {x, y, tipo, lado}
         this._decisaoPendente = null;
-        this._t0 = Date.now();
+        this._t0 = TempoPagina.agora();
         // Piso de tempo de parede (ms) — na final, o jogo dura ≥ 1min12s mesmo em 2×/4×,
         // para o INTRO PARA JOGOS DE FINAIS rodar por inteiro.
         this.minDurMs = (opts && opts.minDurMs) || 0;
@@ -6965,7 +7075,7 @@ class MatchSim {
         this._montarMao();
         this.roteiro = this._gerarRoteiro();
         this._idx = 0;
-        this._t0 = Date.now();
+        this._t0 = TempoPagina.agora();
         // Abertura só em texto no feed — a locução INTRO roda no menu de preparação
         // (ou INTRO PARA JOGOS DE FINAIS exclusivo na final; ver _abrirPreparacao).
         const ehGrande = this.regra === 'classico' || this.regra === 'torneio';
@@ -7138,12 +7248,17 @@ class MatchSim {
     _gap() {
         const minutos = Math.max(1, this._fimSimulado - this.startMinute);
         if (this.modo === 'instantaneo') {
-            return Math.max(0, Math.round(this._t0 + 3900 * this._idx / minutos - Date.now()));
+            return Math.max(0, Math.round(this._t0 + 3900 * this._idx / minutos - TempoPagina.agora()));
         }
         return Math.floor((this.startMinute > 0 ? 30000 : 52000) / this._fimSimulado / this.speed);
     }
     _tick() {
         if (this.abortado || this._segurandoFim) return;
+        // Mantém o campo no lance narrado até a frase terminar, sem fila atrasada.
+        if (typeof ui !== 'undefined' && ui._narTocando && !ui._narExclusive) {
+            ui._narAposCena = () => { this._timer = setTimeout(() => this._tick(), 0); };
+            return;
+        }
         if (this._idx >= this.roteiro.length) { this._finalizar(); return; }
         let ev = this.roteiro[this._idx++];
         this.minuto = ev.min;
@@ -7249,11 +7364,14 @@ class MatchSim {
             this._moverPressao(ev.side, ehChance ? 3.2 : 1.4);
             if (ehChance || tipoFeed === 'warn') this._registrarZona(ev.side === 0, 'chance');
             // Locução por tipo de lance (opção 3)
-            if (typeof ui !== 'undefined' && ui.playNarracao) {
-                if (log.indexOf('Contra-ataque') >= 0) ui.playNarracao('contra');
-                else if (log.indexOf('cruza') >= 0 || log.indexOf('ponta') >= 0) ui.playNarracao('cruzamento');
-                else if (log.indexOf('drib') >= 0 || log.indexOf('limpa') >= 0 || log.indexOf('puxa') >= 0) ui.playNarracao('drible');
-                else ui.playNarracao('passe');
+            if (typeof ui !== 'undefined' && ui.playNarracao && this.speed < 4 && this.modo !== 'instantaneo' &&
+                (this._narCenas || 0) < (this.tempoMin <= 45 ? 2 : 3) && this.minuto - (this._narUltMin ?? -25) >= 25) {
+                const categoria = /Contra-ataque/i.test(log) ? 'contra' : /cruza|cruzamento/i.test(log) ? 'cruzamento' :
+                    /drib|limpa|puxa/i.test(log) ? 'drible' : /passe|toca|troca|bola de pé em pé/i.test(log) ? 'passe' : null;
+                if (categoria && ui.playNarracao(categoria)) {
+                    this._narCenas = (this._narCenas || 0) + 1;
+                    this._narUltMin = this.minuto;
+                }
             }
         } else if (t === 'falta') {
             const prot = setCtx('MID', 'DEF');
@@ -7295,7 +7413,7 @@ class MatchSim {
             this.escanteios[ev.side]++;
             this.chutes[ev.side]++;
             this._moverPressao(ev.side, 2.8);
-            if (typeof ui !== 'undefined' && ui.playNarracao) ui.playNarracao('cruzamento');
+            // Escanteio tem texto próprio; os clips de cruzamento não foram gravados para bola parada.
             // 5% chance of direct goal from corner
             const xgEscanteio = this._modeloXG(ev.side).qualidade * 0.35;
             this.xG[ev.side] += xgEscanteio;
@@ -7686,6 +7804,10 @@ class MatchSim {
 
     setSpeed(s) {
         this.speed = s;
+        if (s >= 4 && typeof ui !== 'undefined' && ui._narTocando && !ui._narExclusive) {
+            ui.pararNarracao();
+            ui._narFim = false;
+        }
         MatchUI.status(s >= 8 ? 'ENCERRANDO JOGO...' : 'BOLA ROLANDO...');
         document.querySelectorAll('.match-speed-btn').forEach(b => b.classList.toggle('active', String(b.dataset.speed) === String(s)));
     }
@@ -7694,7 +7816,7 @@ class MatchSim {
         if (this.abortado) return;
         // Piso de tempo de parede (final: ≥ 72s): segura o apito até o intro de final
         // terminar — vale em 1×, 2× ou 4×.
-        const decorrido = Date.now() - (this._t0 || Date.now());
+        const decorrido = TempoPagina.agora() - (this._t0 ?? TempoPagina.agora());
         if (this.minDurMs > 0 && decorrido < this.minDurMs) {
             this._segurandoFim = true;
             MatchUI.status('COMPENSANDO ACRESCIMO...');
@@ -8079,6 +8201,8 @@ class UI {
     if (appEl) appEl.scrollTop = 0;
     const mb = document.querySelector('.match-board');
     if (mb) mb.scrollTop = 0;
+    const transmissao = document.querySelector('.match-content-scroll');
+    if (transmissao) transmissao.scrollTop = 0;
     Object.values(this.screens).forEach(el => {
       if (!el) return;
       el.classList.add('hidden');
@@ -8141,10 +8265,27 @@ class UI {
     return this.bgm[track];
   }
 
+  suspenderAudioPagina(suspender) {
+    const ctx = this.audioContext;
+    if (suspender) {
+      this._audioPaginaRetomar = !!(ctx && ctx.state === 'running');
+      this._narPaginaRetomar = !!(this._narAudio && !this._narAudio.paused);
+      if (this._narPaginaRetomar) this._narAudio.pause();
+      if (ctx && ctx.state === 'running') ctx.suspend().then(() => {
+        // Uma volta rápida pode chegar antes de suspend() concluir.
+        if (!TempoPagina.pausado && this._audioUnlocked) ctx.resume().catch(() => {});
+      }).catch(() => {});
+    } else {
+      if (this._audioPaginaRetomar && ctx && ctx.state === 'suspended') ctx.resume().catch(() => {});
+      if (this._narPaginaRetomar && this._narAudio && app.settings.sfx) this._narAudio.play().catch(() => {});
+      this._audioPaginaRetomar = this._narPaginaRetomar = false;
+    }
+  }
+
   playBGM(track) {
     this._bgmTarget = track;
     if (!this.bgm) this.initAudio();
-    if (app && app.settings && !app.settings.music) return;
+    if (TempoPagina.pausado || (app && app.settings && !app.settings.music)) return;
     if (!this._audioUnlocked) return;
     const defaultBgmVol = (typeof app !== 'undefined' && app.settings && typeof app.settings.bgmVol === 'number') ? app.settings.bgmVol : 0.12;
     const audio = this._getBgm(track);
@@ -8160,6 +8301,7 @@ class UI {
   }
 
   refreshBGM() {
+    if (TempoPagina.pausado) return;
     if (!this.bgm) return;
     if (app && app.settings && !app.settings.music) {
         if (this.currentBGM) { this.currentBGM.pause(); this.currentBGM = null; }
@@ -8176,7 +8318,7 @@ class UI {
   // Diretor de áudio: cooldown + limite de vozes por amostra. Evita a
   // "metralhadora" de click/notify e o empilhamento da mesma amostra.
   playSFX(name, volume = 0.5, maxDuration = null) {
-    if (!this._audioUnlocked) return;
+    if (!this._audioUnlocked || TempoPagina.pausado) return;
     if (app && app.settings && !app.settings.sfx) return;
     try {
       const now = Date.now();
@@ -8280,6 +8422,7 @@ class UI {
 
   // categoria: intro | introFinal | passe | drible | cruzamento | contra
   playNarracao(categoria, volume = 0.55, exclusive = false) {
+    if (TempoPagina.pausado) return false;
     if (app && app.settings && !app.settings.sfx) return;
     // Após o apito final não entra mais locução de partida (intro da preparação
     // entra com exclusive e é liberado em startMatchRender).
@@ -8301,14 +8444,15 @@ class UI {
       this._narFim = false;
       this._narFila = [item];
     } else {
-      this._narFila.push(item);
-      // Evita backlog infinito: guarda no máx. 2 pendentes (descarta o mais antigo).
-      if (this._narFila.length > 2) this._narFila.splice(0, this._narFila.length - 2);
+      if (this._narTocando) return false;
+      this._narFila = [item];
     }
     this._processarFilaNarracao();
+    return true;
   }
 
   _processarFilaNarracao() {
+    if (TempoPagina.pausado) return;
     if (this._narTocando) return;
     if (typeof app !== 'undefined' && app.settings && !app.settings.sfx) { this.pararNarracao(); return; }
     if (!this._narFila || !this._narFila.length) { this._atualizarMixNarracao(); return; }
@@ -8318,6 +8462,7 @@ class UI {
       const audio = new Audio(item.url);
       audio.volume = Math.max(0, Math.min(1, (item.volume || 0.55) * sfxMaster));
       this._narTocando = true;
+      this._narExclusive = item.exclusive;
       this._narAudio = audio;
       this._narVolume = item.volume || 0.55;
       clearTimeout(this._duckBgmT);
@@ -8326,32 +8471,46 @@ class UI {
       const fim = () => {
         if (finalizado || this._narAudio !== audio) return;
         finalizado = true;
+        clearTimeout(this._narFalhaT);
         this._narTocando = false;
         this._narAudio = null;
+        const continuar = this._narAposCena;
+        this._narAposCena = null;
+        if (continuar) continuar();
         this._processarFilaNarracao();
       };
       audio.addEventListener('ended', fim, { once: true });
       audio.addEventListener('error', fim, { once: true });
+      // Rede/decoder travado nunca prende o motor indefinidamente. O prazo também pausa fora da página.
+      this._narFalhaT = setTimeout(() => { try { audio.pause(); } catch (_) {} fim(); }, item.exclusive ? 120000 : 30000);
       const p = audio.play();
       if (p && p.catch) p.catch(fim);
     } catch (_) {
       this._narTocando = false;
       this._narAudio = null;
+      const continuar = this._narAposCena;
+      this._narAposCena = null;
+      if (continuar) continuar();
       this._processarFilaNarracao();
     }
   }
 
   // Para a locução e limpa a fila (fim/aborto de partida, troca de tela).
   pararNarracao() {
+    clearTimeout(this._narFalhaT);
+    const continuar = this._narAposCena;
+    this._narAposCena = null;
     this._narFila = [];
     if (this._narAudio) {
       try { this._narAudio.pause(); this._narAudio.currentTime = 0; } catch (_) {}
       this._narAudio = null;
     }
     this._narTocando = false;
+    this._narExclusive = false;
     this._narFim = true;
     clearTimeout(this._duckBgmT);
     this._atualizarMixNarracao();
+    if (continuar) continuar();
   }
 
   playGoalSound(isPlayerGoal = true) {
@@ -8439,6 +8598,8 @@ class UI {
   startMatchRender() {
     UIRenderer.measureFrames();
     this.initAudio();
+    // Abertura pertence à preparação; não descreve os lances com a bola rolando.
+    this.pararNarracao();
     // Libera locução/rádio da partida (o apito final anterior bloqueava novos clips).
     this._narFim = false;
     try { MatchUI._radioFim = false; } catch (e) { }
@@ -10035,8 +10196,10 @@ class UI {
     
     if (!this._particleLoopRunning) {
       this._particleLoopRunning = true;
-      let lastPTime = performance.now();
+      let lastPTime = TempoPagina.agora();
       const step = (now) => {
+        now = TempoPagina.agora();
+        if (TempoPagina.pausado) { requestAnimationFrame(step); return; }
         const dt = Math.min((now - lastPTime) / 16.667, 2.0);
         lastPTime = now;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -10070,7 +10233,7 @@ class UI {
 
   synthBip(freq = 600, dur = 0.08, vol = 0.25, type = 'square') {
     try {
-      if (!this._audioUnlocked) return;
+      if (!this._audioUnlocked || TempoPagina.pausado) return;
       if (app && app.settings && !app.settings.sfx) return;
       // Respeita o slider de volume EFX (sfxVol 0–1).
       const sfxMul = (app && app.settings && typeof app.settings.sfxVol === 'number')
@@ -10126,7 +10289,7 @@ class UI {
   // Respeita settings.sfx / sfxVol; guarda para browsers sem AudioContext (como synthBip).
   _synthCtx() {
     try {
-      if (!this._audioUnlocked) return null;
+      if (!this._audioUnlocked || TempoPagina.pausado) return null;
       if (typeof app !== 'undefined' && app.settings && !app.settings.sfx) return null;
       if (!this.audioContext) {
         const AC = window.AudioContext || window.webkitAudioContext;
