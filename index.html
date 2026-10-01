@@ -3355,6 +3355,7 @@ button:focus-visible,summary:focus-visible { outline:3px solid #fff0bd; outline-
         <span class="pressao-label" id="pressao-label">—</span>
       </div>
       <span class="stat-chip">🎯 Chutes <b id="stat-chutes">0 – 0</b></span>
+      <span class="stat-chip" title="Gols esperados pela qualidade das chances criadas; não é previsão do placar.">⚽ Gols esperados <b id="stat-xg">0,00 – 0,00</b></span>
       <span class="stat-chip">🦶 Faltas <b id="stat-faltas">0 – 0</b></span>
       <span class="stat-chip">🟨 Cartões <b id="stat-cartoes">0 – 0</b></span>
       <span class="stat-chip">🚩 Escanteios <b id="stat-escanteios">0 – 0</b></span>
@@ -3861,9 +3862,9 @@ button:focus-visible,summary:focus-visible { outline:3px solid #fff0bd; outline-
       </ul>
       <p style="margin:0 0 4px;"><strong>Estilo</strong> (escolhido na preparação):</p>
       <ul style="margin:0 0 8px; padding-left: 18px;">
-        <li><strong>Ofensivo:</strong> +4 ataque, +1 meio, −2 defesa — jogo aberto, gols nos dois lados.</li>
+        <li><strong>Ofensivo:</strong> +4 ataque, +1 meio, −2 defesa; criação de chances ×1,25 e a do rival ×1,12. Mais desgaste e exposição.</li>
         <li><strong>Equilibrado:</strong> neutro; a diferença de elenco decide.</li>
-        <li><strong>Retranca:</strong> +3.5 defesa, −2.5 ataque — fecha o jogo sem anular o ataque.</li>
+        <li><strong>Retranca:</strong> +3.5 defesa, −2.5 ataque; criação de chances ×0,85 e a do rival ×0,60. O meio-campo se desgasta mais.</li>
       </ul>
       <p style="margin:0;"><strong>Fatores de partida:</strong> mando de casa +1 (no clássico +0.5, torcida dividida), Craque da Rodada +6 de ataque (em qualquer mando), moral do clube ≥ 85 dá +1 e &lt; 30 tira −3. Cada rival da IA tem formação e mentalidade próprias — leia o adversário no pré-jogo.</p>
     </div>
@@ -5517,13 +5518,15 @@ const MatchUI = {
         this.fieldInit(nomeHome, nomeAdv);
         if (typeof ui !== 'undefined' && ui.atualizarFocoUI) ui.atualizarFocoUI({ _foco: 70 });
     },
-    stats(arr) { // [posse, chH, chA, faH, faA, caH, caA, escH, escA, pressao?]
+    stats(arr) { // [posse, chH, chA, faH, faA, caH, caA, escH, escA, pressao?, xgH?, xgA?]
         const set = (id, v) => { const el = this._el(id); if (el) el.innerText = v; };
         const posse = Math.round(arr[0]);
         set('stat-posse', posse + '%');
         const bar = this._el('posse-bar-home');
         if (bar) bar.style.width = Math.max(2, Math.min(98, posse)) + '%';
         set('stat-chutes', arr[1] + ' – ' + arr[2]);
+        const xg = v => (Number.isFinite(Number(v)) ? Math.max(0, Number(v)) : 0).toFixed(2).replace('.', ',');
+        set('stat-xg', xg(arr[10]) + ' – ' + xg(arr[11]));
         set('stat-faltas', arr[3] + ' – ' + arr[4]);
         set('stat-cartoes', arr[5] + ' – ' + arr[6]);
         set('stat-escanteios', arr[7] + ' – ' + arr[8]);
@@ -6764,9 +6767,14 @@ class MatchSim {
         const melhor = atacantes.reduce((m,j) => Math.max(m,j.overall || 50),50);
         const ceraRival = side !== this._userSide() && this._buffsAtivos().some(b => b.id === 't_cera');
         const retrancaRival = side !== this._userSide() && this.estilo === 'retranca' ? 0.6 : 1;
+        // O técnico troca volume de ataque por exposição: efeito só na sua partida.
+        const temUsuario = this.home.isUser || this.away.isUser;
+        const volumeEstilo = !temUsuario ? 1 : this.estilo === 'ofensivo'
+            ? (side === this._userSide() ? 1.25 : 1.12)
+            : this.estilo === 'retranca' && side === this._userSide() ? 0.85 : 1;
         const clima = (CONDICOES_JOGO[this.condicao] || CONDICOES_JOGO.normal).lambdaMul || 1;
         const criacao = Math.max(0.015, Math.min(0.14, 0.038 * Math.exp((p.mid - d.mid) / 70)))
-            * (0.65 + folego / 285) * this._contratatica(side) * momentum * pressao * retrancaRival;
+            * (0.65 + folego / 285) * this._contratatica(side) * momentum * pressao * retrancaRival * volumeEstilo;
         const qualidade = Math.max(0.04, Math.min(0.48, 0.16 * Math.exp((p.atk - d.def) / 55) * clima
             * (cruzar ? 0.8 + melhor / 160 : 1)));
         return { criacao: ceraRival ? 0 : criacao * (cruzar ? 1.25 : 1), qualidade };
@@ -7158,6 +7166,25 @@ class MatchSim {
         return (this._buffs || []).filter(b => this.minuto <= (b.fimMin || 0));
     }
 
+    _leituraTatica() {
+        const side = this._userSide();
+        return [this._modeloXG(side), this._modeloXG(side ^ 1)];
+    }
+
+    _feedbackTatico(antes) {
+        const depois = this._leituraTatica();
+        const variacao = (a, b) => {
+            if (!(a > 0)) return b > 0 ? 'reativada' : 'sem mudança';
+            const delta = Math.round((b / a - 1) * 100);
+            return delta === 0 ? 'sem mudança' : (delta > 0 ? '+' : '') + delta + '%';
+        };
+        const pct = p => (p * 100).toFixed(1).replace('.', ',') + '%';
+        return '📋 Impacto agora: criação de chances ' + variacao(antes[0].criacao, depois[0].criacao)
+            + '; conversão ' + pct(antes[0].qualidade) + ' → ' + pct(depois[0].qualidade)
+            + '. Criação do rival ' + variacao(antes[1].criacao, depois[1].criacao)
+            + '. Estimativas do momento, sem garantia de gol.';
+    }
+
     _atualizarFoco(delta) {
         this._foco = Math.max(0, Math.min(100, (this._foco || 0) + (delta || 0)));
     }
@@ -7219,6 +7246,7 @@ class MatchSim {
         if ((this._foco || 0) < custo) {
             return { ok: false, msg: 'Foco insuficiente (' + Math.round(this._foco || 0) + '/' + custo + ').' };
         }
+        const leituraAntes = this._leituraTatica();
         this._foco = Math.max(0, this._foco - custo);
         this._mao.splice(idx, 1);
         const e = card.efeito || {};
@@ -7244,6 +7272,7 @@ class MatchSim {
         this._cartasUsadas++;
         this._recalcDifs();
         this._emit('🃏 ' + (e.flavor || ('Carta jogada: ' + card.nome + ' (' + dur + ' min).')), 'info');
+        this._emit(this._feedbackTatico(leituraAntes) + ' Efeito até ' + (this.minuto + dur) + "'.", 'info');
         if (typeof ui !== 'undefined' && ui.atualizarMaoCartas) ui.atualizarMaoCartas(this);
         return { ok: true, foco: this._foco };
     }
@@ -7273,7 +7302,9 @@ class MatchSim {
         // Fase 7: IA mexe no time uma vez no 2º tempo (com reservas).
         if (this._emCampo && this.minuto >= 46 && !this._subIA) {
             this._subIA = true;
-            if (!this.away.isUser) this._processarSubstituicao(false);
+            const ladoRival = this._userSide() ^ 1;
+            const rival = ladoRival === 0 ? this.home : this.away;
+            if (!rival.isUser) this._processarSubstituicao(ladoRival === 0);
         }
         if (ev.tipo === 'minuto') ev = this._eventoMinuto();
         if (ev.tipo === 'etica') { this._mostrarEtica(); return; }
@@ -7565,7 +7596,7 @@ class MatchSim {
     _emit(log, tipo, statOnly) {
         if (typeof ui !== 'undefined' && log) ui.narrate(log, this.minuto, tipo || 'info');
         MatchUI.score(this.scoreH, this.scoreA);
-        MatchUI.stats([this.posse, this.chutes[0], this.chutes[1], this.faltas[0], this.faltas[1], this.cartoes[0], this.cartoes[1], this.escanteios[0], this.escanteios[1], this._pressao || 0]);
+        MatchUI.stats([this.posse, this.chutes[0], this.chutes[1], this.faltas[0], this.faltas[1], this.cartoes[0], this.cartoes[1], this.escanteios[0], this.escanteios[1], this._pressao || 0, this.xG[0], this.xG[1]]);
         try {
             if (typeof ui !== 'undefined' && ui.atualizarEfeitosCartas) ui.atualizarEfeitosCartas(this);
             if (typeof ui !== 'undefined' && ui.currentBGM && ui.currentBGM.pressao) ui.currentBGM.pressao(this._pressao || 0);
@@ -7736,10 +7767,12 @@ class MatchSim {
         if (!sai || !entra || em.indexOf(entraId) >= 0) return;
         if (entra.machucado > 0 || (entra.afastadoAte || 0) > (team.partidasTotais || 0)) return;
         if ((this._amarelosJogador || {})[side + ':' + entraId] >= 2) return;
+        const leituraAntes = this._leituraTatica();
         em[em.indexOf(saiId)] = entraId;
         this._usados[side][entraId] = true;
         this._rebindCampo();
         this._emit('⚤ Substituição: sai ' + sai.nome + ', entra ' + entra.nome + '.', 'info');
+        this._emit(this._feedbackTatico(leituraAntes), 'info');
         const pH = this._poder(this.home, true);
         const pA = this._poder(this.away, false);
         this._difA = pH.atk - pA.def;
@@ -13595,8 +13628,8 @@ const app = {
         const ajuda = document.getElementById('prep-estilo-resumo');
         if (ajuda) ajuda.textContent = {
             equilibrado: 'Equilibrado: distribui a força entre ataque e defesa.',
-            ofensivo: 'Ofensivo: cria mais chances, expõe a defesa e aumenta o desgaste.',
-            retranca: 'Retranca: reduz as chances do rival e exige mais fôlego do meio-campo.'
+            ofensivo: 'Ofensivo: criação de chances +25%; a do rival +12%. Ataque reforçado, defesa exposta e mais desgaste.',
+            retranca: 'Retranca: criação própria −15%; a do rival −40%. Defesa reforçada, mas o meio-campo se desgasta mais.'
         }[estilo];
         document.querySelectorAll('#modal-preparacao .style-btn').forEach(b => b.setAttribute('aria-pressed', String(b.classList.contains('active'))));
     },
