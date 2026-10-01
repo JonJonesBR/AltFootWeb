@@ -2834,6 +2834,35 @@ button:focus-visible,summary:focus-visible { outline:3px solid #fff0bd; outline-
     .jrn-cols { column-count:1; }
 }
 @media(max-width:600px) { #screen-match .match-narrative-section,#screen-match .match-stats-row,#screen-match #match-decision { padding:7px; } #screen-match .decision-btn { font-size:.7rem; padding:8px 4px; } .result-scroll { padding:14px; } }
+/* Transmissão limpa: identificação e leitura antes dos efeitos decorativos. */
+#screen-match::before,#screen-match::after { display:none; animation:none; }
+#screen-match .estadio-gramado { display:none; }
+#screen-match .match-board { background:#0c1520; }
+#screen-match .match-header-card { background:#111e2c; border-color:#40516a; box-shadow:none; }
+#screen-match .team-tag { min-width:0; overflow-wrap:anywhere; letter-spacing:.3px; line-height:1.35; font-size:clamp(.78rem,2.3vw,1rem); }
+#screen-match .score-big { background:#09121d; text-shadow:none; color:#ffc04d; letter-spacing:1px; }
+#screen-match .match-clock-badge,#screen-match .feed-min,#screen-match #match-log,#screen-match #match-status,#screen-match #match-decision-title { text-shadow:none; }
+#screen-match #match-status { animation:none; letter-spacing:.5px; color:#e2e8f0; }
+#screen-match .ao-vivo-dot { animation:none; box-shadow:none; }
+#screen-match #match-log { background:#203145; border-color:#53677d; border-radius:8px; text-align:left; font-family:inherit; font-weight:700; }
+#screen-match #match-log.flash { transform:none; box-shadow:none; background:#2c4057; }
+#screen-match .feed-item { animation:none; }
+#screen-match .campo-2d { box-shadow:none; border-width:2px; border-radius:10px; }
+#screen-match .campo-chip { width:15px; height:17px; border:1px solid #e8f2ff; border-radius:3px; box-shadow:0 2px 2px #071b12; }
+#screen-match .campo-chip::before { content:''; position:absolute; width:7px; height:4px; left:3px; top:-3px; background:var(--kit-cor,#3b82f6); border-top:1px solid #e8f2ff; border-radius:2px 2px 0 0; }
+#screen-match .campo-chip.fora { border-radius:3px; border-style:double; border-width:2px; }
+#screen-match .campo-chip.fora::before { left:2px; background:var(--kit-cor,#ef4444); }
+#screen-match .campo-chip.gk::before { background:#f59e0b; }
+#screen-match .campo-chip.ativo,#screen-match .campo-chip.atacante,#screen-match .campo-chip.defensor { box-shadow:0 0 0 2px #fff,0 2px 3px #071b12; transform:translate(-50%,-50%) scale(1.25); }
+#screen-match .chip-label { text-shadow:none; font-size:.52rem; line-height:1.3; }
+#modal-match-result #modal-result-score { text-shadow:none!important; color:#ffc04d!important; box-shadow:none!important; }
+@media(max-width:600px) {
+    #screen-match .campo-chip { width:10px; height:12px; }
+    #screen-match .campo-chip::before { width:5px; height:3px; left:1px; top:-2px; }
+    #screen-match .campo-chip.fora::before { left:0; }
+    #screen-match .campo-chip.ativo .chip-label,#screen-match .campo-chip.atacante .chip-label,#screen-match .campo-chip.defensor .chip-label { display:block!important; max-width:88px; font-size:.58rem; top:calc(100% + 3px); z-index:6; }
+    #screen-match .score-big { min-width:88px; padding:4px 6px; font-size:1.65rem; }
+}
  </style>
 </head>
 <body>
@@ -3616,7 +3645,7 @@ button:focus-visible,summary:focus-visible { outline:3px solid #fff0bd; outline-
      <input id="club-name-input" maxlength="24" placeholder="Ex: Nacional FC" style="width: 100%; padding: 12px; border-radius: 12px; border: 1.5px solid var(--border-bright); background: var(--bg-main); color: var(--text); font-size: 1rem; margin-bottom: 14px;">
      <div style="font-size: 0.72rem; color: var(--text-muted); font-weight: 800; margin-bottom: 6px;">NÍVEL DE DIFICULDADE</div>
      <select id="difficulty-select" style="width: 100%; padding: 12px; border-radius: 12px; border: 1.5px solid var(--border-bright); background: var(--bg-main); color: var(--text); font-size: 0.9rem; margin-bottom: 18px;">
-       <option value="0.75">Fácil — ritmo mais lento, rival mais fraco</option>
+       <option value="0.75">Fácil — adversários menos eficientes</option>
        <option value="0.9">Médio — desafio equilibrado</option>
        <option value="1" selected>Profissional — padrão oficial</option>
        <option value="1.3">Lenda — rival impiedoso, erro mínimo</option>
@@ -3882,54 +3911,94 @@ const AudioSynthesizer = {
         cache.set(length, buffer);
         return buffer;
     },
+    // Partitura de 16 compassos: harmonia, baixo e respostas melódicas discretas.
+    compasso(ctx, out, track, bar, inicio) {
+        const tenso = track === 'tension', beat = 60 / (tenso ? 84 : 96);
+        const progressoes = tenso ? [[57,60,64],[53,57,60],[50,53,57],[52,56,59]] :
+            [[57,60,64],[53,57,60],[48,52,55],[55,59,62],[50,53,57],[53,57,60],[52,56,59],[52,56,59],
+             [57,60,64],[48,52,55],[53,57,60],[55,59,62],[50,53,57],[53,57,60],[52,56,59],[57,60,64]];
+        const acorde = progressoes[bar % progressoes.length];
+        const nota = (midi, offset, dur, vol, tipo = 'triangle', corte = 1800) => {
+            const o = ctx.createOscillator(), g = ctx.createGain(), lp = ctx.createBiquadFilter();
+            const t = inicio + offset * beat, fim = t + dur * beat;
+            o.type = tipo; o.frequency.value = 440 * Math.pow(2,(midi-69)/12);
+            lp.type = 'lowpass'; lp.frequency.value = corte; lp.Q.value = 0.45;
+            g.gain.setValueAtTime(0.0001,t);
+            g.gain.linearRampToValueAtTime(vol,t + Math.min(0.07,dur*beat*0.2));
+            g.gain.setTargetAtTime(vol*0.62,t+0.1,0.13);
+            g.gain.exponentialRampToValueAtTime(0.0001,fim);
+            o.connect(lp); lp.connect(g); g.connect(out); o.start(t); o.stop(fim+0.03);
+            o.onended = () => { o.disconnect(); lp.disconnect(); g.disconnect(); };
+        };
+        acorde.forEach((m,i) => nota(m+12,i*0.025,3.85,tenso?0.045:0.065,'triangle',tenso?1000:1500));
+        nota(acorde[0]-12,0,1.7,tenso?0.15:0.21,'sine',600);
+        nota(acorde[0]-12+(bar%2?7:0),2,1.65,tenso?0.11:0.17,'sine',600);
+        // As frases mudam entre compassos; a segunda volta ganha contracanto.
+        const frases = [[0,2,1,2],[2,1,0,1],[1,2,0,2],[2,0,1,0]];
+        if (!tenso || bar%2===1) {
+            const frase = frases[Math.floor(bar/2)%4];
+            frase.forEach((grau,i) => {
+                if ((bar+i)%5!==3) nota(acorde[grau]+24,i+(bar%2?0.25:0),0.62,tenso?0.045:0.085,'sine',2400);
+            });
+            if (!tenso && bar>=16 && bar%4===2) nota(acorde[1]+12,3.5,0.4,0.045,'triangle',1300);
+        }
+        if (!tenso) {
+            // Percussão curta, filtrada e baixa; nunca um leito de ruído.
+            for (const offset of [1,3]) {
+                const t=inicio+offset*beat, src=ctx.createBufferSource(), bp=ctx.createBiquadFilter(), g=ctx.createGain();
+                src.buffer=this.ruido(ctx,0.055); bp.type='bandpass'; bp.frequency.value=2400; bp.Q.value=0.65;
+                g.gain.setValueAtTime(0.035,t); g.gain.exponentialRampToValueAtTime(0.0001,t+0.05);
+                src.connect(bp); bp.connect(g); g.connect(out); src.start(t); src.stop(t+0.055);
+                src.onended=()=>{src.disconnect();bp.disconnect();g.disconnect();};
+            }
+            nota(31,0,0.16,0.14,'sine',200); nota(31,2,0.16,0.09,'sine',200);
+        }
+        return beat*4;
+    },
     faixa(owner, track) {
-        let volume = 0.12, nodes = null, timer = null, nota = 0;
+        let volume = 0.12, nodes = null, timer = null, bar = 0;
         const music = {
             paused:true,
             get volume() { return volume; },
             set volume(v) {
                 volume = Math.max(0,Math.min(1,Number(v)||0));
-                if (nodes) nodes.gain.gain.setTargetAtTime(volume * (track === 'menu' ? 0.18 : 0.28),nodes.ctx.currentTime,0.08);
+                const voz = owner._narTocando || (owner._narFila && owner._narFila.length);
+                if (nodes) nodes.gain.gain.setTargetAtTime(volume * (track === 'menu' ? 0.18 : 0.1) * (voz ? 0.28 : 1),nodes.ctx.currentTime,0.08);
             },
             play() {
                 if (nodes) return Promise.resolve();
                 const ctx = AudioSynthesizer.contexto(owner);
                 if (!ctx) return Promise.resolve();
-                const gain=ctx.createGain(); gain.gain.value=volume * (track==='menu'?0.18:0.28);gain.connect(ctx.destination);
+                const gain=ctx.createGain(); gain.gain.value=0.0001;gain.connect(ctx.destination);
                 nodes={ctx,gain};this.paused=false;
-                if (track==='menu') {
-                    const notas=[220,277.18,329.63,415.3,329.63,277.18,246.94,329.63];
+                const voz = owner._narTocando || (owner._narFila && owner._narFila.length);
+                gain.gain.setTargetAtTime(volume * (track==='menu'?0.18:0.1) * (voz?0.28:1),ctx.currentTime,0.16);
+                // Durante o jogo a torcida pertence ao MatchUI; música 'match' é silenciosa.
+                if (track !== 'match') {
+                    let proximo=ctx.currentTime+0.035;
                     const tocar=()=>{
                         if (!nodes) return;
-                        const o=ctx.createOscillator(),g=ctx.createGain(),t=ctx.currentTime;
-                        o.type='triangle';o.frequency.value=notas[nota++ % notas.length];
-                        g.gain.setValueAtTime(0.0001,t);g.gain.linearRampToValueAtTime(0.28,t+0.03);g.gain.exponentialRampToValueAtTime(0.0001,t+0.7);
-                        o.connect(g);g.connect(gain);o.start(t);o.stop(t+0.75);
-                        o.onended=()=>{o.disconnect();g.disconnect();};
+                        // Após aba suspensa, salta compassos vencidos sem disparar uma rajada.
+                        if (proximo < ctx.currentTime-0.1) proximo=ctx.currentTime+0.035;
+                        while (proximo < ctx.currentTime+0.2) {
+                            proximo += AudioSynthesizer.compasso(ctx,gain,track,bar++,proximo);
+                        }
                     };
-                    tocar();timer=setInterval(tocar,780);
-                } else {
-                    const src=ctx.createBufferSource(),lp=ctx.createBiquadFilter(),lfo=ctx.createOscillator(),lg=ctx.createGain();
-                    src.buffer=AudioSynthesizer.ruido(ctx,2);src.loop=true;
-                    lp.type='lowpass';lp.frequency.value=track==='tension'?900:650;lp.Q.value=0.7;
-                    lfo.frequency.value=0.45;lg.gain.value=110;lfo.connect(lg);lg.connect(lp.frequency);
-                    src.connect(lp);lp.connect(gain);src.start();lfo.start();
-                    Object.assign(nodes,{src,lp,lfo,lg});
+                    tocar();timer=setInterval(tocar,100);
                 }
                 return Promise.resolve();
             },
             pause() {
                 clearInterval(timer);timer=null;this.paused=true;
                 if (!nodes) return;
-                for (const k of ['src','lfo']) if(nodes[k]) {try{nodes[k].stop();}catch(_){}nodes[k].disconnect();}
-                for (const k of ['lp','lg','gain']) if(nodes[k]) nodes[k].disconnect();
+                const antigo=nodes;
+                antigo.gain.gain.cancelScheduledValues(antigo.ctx.currentTime);
+                antigo.gain.gain.setTargetAtTime(0.0001,antigo.ctx.currentTime,0.025);
+                setTimeout(()=>antigo.gain.disconnect(),160);
                 nodes=null;
             },
             pressao(v) {
-                if (!nodes || !nodes.lp) return;
-                const p=Math.max(0,Math.min(100,Math.abs(v)))/100,t=nodes.ctx.currentTime;
-                nodes.lp.frequency.setTargetAtTime(550+p*1450,t,0.25);
-                nodes.lp.Q.setTargetAtTime(0.6+p*2,t,0.25);
+                // Interface mantida para o motor; a tensão não modula ruído/sirenes.
             }
         };
         return music;
@@ -5317,8 +5386,8 @@ const MatchUI = {
     _el(id) { return document.getElementById(id); },
     init(homeNome, advNome, competicao, forcaTexto, craqueNome) {
         const n1 = this._el('team1-nome'), n2 = this._el('team2-nome');
-        const nomeHome = (homeNome || 'MEC').toUpperCase().slice(0, 12);
-        const nomeAdv = (advNome || 'ADV').toUpperCase().slice(0, 12);
+        const nomeHome = String(homeNome || 'MEC').toUpperCase();
+        const nomeAdv = String(advNome || 'ADV').toUpperCase();
         if (n1) n1.innerText = nomeHome;
         if (n2) n2.innerText = nomeAdv;
         const p1 = this._el('posse-tag-home'), p2 = this._el('posse-tag-away');
@@ -6122,7 +6191,10 @@ const MatchUI = {
         return (typeof ui !== 'undefined' && ui && ui._synthCtx) ? ui._synthCtx() : null;
     },
     _crowdVol(base) {
-        return (typeof ui !== 'undefined' && ui && ui._synthVol) ? ui._synthVol(base) : base;
+        if (typeof app !== 'undefined' && app.settings && !app.settings.sfx) return 0;
+        const voz = typeof ui !== 'undefined' && (ui._narTocando || (ui._narFila && ui._narFila.length));
+        const alvo = voz ? Math.min(base,0.035) : base;
+        return (typeof ui !== 'undefined' && ui && ui._synthVol) ? ui._synthVol(alvo) : alvo;
     },
     startCrowdLoop(level = 0.18) {
         this._crowdErr = null;
@@ -6137,6 +6209,7 @@ const MatchUI = {
                     this._crowdNodes.master.gain.cancelScheduledValues(t0);
                     this._crowdNodes.master.gain.setValueAtTime(this._crowdNodes.master.gain.value || 0.05, t0);
                     this._crowdNodes.master.gain.linearRampToValueAtTime(volNow, t0 + 0.45);
+                    if (this._crowdNodes.lfoGain) this._crowdNodes.lfoGain.gain.setTargetAtTime(volNow * 0.35,t0,0.08);
                 } catch (_) {}
                 return;
             }
@@ -6179,7 +6252,7 @@ const MatchUI = {
             try { src.start(t0); lfo.start(t0); } catch (eStart) {
                 try { src.start(); lfo.start(); } catch (e2) { this._crowdErr = String(e2); }
             }
-            this._crowdNodes = { src, lfo, master, bp };
+            this._crowdNodes = { src, lfo, master, bp, lfoGain };
             if (ctx.state === 'suspended' && ctx.resume) {
                 ctx.resume().catch(() => { });
                 const kick = () => {
@@ -6491,6 +6564,15 @@ class MatchSim {
             const mental = (team.mentalidade || 'equilibrada');
             if (mental === 'ofensiva') { a += 2; d -= 1; }
             else if (mental === 'defensiva') { d += 2; a -= 1; }
+            // Dificuldade atua no rival da carreira, sem alterar atributos salvos
+            // nem os jogos entre duas IAs. Profissional mantém a força original.
+            const usuario = this.home.isUser ? this.home : (this.away.isUser ? this.away : null);
+            if (usuario) {
+                const valor = Number(usuario.difficulty && usuario.difficulty.multiplier);
+                const multiplicador = Number.isFinite(valor) && valor > 0 ? Math.max(0.75, Math.min(1.3, valor)) : 1;
+                const ajuste = (multiplicador - 1) * 24;
+                a += ajuste; m += ajuste; d += ajuste;
+            }
         }
         if (this.regra === 'classico') { a += 1.5; m += 0.5; d += 0.5; } // clássico quente
         // G2: clima afeta os dois lados igualmente (mesma condição de campo).
@@ -6590,9 +6672,22 @@ class MatchSim {
                 this._chanceXG = modelo.qualidade;
                 this.xG[side] += modelo.qualidade;
                 this.chutes[side]++;
-                const decisao = this.modo !== 'instantaneo' && this._decisoesOfertadas < (this.startMinute > 0 ? 1 : 3) && this.minuto >= 8;
-                if (decisao) this._decisoesOfertadas++;
-                return { min: this.minuto, tipo: decisao ? 'decisao' : 'chanceXG', side };
+                // Uma oportunidade por terço: mantém as decisões espalhadas pelo jogo.
+                // Cenários já iniciados usam uma única janela no tempo restante.
+                const inicio = this.startMinute || 0;
+                const duracao = Math.max(1, this.tempoMin - inicio);
+                const totalJanelas = inicio > 0 ? 1 : 3;
+                const janela = Math.min(totalJanelas - 1, Math.max(0, Math.floor((this.minuto - inicio - 1) * totalJanelas / duracao)));
+                const limiar = inicio + Math.floor(janela * duracao / totalJanelas) + Math.max(1, Math.round(duracao / totalJanelas * 0.25));
+                const usadas = this._decisoesJanelas || [];
+                const decisao = this.modo !== 'instantaneo' && this.minuto >= limiar && !usadas.includes(janela);
+                let contexto = null;
+                if (decisao) {
+                    this._decisoesJanelas = usadas.concat(janela);
+                    this._decisoesOfertadas++;
+                    contexto = this._pick(side === this._userSide() ? ['frente', 'distancia', 'ponta'] : ['area', 'transicao', 'corredor']);
+                }
+                return { min: this.minuto, tipo: decisao ? 'decisao' : 'chanceXG', side, contexto };
             }
         }
         const side = this._roll(this.posse / 100) ? 0 : 1;
@@ -7405,35 +7500,40 @@ class MatchSim {
         const jp = this._pickXI(isHome ? 0 : 1, 'ATT');
         this._decisaoAtk = jp || null;
         const nomeAtk = jp ? jp.nome : (isHome ? this._nomeHome('ATT') : this._nomeAdv('ATT'));
-        if (typeof ui !== 'undefined') ui.narrate(isHome ? this._fraseChance(this.home, nomeAtk) : this._fraseChance(this.away, nomeAtk), this.minuto);
-        let desc, opts;
-        if (isUserAttack) {
-            desc = "Chance clara do seu ataque! Como você orienta a finalização?";
-            opts = [
-                { label: '🎯 Colocado', hint: 'mais precisão', eff: { p: 0.42, d: 0.06 } },
-                { label: '💥 Forte', hint: 'mais força', eff: { p: 0.30, d: 0.14 } },
-                { label: '➡️ Cruzado', hint: 'cabeceio na área', eff: { p: 0.34, d: 0.08 } }
-            ];
-        } else {
-            desc = "Perigo na sua área! Qual será a postura defensiva?";
-            opts = [
-                { label: '🧱 Fechar', hint: 'bloqueia o gol', eff: { p: 0.30, d: -0.10 } },
-                { label: '⚖️ Manter', hint: 'postura neutra', eff: { p: 0.40, d: 0 } },
-                { label: '🔥 Pressionar', hint: 'arrisca lá na frente', eff: { p: 0.46, d: 0.04 } }
-            ];
-        }
-        // Escala pela diferença de força: time superior converte mais, time fraco erra mais.
-        const dif = isHome ? (this._difA || 0) : (this._difD || 0);
-        const pBase = this._chanceXG == null ? this._modeloXG(ev.side).qualidade : this._chanceXG;
-        // Mesma probabilidade usada na resolução; o VAR ainda pode anular o gol.
-        opts.forEach(opcao => {
-            const chance = Math.max(0.04, Math.min(0.72, pBase + opcao.eff.d * 0.5));
-            opcao.hint = (isUserAttack ? 'Chance de gol: ' : 'Risco de sofrer gol: ') + Math.round(chance * 100) + '%';
+        // O espaço do lance decide a melhor orientação: nenhuma opção domina todas.
+        const contextos = isUserAttack ? {
+            frente: { texto: nomeAtk + ' ficou cara a cara. O goleiro adiantou e deixou os cantos abertos; não há companheiro livre para receber.', ajuste: [0.085, -0.025, -0.075] },
+            distancia: { texto: nomeAtk + ' recebe fora da área. O goleiro está encoberto pela defesa; há espaço para um chute forte, mas ninguém livre na área.', ajuste: [-0.060, 0.080, -0.015] },
+            ponta: { texto: nomeAtk + ' avança pela ponta sem ângulo para chutar. Um companheiro aparece livre na área e pede o cruzamento.', ajuste: [-0.030, -0.070, 0.090] }
+        } : {
+            area: { texto: nomeAtk + ' recebe na área congestionada. A zaga está posicionada: fechar a linha do chute é mais seguro que abandonar a área.', ajuste: [-0.080, -0.015, 0.075] },
+            transicao: { texto: nomeAtk + ' conduz uma transição rápida. Sua defesa ainda recompõe: manter a linha evita abrir o corredor com uma saída precipitada.', ajuste: [0.055, -0.075, 0.090] },
+            corredor: { texto: nomeAtk + ' domina de costas no corredor lateral, longe da área. Há cobertura para pressionar antes que ele gire e encontre o passe.', ajuste: [0.070, 0.025, -0.075] }
+        };
+        const contextoId = Object.prototype.hasOwnProperty.call(contextos, ev.contexto) ? ev.contexto : this._pick(Object.keys(contextos));
+        const contexto = contextos[contextoId];
+        if (typeof ui !== 'undefined') ui.narrate(contexto.texto, this.minuto);
+        const orientado = isUserAttack ? jp : this._pickXI(this._userSide(), 'DEF');
+        // Atributos reais em p.stats: bônus leve, limitado a ±2 pontos percentuais.
+        const atributo = key => {
+            const valor = Number(orientado && orientado.stats && orientado.stats[key]);
+            return (Math.max(1, Math.min(99, Number.isFinite(valor) ? valor : 50)) - 50) / 49;
+        };
+        const talento = isUserAttack
+            ? [atributo('FIN') * 0.020, atributo('FIN') * 0.012 + atributo('VEL') * 0.008, atributo('PAS') * 0.015 + atributo('VEL') * 0.005]
+            : [-atributo('DEF') * 0.020, -atributo('PAS') * 0.008 - atributo('VEL') * 0.012, -atributo('VEL') * 0.015 - atributo('DEF') * 0.005];
+        const rawBase = Number(this._chanceXG == null ? this._modeloXG(ev.side).qualidade : this._chanceXG);
+        const pBase = Number.isFinite(rawBase) ? rawBase : 0.16;
+        const labels = isUserAttack ? ['🎯 Colocado', '💥 Forte', '➡️ Cruzado'] : ['🧱 Fechar', '⚖️ Manter', '🔥 Pressionar'];
+        const opts = labels.map((label, i) => {
+            // Quantiza a 1%: o percentual mostrado é exatamente o usado na resolução.
+            const chance = Math.round(Math.max(0.04, Math.min(0.72, pBase + contexto.ajuste[i] + talento[i])) * 100) / 100;
+            return { label, hint: (isUserAttack ? 'Chance de gol: ' : 'Risco de sofrer gol: ') + Math.round(chance * 100) + '%', eff: { p: chance } };
         });
-        desc += ' Percentuais antes da revisão do VAR.';
+        const desc = contexto.texto + ' ' + (isUserAttack ? 'Como orientar a finalização?' : 'Qual postura defensiva?') + ' Percentuais antes da revisão do VAR.';
         MatchUI.prompt(desc, opts, (i, automatico) => {
-            const eff = opts[i].eff;
-            const p = Math.max(0.04, Math.min(0.72, pBase + eff.d * 0.5));
+            i = [0, 1, 2].includes(i) ? i : 1;
+            const p = opts[i].eff.p;
             this.xG[ev.side] += p - pBase;
             // G1: decisão respondida antes do timer recarrega Foco (opção central = assistente, menos).
             this._atualizarFoco(i === 1 ? 4 : 8);
@@ -8036,6 +8136,7 @@ class UI {
   }
 
   playBGM(track) {
+    this._bgmTarget = track;
     if (!this.bgm) this.initAudio();
     if (app && app.settings && !app.settings.music) return;
     if (!this._audioUnlocked) return;
@@ -8059,6 +8160,7 @@ class UI {
         return;
     }
     const defaultBgmVol = (typeof app !== 'undefined' && app.settings && typeof app.settings.bgmVol === 'number') ? app.settings.bgmVol : 0.12;
+    if (!this.currentBGM) this.playBGM(this._bgmTarget || (this.currentScreen === 'screen-match' ? 'match' : 'menu'));
     if (this.currentBGM) {
         this.currentBGM.volume = defaultBgmVol;
         this.currentBGM.play().catch(() => {});
@@ -8107,10 +8209,12 @@ class UI {
   duckBGM(factor = 0.4, ms = 2000) {
     if (!this.currentBGM) return;
     const base = (typeof app !== 'undefined' && app.settings && typeof app.settings.bgmVol === 'number') ? app.settings.bgmVol : 0.12;
-    try { this.currentBGM.volume = Math.max(0, base * factor); } catch (_) {}
+    const voz = this._narTocando || (this._narFila && this._narFila.length);
+    try { this.currentBGM.volume = Math.max(0, base * (voz ? 1 : factor)); } catch (_) {}
     clearTimeout(this._duckBgmT);
     this._duckBgmT = setTimeout(() => {
-      try { if (this.currentBGM) this.currentBGM.volume = base; } catch (_) {}
+      const atual = (typeof app !== 'undefined' && app.settings && typeof app.settings.bgmVol === 'number') ? app.settings.bgmVol : 0.12;
+      try { if (this.currentBGM) this.currentBGM.volume = atual; } catch (_) {}
     }, ms);
   }
 
@@ -8144,6 +8248,30 @@ class UI {
   }
 
   // Locução humana da pasta SONS DA NARRAÇÃO DO GAME/ (caminho relativo — GitHub Pages).
+  _atualizarMixNarracao() {
+    const base = (typeof app !== 'undefined' && app.settings && typeof app.settings.bgmVol === 'number') ? app.settings.bgmVol : 0.12;
+    if (this.currentBGM) this.currentBGM.volume = base;
+    try {
+      if (typeof MatchUI !== 'undefined' && MatchUI._crowdNodes) {
+        MatchUI.startCrowdLoop(MatchUI._crowdBedLevel || 0.11);
+      }
+    } catch (_) {}
+  }
+
+  refreshAudioMix() {
+    if (typeof app !== 'undefined' && app.settings && !app.settings.sfx) {
+      this.pararNarracao();
+      try { MatchUI.stopCrowdLoop(120); } catch (_) {}
+    } else {
+      if (this.currentScreen === 'screen-match' && typeof Engine !== 'undefined' && Engine.activeMatch) this._narFim = false;
+      if (this._narAudio) this._narAudio.volume = this._synthVol(this._narVolume || 0.55);
+      try {
+        if (this.currentScreen === 'screen-match' && !this._narFim) MatchUI.startCrowdLoop(MatchUI._crowdBedLevel || 0.11);
+      } catch (_) {}
+    }
+    this._atualizarMixNarracao();
+  }
+
   // categoria: intro | introFinal | passe | drible | cruzamento | contra
   playNarracao(categoria, volume = 0.55, exclusive = false) {
     if (app && app.settings && !app.settings.sfx) return;
@@ -8152,19 +8280,6 @@ class UI {
     if (this._narFim && !exclusive) return;
     const pool = (typeof NARRACAO_SOUNDS !== 'undefined' && NARRACAO_SOUNDS[categoria]) || null;
     if (!pool || !pool.length) return;
-    // Locução humana tem prioridade: recua BGM/torcida enquanto a voz fala.
-    this.duckBGM(0.28, 5000);
-    try {
-      if (typeof MatchUI !== 'undefined' && MatchUI._crowdNodes) {
-        const ctx = MatchUI._crowdCtx && MatchUI._crowdCtx();
-        if (ctx && MatchUI._crowdNodes.master) {
-          const t0 = ctx.currentTime || 0;
-          MatchUI._crowdNodes.master.gain.cancelScheduledValues(t0);
-          MatchUI._crowdNodes.master.gain.setValueAtTime(MatchUI._crowdNodes.master.gain.value || 0.05, t0);
-          MatchUI._crowdNodes.master.gain.linearRampToValueAtTime(MatchUI._crowdVol(0.05), t0 + 0.35);
-        }
-      }
-    } catch (_) {}
     const file = pool[Math.floor(Math.random() * pool.length)];
     const item = {
       url: encodeURI((typeof NARRACAO_DIR !== 'undefined' ? NARRACAO_DIR : '') + file),
@@ -8177,6 +8292,7 @@ class UI {
       // Exclusivo (INTRO / INTRO DE FINAL): corta o que toca e zera a fila —
       // roda por inteiro; o resto só volta depois do 'ended'.
       this.pararNarracao();
+      this._narFim = false;
       this._narFila = [item];
     } else {
       this._narFila.push(item);
@@ -8188,7 +8304,8 @@ class UI {
 
   _processarFilaNarracao() {
     if (this._narTocando) return;
-    if (!this._narFila || !this._narFila.length) return;
+    if (typeof app !== 'undefined' && app.settings && !app.settings.sfx) { this.pararNarracao(); return; }
+    if (!this._narFila || !this._narFila.length) { this._atualizarMixNarracao(); return; }
     const item = this._narFila.shift();
     try {
       const sfxMaster = (typeof app !== 'undefined' && app.settings && typeof app.settings.sfxVol === 'number') ? app.settings.sfxVol : 1.0;
@@ -8196,23 +8313,15 @@ class UI {
       audio.volume = Math.max(0, Math.min(1, (item.volume || 0.55) * sfxMaster));
       this._narTocando = true;
       this._narAudio = audio;
+      this._narVolume = item.volume || 0.55;
+      clearTimeout(this._duckBgmT);
+      this._atualizarMixNarracao();
+      let finalizado = false;
       const fim = () => {
+        if (finalizado || this._narAudio !== audio) return;
+        finalizado = true;
         this._narTocando = false;
         this._narAudio = null;
-        // Devolve o leito de torcida ao nível da partida após a voz.
-        try {
-          if (typeof MatchUI !== 'undefined' && MatchUI._crowdNodes && MatchUI._crowdCtx) {
-            const ctx = MatchUI._crowdCtx();
-            const n = MatchUI._crowdNodes;
-            if (ctx && n && n.master) {
-              const t0 = ctx.currentTime || 0;
-              const alvo = MatchUI._crowdVol(MatchUI._crowdBedLevel || 0.11);
-              n.master.gain.cancelScheduledValues(t0);
-              n.master.gain.setValueAtTime(n.master.gain.value || 0.05, t0);
-              n.master.gain.linearRampToValueAtTime(alvo, t0 + 0.6);
-            }
-          }
-        } catch (_) {}
         this._processarFilaNarracao();
       };
       audio.addEventListener('ended', fim, { once: true });
@@ -8235,20 +8344,8 @@ class UI {
     }
     this._narTocando = false;
     this._narFim = true;
-    // Devolve o leito de torcida se a locução o tiver recuado.
-    try {
-      if (typeof MatchUI !== 'undefined' && MatchUI._crowdNodes && MatchUI._crowdCtx) {
-        const ctx = MatchUI._crowdCtx();
-        const n = MatchUI._crowdNodes;
-        if (ctx && n && n.master) {
-          const t0 = ctx.currentTime || 0;
-          const alvo = MatchUI._crowdVol(MatchUI._crowdBedLevel || 0.11);
-          n.master.gain.cancelScheduledValues(t0);
-          n.master.gain.setValueAtTime(n.master.gain.value || 0.05, t0);
-          n.master.gain.linearRampToValueAtTime(alvo, t0 + 0.5);
-        }
-      }
-    } catch (_) {}
+    clearTimeout(this._duckBgmT);
+    this._atualizarMixNarracao();
   }
 
   playGoalSound(isPlayerGoal = true) {
@@ -11108,7 +11205,7 @@ const app = {
         try { localStorage.setItem(this.STORAGE_KEYS.SETTINGS, JSON.stringify(this.settings)); } catch (e) {}
         this.syncSettingsUI();
         if (key === 'bgmVol' && typeof ui !== 'undefined') ui.refreshBGM();
-        if (key === 'sfxVol' && typeof ui !== 'undefined') ui.playSFX('sfx_click', 0.4);
+        if (key === 'sfxVol' && typeof ui !== 'undefined') { ui.refreshAudioMix(); ui.playSFX('sfx_click', 0.4); }
     },
     openSettings() {
         const m = document.getElementById('modal-settings');
@@ -11137,7 +11234,7 @@ const app = {
         try { localStorage.setItem(this.STORAGE_KEYS.SETTINGS, JSON.stringify(this.settings)); } catch (e) {}
         this.applySettings();
         if (key === 'music' && typeof ui !== 'undefined') ui.refreshBGM();
-        if (key === 'sfx' && typeof ui !== 'undefined') ui.playSFX('sfx_click', 0.4);
+        if (key === 'sfx' && typeof ui !== 'undefined') { ui.refreshAudioMix(); ui.playSFX('sfx_click', 0.4); }
     },
 
     createNewClub(nome) {
@@ -12006,6 +12103,7 @@ const app = {
         if (club.consecSemSofrerGol == null) club.consecSemSofrerGol = 0;
         if (club.formaRecente == null || !Array.isArray(club.formaRecente)) club.formaRecente = [];
         if (club.staminaGlobal == null) club.staminaGlobal = 100;
+        if (club.ultimaRecuperacaoFadiga == null) club.ultimaRecuperacaoFadiga = '';
         if (club.packPity == null) club.packPity = 0;
         if (club.lastPlayDay == null) club.lastPlayDay = 0;
         if (club.sessionStreak == null) club.sessionStreak = 0;
@@ -12195,6 +12293,11 @@ const app = {
     },
     recuperarFadiga() {
         if (!this.club) return;
+        const treino = typeof TutorialManager !== 'undefined' && TutorialManager.isActive;
+        const chave = `${this.league ? this.league.temporada || 1 : 1}:${this.league ? this.league.rodada || 1 : 1}`;
+        // O descanso pertence à rodada, não à abertura do menu. Fica no save do clube
+        // para não repetir ao cancelar, recarregar ou alternar os slots de carreira.
+        if (!treino && this.club.ultimaRecuperacaoFadiga === chave) return;
         this.club.elenco.forEach(p => {
             TransferMarket.normalizePlayer(p);
             p.folego = Math.min(p.folegoMax, (p.folego == null ? 100 : p.folego) + 32 + ClubEcosystem.nivel(this.club, 'medico') * 8);
@@ -12204,6 +12307,10 @@ const app = {
                 p.rodadasRecuperacao = 1;
             }
         });
+        if (!treino) {
+            this.club.ultimaRecuperacaoFadiga = chave;
+            this.saveGame();
+        }
     },
 
     // Revelação de jovens promessas segundo o nível das categorias de base.
@@ -12956,8 +13063,12 @@ const app = {
     },
 
     escolherDraft(i) {
+        if (!Array.isArray(this._draftOpts) || !Number.isInteger(i)) return;
         const opt = this._draftOpts[i];
         if (!opt) return;
+        // Consome a escolha antes de conceder o prêmio: dois cliques ou callbacks
+        // reentrantes nunca adicionam a mesma carta duas vezes ao elenco/baralho.
+        this._draftOpts = null;
         if (opt.tipo === 'jogador') {
             this.club.elenco.push(opt.p);
             this.league.adicionarNoticia(`📋 Draft: ${opt.p.nome} (${opt.p.overall} OVR) adicionado ao elenco.`);
