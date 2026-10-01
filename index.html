@@ -7720,8 +7720,13 @@ class MatchSim {
             try { MatchUI.stopCrowdLoop(800); MatchUI.radioHide(); } catch (e2) { }
         }
         const h = this.scoreH, a = this.scoreA;
-        // Bordão de encerramento (1x por partida)
-        const fimTxt = this._fraseContexto(h > a ? 'fimVitoria' : (h < a ? 'fimDerrota' : 'empateFinal'));
+        // Encerramento factual: vale também para amistosos e partidas de mata-mata.
+        const vencedor = h > a ? this.home.nome : this.away.nome;
+        const margem = Math.abs(h - a);
+        const fimTxt = h === a
+            ? 'Fim de jogo! ' + this.home.nome + ' e ' + this.away.nome + ' empatam em ' + h + ' a ' + a + '.'
+            : 'Fim de jogo! ' + vencedor + ' vence por ' + Math.max(h, a) + ' a ' + Math.min(h, a) +
+                (margem === 1 ? ', pela diferença mínima.' : margem >= 3 ? ', com ampla vantagem no placar.' : '.');
         if (fimTxt) this._emit(fimTxt, 'info');
         // Fase 4: empate em mata-mata decide nos pênaltis (5 cobranças + morte súbita).
         if (this.regra === 'torneio' && h === a) {
@@ -9091,8 +9096,8 @@ class UI {
     </div>`;
   }
 
-  // Ranking de acerto das decisões do técnico.
-  // Ataque: gol = acerto. Defesa: defesa/erro do rival = acerto (sofremos menos).
+  // Desfechos dos lances: o resultado não mede a qualidade da orientação.
+  // Na defesa, um gol anulado pelo VAR também termina sem gol sofrido.
   _htmlDecRank(decisoes, userHome) {
     const lista = (decisoes || []).filter(Boolean);
     if (!lista.length) return '';
@@ -9100,7 +9105,7 @@ class UI {
     lista.forEach(d => {
       const foiAtk = d.isUserAtk != null ? !!d.isUserAtk : true;
       const r = d.resultado;
-      const ok = foiAtk ? (r === 'gol') : (r === 'defesa' || r === 'erro');
+      const ok = foiAtk ? (r === 'gol') : ['defesa', 'erro', 'var'].includes(r);
       if (ok) acertos++;
       if (foiAtk) { ataques++; if (ok) ataquesOk++; }
       else { defesas++; if (ok) defesasOk++; }
@@ -9109,7 +9114,7 @@ class UI {
     const corPct = pct >= 70 ? '#4ade80' : (pct >= 40 ? '#ffb000' : '#f87171');
     const chips = lista.map(d => {
       const foiAtk = d.isUserAtk != null ? !!d.isUserAtk : true;
-      const ok = foiAtk ? (d.resultado === 'gol') : (d.resultado === 'defesa' || d.resultado === 'erro');
+      const ok = foiAtk ? (d.resultado === 'gol') : ['defesa', 'erro', 'var'].includes(d.resultado);
       const ico = ok ? '✓' : '✗';
       const cls = ok ? 'rs-dec-ok' : 'rs-dec-bad';
       const alvo = foiAtk ? 'ATA' : 'DEF';
@@ -9118,13 +9123,14 @@ class UI {
     return `<div class="rs-dec-rank">
       <div class="rs-dec-score">
         <span class="rs-dec-pct" style="color:${corPct};">${pct}%</span>
-        <span class="rs-dec-sub">ACERTO · ${acertos}/${lista.length}</span>
+        <span class="rs-dec-sub">DESFECHOS FAVORÁVEIS · ${acertos}/${lista.length}</span>
       </div>
       <div class="rs-dec-bars">
         <div class="rs-dec-line"><span>Ataque</span><b style="color:${ataquesOk ? '#4ade80' : 'var(--text-muted)'};">${ataquesOk}/${ataques}</b></div>
         <div class="rs-dec-line"><span>Defesa</span><b style="color:${defesasOk ? '#4ade80' : 'var(--text-muted)'};">${defesasOk}/${defesas}</b></div>
       </div>
       <div class="rs-dec-chips">${chips}</div>
+      <small>Gol a favor ou lance adversário sem gol. Uma boa orientação também pode terminar mal.</small>
     </div>`;
   }
 
