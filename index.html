@@ -6808,7 +6808,8 @@ class MatchSim {
         ]).replace('{j}', j);
     }
     _fraseAcrescimo() {
-        return "O árbitro sinaliza " + (3 + Math.floor(this._rnd(0, 4))) + " minutos de acréscimo!";
+        const minutos = Math.max(0, (this._fimSimulado || this.tempoMin) - this.tempoMin);
+        return "O árbitro sinaliza " + minutos + " minutos de acréscimo!";
     }
     _fraseLesao(team, nomeJ) {
         const j = nomeJ || (team === this.home ? this._nomeHome('MID') : this._nomeAdv('MID'));
