@@ -3935,10 +3935,13 @@ const TempoPagina = (() => {
         tarefa.nativo = nativo(() => {
             if (oculto || !tarefas.has(tarefa.id)) return;
             if (!tarefa.intervalo) tarefas.delete(tarefa.id);
-            tarefa.fn(...tarefa.args);
-            if (tarefa.intervalo && tarefas.has(tarefa.id)) {
-                tarefa.restante = tarefa.intervalo;
-                if (!oculto) armar(tarefa);
+            try {
+                tarefa.fn(...tarefa.args);
+            } finally {
+                if (tarefa.intervalo && tarefas.has(tarefa.id)) {
+                    tarefa.restante = tarefa.intervalo;
+                    if (!oculto) armar(tarefa);
+                }
             }
         }, tarefa.restante);
     };
@@ -8429,7 +8432,11 @@ class UI {
     if (this._narFim && !exclusive) return;
     const pool = (typeof NARRACAO_SOUNDS !== 'undefined' && NARRACAO_SOUNDS[categoria]) || null;
     if (!pool || !pool.length) return;
-    const file = pool[Math.floor(Math.random() * pool.length)];
+    // Duração medida nos frames MP3: usa cenas completas de até 10 s, sem cortar palavras.
+    const curtos = { passe:['PASSE 2.mp3','PASSE 3.mp3','PASSE 5.mp3'], drible:['DRIBLE 4.mp3'] }[categoria];
+    const filtrados = curtos ? pool.filter(file => curtos.includes(file)) : pool;
+    const candidatos = filtrados.length ? filtrados : pool;
+    const file = candidatos[Math.floor(Math.random() * candidatos.length)];
     const item = {
       url: encodeURI((typeof NARRACAO_DIR !== 'undefined' ? NARRACAO_DIR : '') + file),
       volume: volume,
