@@ -6033,11 +6033,11 @@ const MatchUI = {
     },
     // Replay do último lance: a bola refaz o caminho atacante → ação com badge "REPLAY".
     // Também: narração de rádio dinâmica + som de torcida contínuo.
-    replayLastPlay() {
-        const play = this._lastPlay;
+    replayLastPlay(play = this._lastPlay) {
+        if (this._radioFim) return;
         const campo = this._el('campo-2d');
         const bola = this._el('campo-bola');
-        if (!play || !campo || !bola) return;
+        if (!play || !campo || !bola || !['goal','goal-rival','def'].includes(play.tipo)) return;
         let badge = campo.querySelector('.replay-badge');
         if (!badge) {
             badge = document.createElement('div');
@@ -6093,18 +6093,7 @@ const MatchUI = {
                 ? this._chipById && this._chipById[String(play.ctx.def.id) + '@' + ((play.ctx.defSide === 0) ? 'casa' : 'fora')]
                 : null;
             if (defChip) defChip.classList.add('ativo', 'defensor');
-            // VAR: em gols, o painel de análise sobe em cima do replay
-            if (ehGol) {
-                try {
-                    this.varReview({
-                        anulado: !!play.anulado,
-                        autor: play.ctx && play.ctx.atk,
-                        def: play.ctx && play.ctx.def,
-                        motivo: play.motivo || (play.tipo === 'goal-rival' ? 'bola' : 'impedimento'),
-                        min: play.min
-                    });
-                } catch (e) { }
-            }
+            // A revisão do VAR só aparece quando o motor confirma esse evento.
         }, 700);
         // (2) fim do replay — desliga torcida e some com a fita (VAR pode continuar)
         this._replayT3 = setTimeout(() => {
@@ -6112,6 +6101,8 @@ const MatchUI = {
             bola.classList.remove('rastro');
             bola.style.transition = 'left 0.7s ease, top 0.7s ease';
             this._replayAtivo = false;
+            const continuar = this._aposReplay;
+            this._aposReplay = null;
             // Fichas voltam para a formação após o replay
             this.fieldResetPositions();
             const varAtivo = campo.querySelector('.var-panel.on');
@@ -6119,6 +6110,7 @@ const MatchUI = {
                 this.stopCrowdLoop();
                 this.radioHide();
             }
+            if (continuar) continuar();
         }, ehGol ? 3400 : 2400);
     },
     // Fita de rádio 95.3 no campo (typewriter).
@@ -6160,6 +6152,11 @@ const MatchUI = {
     // Corta TODA a transmissão residual (rádio/replay/VAR) no apito final.
     encerrarTransmissao() {
         this._radioFim = true;
+        this._aposReplay = null;
+        if (typeof ui !== 'undefined') {
+            clearTimeout(ui._replayCaptureT);
+            clearTimeout(ui._replayGoalT);
+        }
         const ts = ['_radioSeq','_radioTypeT','_radioTypeI','_replayT1','_replayT2','_replayT3',
             '_replayGoalT','_varT1','_varT2','_varT3','_varT4','_varT5','_varHideT',
             '_crowdSwellT','_crowdBedT','_celebraT','_crowdT','_dueloT','_bolaT1','_bolaT3','_tlFlashT'];
@@ -7286,6 +7283,11 @@ class MatchSim {
     }
     _tick() {
         if (this.abortado || this._segurandoFim) return;
+        // O replay e o lance ao vivo não disputam a bola nem a narração do campo.
+        if (MatchUI._replayAtivo) {
+            MatchUI._aposReplay = () => { this._timer = setTimeout(() => this._tick(), 0); };
+            return;
+        }
         // Mantém o campo no lance narrado até a frase terminar, sem fila atrasada.
         if (typeof ui !== 'undefined' && ui._narTocando && !ui._narExclusive) {
             ui._narAposCena = () => { this._timer = setTimeout(() => this._tick(), 0); };
@@ -8857,9 +8859,15 @@ class UI {
         setTimeout(() => notif.classList.add('hidden'), 300);
     }, dramatico ? 1800 : 1500);
     // Replay do lance logo após a comemoração (campo 2D)
+    // _marcar chama a animação antes de _emit pintar o gol; captura ao fim desse turno.
+    let lanceDoGol = null;
+    clearTimeout(this._replayCaptureT);
+    this._replayCaptureT = setTimeout(() => { lanceDoGol = MatchUI._lastPlay; }, 0);
     clearTimeout(this._replayGoalT);
     this._replayGoalT = setTimeout(() => {
-        try { MatchUI.replayLastPlay(); } catch (e) { }
+        try {
+            if (lanceDoGol && lanceDoGol.min === minuto) MatchUI.replayLastPlay(lanceDoGol);
+        } catch (e) { }
     }, (dramatico ? 1900 : 1600));
   }
 
