@@ -6483,11 +6483,66 @@ function bonusQuimica(elencoEmCampo) {
         out.mid += 0.75;
         out.chips.push({ label: '✨ Dois Maestros', valor: 0.75, linha: 'mid' });
     }
-    // Cap por linha (±3) — nunca supera o bônus do Craque.
-    out.atk = Math.max(-3, Math.min(3, out.atk));
-    out.mid = Math.max(-3, Math.min(3, out.mid));
-    out.def = Math.max(-3, Math.min(3, out.def));
-    return out;
+  // Cap por linha (±3) — nunca supera o bônus do Craque.
+  out.atk = Math.max(-3, Math.min(3, out.atk));
+  out.mid = Math.max(-3, Math.min(3, out.mid));
+  out.def = Math.max(-3, Math.min(3, out.def));
+  return out;
+}
+
+// XP por participação na partida (Fase 10 do plano de evolução, 2026-10-06).
+// ANTES o elenco inteiro ganhava o mesmo xpBase — banco, lesionado e afastado
+// cresciam igual ao titular, inflando OVR/tier do plantão. Agora o XP espelha
+// os minutos jogados, que o MatchSim já registra em _iniciais/_usados:
+//   titular .......... xpBase (jogou a partida toda ou quase)
+//   entrou do banco .. xpBase * 0,55 (menos minutos, mesmo desgaste de jogo)
+//   banco sem entrar . xpBase * 0,20 (convivência/treino — pequeno)
+//   fora do jogo ..... 0 (lesionado/afastado via foraIds não participou do grupo)
+// Função pura e testável (tests/run.js) — não lê estado global.
+function calcularXPParticipacao(elenco, titularesIds, entraramIds, xpBase, foraIds) {
+  const base = Math.max(0, Number(xpBase) || 0);
+  const titulares = new Set((titularesIds || []).map(String));
+  const entraram = new Set((entraramIds || []).map(String));
+  const fora = new Set((foraIds || []).map(String));
+  const out = {};
+  (elenco || []).forEach(p => {
+    if (!p || p.id == null) return;
+    const id = String(p.id);
+    if (fora.has(id) || p.machucado) { out[id] = 0; return; }
+    if (titulares.has(id)) out[id] = Math.round(base);
+    else if (entraram.has(id)) out[id] = Math.round(base * 0.55);
+    else out[id] = Math.round(base * 0.20);
+  });
+  return out;
+}
+
+// Fecho de elenco pós-partida (2026-10-06) — função pura/testável usada por
+// app.closeMatchResult. Conta partidas e moral por PARTICIPAÇÃO real (idsJogaram):
+// antes o elenco inteiro somava +1 partida por rodada, o que inflava valor de
+// mercado, tier (avaliarPromocaoTier) e a hierarquia do vestiário — aos 15 jogos
+// todo mundo virava "Líder de Vestiário" e o LockerRoom punia o plantão inteiro.
+// Retorna a lista de contratos expirando (para renovação automática).
+function fecharPartidaElenco(club, idsJogaram, deltaMoral) {
+  const expirando = [];
+  const jogaram = new Set((idsJogaram || []).map(String));
+  (club && club.elenco || []).forEach(p => {
+    if (!p) return;
+    p.contratoRodadas = Math.max(0, (p.contratoRodadas == null ? 8 : p.contratoRodadas) - 1);
+    const jogou = jogaram.has(String(p.id));
+    if (jogou) p.partidas = (p.partidas || 0) + 1;
+    if (typeof p.avaliarPromocaoTier === 'function') {
+      try { p.avaliarPromocaoTier(); } catch (e) { /* promoção nunca quebra o fecho */ }
+    }
+    p.treinoRodada = false;
+    // Quem jogou sente o resultado na íntegra; o banco sente pela metade.
+    let d = jogou ? deltaMoral : Math.round((deltaMoral || 0) * 0.5);
+    const justo = (p.overall || 0) * (p.overall || 0);
+    if (justo > 0 && (p.salario || 0) < justo * 0.7) d -= 1;
+    if ((p.rodadasRecuperacao || 0) > 0) d -= 1;
+    if (d !== 0) p.moral = Math.max(0, Math.min(100, (p.moral == null ? 70 : p.moral) + d));
+    if (p.contratoRodadas === 0) expirando.push(p);
+  });
+  return expirando;
 }
 
 // --- Simulador de partida completo (90 min em eventos) ---
@@ -6628,10 +6683,47 @@ class MatchSim {
     _fecharDecisao(resultado) {
         if (!this._decisaoPendente) return;
         this._decisaoPendente.resultado = resultado;
+        const d = this._decisaoPendente;
         if (!this._decisoes) this._decisoes = [];
-        this._decisoes.push(this._decisaoPendente);
+        this._decisoes.push(d);
         this._decisaoPendente = null;
         if (this._decisoes.length > 20) this._decisoes = this._decisoes.slice(-20);
+        this._feedbackDecisao(d);
+    }
+
+    // Feedback da decisão (§8 do plano 2026-10-06): o técnico aprende o modelo do
+    // jogo pela consequência — o que funcionou e por quê, ou o que o adversário
+    // explorou. Uma linha, sem fórmula interna, só a leitura do lance.
+    _feedbackDecisao(d) {
+        if (!d || this.modo === 'instantaneo' || typeof ui === 'undefined' || !ui.narrate) return;
+        const rotulo = d.label || 'a escolha';
+        const certa = d.melhor != null && d.escolha === d.melhor;
+        const alternativa = d.melhorLabel || null;
+        let txt = null;
+        if (d.isUserAtk) {
+            if (d.resultado === 'gol') {
+                txt = certa
+                    ? '✅ ' + rotulo + ' funcionou: a leitura do lance estava certa e a bola acabou dentro.'
+                    : '✅ ' + rotulo + ' deu certo fora do script — mas ' + alternativa + ' aproveitava melhor o espaço.';
+            } else if (d.resultado === 'var') {
+                txt = '📺 ' + rotulo + ' virou gol e o VAR anulou — a decisão estava certa, o lance é que foi cassado.';
+            } else if (certa) {
+                txt = '❌ ' + rotulo + ' era a leitura certa do lance, mas não virou gol — nem toda chance certa se converte.';
+            } else {
+                txt = '❌ ' + rotulo + ' desperdiçou o espaço do lance: ' + alternativa + ' era a alternativa do contexto.';
+            }
+        } else {
+            if (d.resultado === 'gol') {
+                txt = certa
+                    ? '🛡️ ' + rotulo + ' era a postura certa, mas o rival converteu mesmo assim — acontece.'
+                    : '⚠️ O adversário explorou a postura ' + rotulo + ': ' + alternativa + ' fechava melhor o lance.';
+            } else {
+                txt = certa
+                    ? '🛡️ ' + rotulo + ' fechou o lance: o adversário foi obrigado a errar.'
+                    : '😮‍🌫️ ' + rotulo + ' sobreviveu — ' + alternativa + ' dava mais segurança naquela jogada.';
+            }
+        }
+        if (txt) ui.narrate(txt, this.minuto, 'info');
     }
     _nomeXI(side, pos) {
         const p = this._pickXI(side, pos);
@@ -6695,21 +6787,27 @@ class MatchSim {
         const moral = (team.moral == null ? 75 : team.moral) + (this.continental && isHome && this._userSide() === 1 ? 2 : 0);
         const mb = moral < 30 ? -3 : (moral >= 85 ? 1 : 0);
         const popular = typeof ClubEcosystem !== 'undefined' ? ClubEcosystem.nivel(team,'popular') : 0;
-        const casa = ((this.regra === 'classico') ? 0.5 : 1) + popular * 0.4;
-        a += mb + (isHome ? casa : 0) + bonusFormacao.a; m += mb + bonusFormacao.m; d += mb + bonusFormacao.d;
+        const casa = ((this.regra === 'classico') ? 0.8 : 1.6) + popular * 0.4;
+        // Mando (2026-10-06): aquece ataque E meio — torcida empurra a criação.
+        // A defesa não ganha mando: a vantagem é ofensiva, sem transformar o mandante
+        // em fortaleza. Medido na bancada (tests/match-stats.js) para manter H~46%.
+        a += mb + (isHome ? casa : 0) + bonusFormacao.a;
+        m += mb + (isHome ? casa * 0.5 : 0) + bonusFormacao.m;
+        d += mb + bonusFormacao.d;
         if (this.continental && isHome && this._userSide() === 1) { a += 0.4; m += 0.4; }
         // Mandos alternados: craque/estilo/buffs são do USUÁRIO, não do mandante.
         const isUser = this._userSide() === (isHome ? 0 : 1);
         if (this.craque && isUser) { a += 6; m += 2.5; d += 1; }
         if (isUser) {
-            // Balanceamento 2026-09-22 (feedback de testadores): "equilibrada ganha tudo" e
-            // "ofensiva é certo levar gol". Medição empírica: mando +2 e decisões 55/45 inflavam
-            // o mandante; ofensivo cedia +0.7 gols para +0.4 marcados; retranca não reduzia o
-            // que sofria. Ajustes: mando 1, decisões 50/50, lambdas base 1.00/0.85, e estilos
-            // com troca justa (ofensivo: muito ataque, defesa levemente exposta; retranca: fecha
-            // sem anular o ataque).
-            if (this.estilo === 'ofensivo') { a += 4; d -= 2; m += 1; }
-            else if (this.estilo === 'retranca') { d += 3.5; a -= 2.5; m += 0.5; }
+            // Balanceamento 2026-10-06 (bancada tests/match-stats.js): com mando e
+            // estilos medidos em 80 partidas cada, ofensivo (55% H) e retranca (49% H)
+            // dominavam o equilibrado (40% H) — nenhuma escolha deveria ser pior em
+            // tudo. Agora o equilibrado é a linha de base segura; ofensivo compra
+            // volume ofensivo ao custo de exposição real; retranca fecha o jogo e
+            // empata mais, sem ser a melhor em todos os placares. Efeitos de criação
+            // (volumeEstilo/retrancaRival no _modeloXG) ajustados junto.
+            if (this.estilo === 'ofensivo') { a += 3; d -= 3; m += 0.8; }
+            else if (this.estilo === 'retranca') { d += 2.5; a -= 2.5; m += 0.3; }
         } else {
             const mental = (team.mentalidade || 'equilibrada');
             if (mental === 'ofensiva') { a += 2; d -= 1; }
@@ -6800,16 +6898,33 @@ class MatchSim {
         const atacantes = linha.filter(j => j.posicao === 'ATT');
         const melhor = atacantes.reduce((m,j) => Math.max(m,j.overall || 50),50);
         const ceraRival = side !== this._userSide() && this._buffsAtivos().some(b => b.id === 't_cera');
-        const retrancaRival = side !== this._userSide() && this.estilo === 'retranca' ? 0.6 : 1;
+        // Retranca do usuário corta a criação rival, mas não em 40% (era 0,6 —
+        // mediação de 2026-10-06: junto com o volumeEstilo abaixo, a retranca rendia
+        // +45% de saldo de gols e virava escolha dominante). 0,75 mantém o fechamento
+        // perceptível sem anular o adversário.
+        const retrancaRival = side !== this._userSide() && this.estilo === 'retranca' ? 0.85 : 1;
         // O técnico troca volume de ataque por exposição: efeito só na sua partida.
+        // Ofensivo cria +25% e ainda empurra o rival para +18% (antes +12%).
         const temUsuario = this.home.isUser || this.away.isUser;
         const volumeEstilo = !temUsuario ? 1 : this.estilo === 'ofensivo'
-            ? (side === this._userSide() ? 1.25 : 1.12)
+            ? (side === this._userSide() ? 1.22 : 1.20)
             : this.estilo === 'retranca' && side === this._userSide() ? 0.85 : 1;
+        // Mando (2026-10-06, calibrado na bancada): o mandante cria mais e converte
+        // um pouco mais — medido para dar ~46% de vitória entre times iguais, sem
+        // transformar a casa em fortaleza. Clássico reduz pela pressão do confronto.
+        const casaMul = this.regra === 'classico' ? 1.04 : 1.08;
+        const casaQ = this.regra === 'classico' ? 1.02 : 1.06;
         const clima = (CONDICOES_JOGO[this.condicao] || CONDICOES_JOGO.normal).lambdaMul || 1;
-        const criacao = Math.max(0.015, Math.min(0.14, 0.038 * Math.exp((p.mid - d.mid) / 70)))
-            * (0.65 + folego / 285) * this._contratatica(side) * momentum * pressao * retrancaRival * volumeEstilo;
-        const qualidade = Math.max(0.04, Math.min(0.48, 0.16 * Math.exp((p.atk - d.def) / 55) * clima
+        // Base de criação 0,033 (era 0,038) e conversão 0,135 (era 0,16): a bancada
+        // media 4,58 gols/jogo no quickSim e 3,84 no detalhado — acima do universo
+        // de futebol que o jogo desenha (meta ~3,1). Também corrige o viés do integral
+        // antigo (4×criacao) que superestimava chances em criação alta; o quickSim
+        // agora usa 1-(1-criacao)^4, igual à geração de lances do _eventoMinuto.
+        const criacao = Math.max(0.015, Math.min(0.14, 0.033 * Math.exp((p.mid - d.mid) / 70)))
+            * (0.65 + folego / 285) * this._contratatica(side) * momentum * pressao * retrancaRival * volumeEstilo
+            * (side === 0 ? casaMul : 1);
+        const qualidade = Math.max(0.04, Math.min(0.48, 0.135 * Math.exp((p.atk - d.def) / 55) * clima
+            * (side === 0 ? casaQ : 1)
             * (cruzar ? 0.8 + melhor / 160 : 1)));
         return { criacao: ceraRival ? 0 : criacao * (cruzar ? 1.25 : 1), qualidade };
     }
@@ -7115,9 +7230,12 @@ class MatchSim {
             );
         } catch (e) { /* campo 2D é cosmético */ }
         // G3: registra os titulares como "usados" (dreno pós-jogo).
+        // _iniciais guarda o XI de abertura para separar titular × reserva que entrou
+        // no XP por participação (calcularXPParticipacao) e na contagem de partidas.
+        this._iniciais = { 0: [], 1: [] };
         for (let side = 0; side <= 1; side++) {
             if (!this._usados[side]) this._usados[side] = {};
-            (this._emCampo[side] || []).forEach(id => { this._usados[side][id] = true; });
+            (this._emCampo[side] || []).forEach(id => { this._usados[side][id] = true; this._iniciais[side].push(id); });
         }
         this._montarMao();
         this.roteiro = this._gerarRoteiro();
@@ -7255,6 +7373,17 @@ class MatchSim {
     usadosDoUsuario() {
         const side = this._userSide();
         return Object.keys((this._usados && this._usados[side]) || {});
+    }
+
+    // Participação do usuário na partida: quem abriu no XI e quem entrou depois.
+    // Base do XP por participação e da contagem de partidas (2026-10-06).
+    participacaoUsuario() {
+        const side = this._userSide();
+        const titulares = ((this._iniciais && this._iniciais[side]) || []).slice();
+        const todos = this.usadosDoUsuario();
+        const setT = new Set(titulares.map(String));
+        const entraram = todos.filter(id => !setT.has(String(id)));
+        return { titulares, entraram, usados: todos };
     }
 
     _recalcDifs() {
@@ -7719,14 +7848,17 @@ class MatchSim {
         this._decisaoAtk = jp || null;
         const nomeAtk = jp ? jp.nome : (isHome ? this._nomeHome('ATT') : this._nomeAdv('ATT'));
         // O espaço do lance decide a melhor orientação: nenhuma opção domina todas.
+        // Ajustes ×1,3 (2026-10-06, bancada): a opção certa do contexto precisa valer
+        // a pena de forma perceptível — ler o contexto passou a render +15pp de vitória
+        // contra escolher contra ele (tests/match-stats.js §8).
         const contextos = isUserAttack ? {
-            frente: { texto: nomeAtk + ' ficou cara a cara. O goleiro adiantou e deixou os cantos abertos; não há companheiro livre para receber.', ajuste: [0.085, -0.025, -0.075] },
-            distancia: { texto: nomeAtk + ' recebe fora da área. O goleiro está encoberto pela defesa; há espaço para um chute forte, mas ninguém livre na área.', ajuste: [-0.060, 0.080, -0.015] },
-            ponta: { texto: nomeAtk + ' avança pela ponta sem ângulo para chutar. Um companheiro aparece livre na área e pede o cruzamento.', ajuste: [-0.030, -0.070, 0.090] }
+            frente: { texto: nomeAtk + ' ficou cara a cara. O goleiro adiantou e deixou os cantos abertos; não há companheiro livre para receber.', ajuste: [0.110, -0.032, -0.098] },
+            distancia: { texto: nomeAtk + ' recebe fora da área. O goleiro está encoberto pela defesa; há espaço para um chute forte, mas ninguém livre na área.', ajuste: [-0.078, 0.104, -0.019] },
+            ponta: { texto: nomeAtk + ' avança pela ponta sem ângulo para chutar. Um companheiro aparece livre na área e pede o cruzamento.', ajuste: [-0.039, -0.091, 0.117] }
         } : {
-            area: { texto: nomeAtk + ' recebe na área congestionada. A zaga está posicionada: fechar a linha do chute é mais seguro que abandonar a área.', ajuste: [-0.080, -0.015, 0.075] },
-            transicao: { texto: nomeAtk + ' conduz uma transição rápida. Sua defesa ainda recompõe: manter a linha evita abrir o corredor com uma saída precipitada.', ajuste: [0.055, -0.075, 0.090] },
-            corredor: { texto: nomeAtk + ' domina de costas no corredor lateral, longe da área. Há cobertura para pressionar antes que ele gire e encontre o passe.', ajuste: [0.070, 0.025, -0.075] }
+            area: { texto: nomeAtk + ' recebe na área congestionada. A zaga está posicionada: fechar a linha do chute é mais seguro que abandonar a área.', ajuste: [-0.104, -0.019, 0.098] },
+            transicao: { texto: nomeAtk + ' conduz uma transição rápida. Sua defesa ainda recompõe: manter a linha evita abrir o corredor com uma saída precipitada.', ajuste: [0.071, -0.098, 0.117] },
+            corredor: { texto: nomeAtk + ' domina de costas no corredor lateral, longe da área. Há cobertura para pressionar antes que ele gire e encontre o passe.', ajuste: [0.091, 0.032, -0.098] }
         };
         const contextoId = Object.prototype.hasOwnProperty.call(contextos, ev.contexto) ? ev.contexto : this._pick(Object.keys(contextos));
         const contexto = contextos[contextoId];
@@ -7748,6 +7880,13 @@ class MatchSim {
             const chance = Math.round(Math.max(0.04, Math.min(0.72, pBase + contexto.ajuste[i] + talento[i])) * 100) / 100;
             return { label, hint: (isUserAttack ? 'Chance de gol: ' : 'Risco de sofrer gol: ') + Math.round(chance * 100) + '%', eff: { p: chance } };
         });
+        // Melhor leitura do contexto (feedback pós-decisão): no ataque a alternativa
+        // que mais aproveita o espaço; na defesa a que menos expõe o gol.
+        let melhorIdx = 0;
+        contexto.ajuste.forEach((v, i) => {
+            const b = contexto.ajuste[melhorIdx];
+            if (isUserAttack ? v > b : v < b) melhorIdx = i;
+        });
         const desc = contexto.texto + ' ' + (isUserAttack ? 'Como orientar a finalização?' : 'Qual postura defensiva?') + ' Percentuais antes da revisão do VAR.';
         MatchUI.prompt(desc, opts, (i, automatico) => {
             i = [0, 1, 2].includes(i) ? i : 1;
@@ -7766,7 +7905,8 @@ class MatchSim {
             // Registra a decisão para o gráfico (desfecho preenchido em _resolverChance).
             this._decisaoPendente = {
                 min: this.minuto, label: rotulo || 'Decisão',
-                isUserAtk: !!isUserAttack, isHome: isHome, resultado: null
+                isUserAtk: !!isUserAttack, isHome: isHome, resultado: null,
+                escolha: i, melhor: melhorIdx, melhorLabel: labels[melhorIdx]
             };
             // Substituição saiu das decisões (2026-09-22): botão dedicado "⚤ SUB"
             // no rodapé da partida — a chance pendente aqui sempre é resolvida.
@@ -8030,6 +8170,32 @@ class MatchSim {
 // --- Facade: orquestração idêntica à v2 (chamadores externos preservados) ---
 const Engine = {
     activeMatch: null,
+    // Participação da última partida do usuário (titulares/entraram/usados).
+    // Sobrevive ao drain de fôlego para alimentar partidas, vestiário e economia.
+    _ultimaParticipacao: null,
+
+    // XP por participação (2026-10-06): titular leva o xpBase inteiro, quem entrou
+    // do banco 55% (menos minutos), banco sem entrar 20% (convivência/treino) e
+    // lesionado/afastado nenhum. Antes o elenco inteiro recebia xpBase.
+    _distribuirXP(userClub, sim, xpBase) {
+        let participacao = null;
+        try { participacao = (sim && sim.participacaoUsuario) ? sim.participacaoUsuario() : null; } catch (e) { participacao = null; }
+        this._ultimaParticipacao = participacao;
+        this._ultimosUsados = participacao ? participacao.usados.slice() : [];
+        const fora = (userClub.elenco || [])
+            .filter(p => p && (p.machucado || ((p.afastadoAte || 0) > (userClub.partidasTotais || 0))))
+            .map(p => p.id);
+        const tabela = calcularXPParticipacao(
+            userClub.elenco,
+            participacao ? participacao.titulares : [],
+            participacao ? participacao.entraram : [],
+            xpBase, fora
+        );
+        (userClub.elenco || []).forEach(p => {
+            const xp = tabela[String(p.id)];
+            if (xp > 0 && typeof p.ganharXP === 'function') p.ganharXP(xp);
+        });
+    },
 
     simulateRound(league, userClub, onTick, onFinish) {
         this.processAITransfers(league);
@@ -8055,13 +8221,15 @@ const Engine = {
             adv.registrarResultado(ag, ug);
 
             const xpBase = Math.round((20 + (ug * 10)) * (typeof app !== 'undefined' && app.diffXPMult ? app.diffXPMult() : 1));
-            userClub.elenco.forEach(p => p.ganharXP(xpBase));
+            this._distribuirXP(userClub, this.activeMatch, xpBase);
 
             this.simulateAIMatches(league, userClub);
 
             const matchScorers = (this.activeMatch && this.activeMatch.matchScorers) || {};
             // G3: guarda quem jogou para o drain pós-jogo não punir o banco.
-            try { Engine._ultimosUsados = (this.activeMatch && this.activeMatch.usadosDoUsuario) ? this.activeMatch.usadosDoUsuario() : []; } catch (e) { Engine._ultimosUsados = []; }
+            if (!this._ultimosUsados) {
+                try { this._ultimosUsados = (this.activeMatch && this.activeMatch.usadosDoUsuario) ? this.activeMatch.usadosDoUsuario() : []; } catch (e) { this._ultimosUsados = []; }
+            }
             // Snapshot das estatísticas/eventos para o resumo pós-jogo.
             try {
                 const m = this.activeMatch;
@@ -8101,9 +8269,11 @@ const Engine = {
             + Math.abs(hashStr(userClub.nome + '|' + adv.nome));
         this.activeMatch = new MatchSim(userClub, adv, onTick, (h, a, pen) => {
             const xpBase = Math.round((20 + (h * 10)) * (typeof app !== 'undefined' && typeof app.diffXPMult === 'function' ? app.diffXPMult() : 1));
-            userClub.elenco.forEach(p => p.ganharXP(xpBase));
+            this._distribuirXP(userClub, this.activeMatch, xpBase);
             const matchScorers = (this.activeMatch && this.activeMatch.matchScorers) || {};
-            try { Engine._ultimosUsados = (this.activeMatch && this.activeMatch.usadosDoUsuario) ? this.activeMatch.usadosDoUsuario() : []; } catch (e) { Engine._ultimosUsados = []; }
+            if (!this._ultimosUsados) {
+                try { this._ultimosUsados = (this.activeMatch && this.activeMatch.usadosDoUsuario) ? this.activeMatch.usadosDoUsuario() : []; } catch (e) { this._ultimosUsados = []; }
+            }
             try {
                 const m = this.activeMatch;
                 Engine._ultimaPartida = m ? {
@@ -8148,68 +8318,182 @@ const Engine = {
                 // Correção 2026-09-22 (feedback de testadores): gols dos jogos IA×IA
                 // nunca eram creditados a jogadores — a artilharia só mostrava quem marcou
                 // nas partidas do usuário. Distribui autoria/assistência como o _marcar.
-                this._quickMarcar(h.elenco, res.h);
-                this._quickMarcar(a.elenco, res.a);
+                // 2026-10-06: RNG da própria partida (seed) em vez de Math.random —
+                // artilharia da IA reproduzível entre reloads (§20 do plano).
+                this._quickMarcar(h.elenco, res.h, res.rng);
+                this._quickMarcar(a.elenco, res.a, res.rng);
             });
         });
     },
 
-    _quickMarcar(elenco, n) {
+    _quickMarcar(elenco, n, rng) {
+        const sortear = typeof rng === 'function' ? rng : Math.random;
         const pool = (elenco || []).filter(p => !p.machucado);
         if (!pool.length) return;
         const ac = p => ({ ATT: 5, MID: 2.5, DEF: 1.2, GK: 0.05 }[p.posicao] || 1) * (p.overall || 50);
         for (let g = 0; g < n; g++) {
             const acc = []; let soma = 0;
             pool.forEach(p => { soma += ac(p); acc.push(soma); });
-            let r = Math.random() * soma, autor = pool[pool.length - 1];
+            let r = sortear() * soma, autor = pool[pool.length - 1];
             for (let i = 0; i < acc.length; i++) { if (r <= acc[i]) { autor = pool[i]; break; } }
             autor.gols = (autor.gols || 0) + 1;
             const camp = pool.filter(p => p.id !== autor.id && (p.posicao === 'MID' || p.posicao === 'ATT'));
             const cand = camp.length ? camp : pool.filter(p => p.id !== autor.id);
-            if (cand.length && Math.random() < 0.55) {
-                const ass = cand[Math.floor(Math.random() * cand.length)];
+            if (cand.length && sortear() < 0.55) {
+                const ass = cand[Math.floor(sortear() * cand.length)];
                 ass.assistencias = (ass.assistencias || 0) + 1;
             }
         }
     },
 
 
+    // ---- Mercado da IA (reescrito 2026-10-06, §12 do plano de evolução) ----
+    // Antes: "tenho > R$200k → compro o maior OVR do mercado" e "elenco > 15 →
+    // vendo o pior". Agora cada clube decide por NECESSIDADE de posição (formação
+    // real), teto de folha salarial, patamar da divisão e momento financeiro — e a
+    // fila de clubes é embaralhada por rodada para todo mundo disputar os mesmos
+    // alvos na mesma ordem. Sem cheats: é o mesmo mercado e as mesmas regras do
+    // usuário (TransferMarket.assinar).
+    _necessidadeElenco(club) {
+        // Alvo por linha segundo a formação do clube + 1 reserva por linha curta.
+        const f = String(club.formacao || '4-4-2');
+        const alvo = { '4-3-3': { GK: 2, DEF: 5, MID: 4, ATT: 4 }, '3-5-2': { GK: 2, DEF: 4, MID: 6, ATT: 3 }, '5-3-2': { GK: 2, DEF: 6, MID: 4, ATT: 3 } }[f]
+            || { GK: 2, DEF: 5, MID: 5, ATT: 3 };
+        const conta = { GK: 0, DEF: 0, MID: 0, ATT: 0 };
+        (club.elenco || []).forEach(p => { const pos = p.posicao || 'MID'; if (conta[pos] != null) conta[pos]++; });
+        const falta = {};
+        Object.keys(alvo).forEach(pos => { falta[pos] = Math.max(0, alvo[pos] - conta[pos]); });
+        return { alvo, conta, falta };
+    },
+    _mediaXI(club) {
+        const el = (club.elenco || []).slice().sort((a, b) => (b.overall || 0) - (a.overall || 0)).slice(0, 11);
+        return el.length ? el.reduce((s, p) => s + (p.overall || 50), 0) / el.length : 55;
+    },
+
     processAITransfers(league) {
         if (typeof app === 'undefined' || !app.marketPlayers) return;
-        // Fase 4: mercados das duas divisões se reforçam (orçamento B é menor -> menos contratações).
-        [1, 2, 3, 4].map(d => CompetitionSystem.clubs(league, d)).forEach(lista => {
-            lista.forEach(c => {
-            if (c.isUser) return;
-            if (c.orcamento > 200000 && app.marketPlayers.length > 0) {
-                const targets = app.marketPlayers.filter(p => p.valor <= c.orcamento);
-                if (targets.length > 0) {
-                    targets.sort((a, b) => b.overall - a.overall);
-                    const best = targets[0];
-                    if (c.contratar(best)) {
-                        app.marketPlayers = app.marketPlayers.filter(p => p.id !== best.id);
-                        league.adicionarNoticia(c.nome + " contratou " + best.nome + "!");
+        if (typeof CompetitionSystem === 'undefined') return;
+        // Ordem de fila embaralhada por rodada: sem ela, os clubes do início da
+        // tabela de clubes sempre levavam os melhores alvos (mesma fila todo turno).
+        const fila = [];
+        [1, 2, 3, 4].forEach(div => {
+            (CompetitionSystem.clubs(league, div) || []).forEach(c => {
+                if (c && !c.isUser) fila.push({ club: c, div });
+            });
+        });
+        const chave = (league.temporada || 1) + ':' + (league.rodada || 1);
+        fila.sort((x, y) => (TransferMarket.hash(x.club.nome + '|' + chave) - TransferMarket.hash(y.club.nome + '|' + chave)));
+
+        fila.forEach(({ club: c, div }) => {
+            if (c.bloqueioContratacoes || c.falencia || c.demitido) return;
+            const elenco = c.elenco || [];
+            if (!elenco.length) return;
+            const necessidade = this._necessidadeElenco(c);
+            const mediaXI = this._mediaXI(c);
+            const folha = elenco.reduce((s, p) => s + (p.salario || 0), 0);
+            // Guarda de caixa: clube endividado ou com folha alta não queima o
+            // orçamento em reforço — precisa de 2 rodadas de salário no caixa.
+            const reserva = Math.max(80000, folha * 2);
+            const orcamentoLivres = (c.orcamento || 0) - reserva;
+
+            // Venda: só elenco realmente grande (18+), nunca o único goleiro, nunca
+            // a maior promessa revelada do plantão — e sempre de uma linha com folga.
+            if (elenco.length > 18) {
+                const vendiveis = elenco.filter(p => {
+                    if (p.machucado) return false;
+                    const pos = p.posicao || 'MID';
+                    if (pos === 'GK' && necessidade.conta.GK <= 2) return false;
+                    if (necessidade.conta[pos] <= (necessidade.alvo[pos] || 3)) return false;
+                    if (p.potencial != null && p.overall < p.potencial - 3) return false; // promessa
+                    return true;
+                });
+                if (vendiveis.length) {
+                    vendiveis.sort((a, b) => (a.overall || 0) - (b.overall || 0));
+                    const alvoVenda = vendiveis[0];
+                    // Só vende se o desfalque não deixa a linha no osso.
+                    if (alvoVenda && c.vender(alvoVenda.id)) {
+                        league.adicionarNoticia('💸 ' + c.nome + ' vendeu ' + alvoVenda.nome + ' e enxugou o elenco.');
                     }
                 }
             }
-            if (c.elenco.length > 15) {
-                c.elenco.sort((a, b) => a.overall - b.overall);
-                const weakest = c.elenco[0];
-                c.vender(weakest.id);
+
+            // Compra: no máximo uma por clube por rodada, e só quando há necessidade
+            // real (linha curta) ou reforço claro acima da média do XI.
+            if (orcamentoLivres <= 0 || !app.marketPlayers.length) return;
+            if ((TransferMarket.hash(c.nome + ':compra:' + chave) % 100) >= 55) return; // nem todo clube toda rodada
+            const linhaCurta = Object.keys(necessidade.falta).filter(pos => necessidade.falta[pos] > 0);
+            // Emergência: linha SEM NINGUÉM (ex.: clube sem goleiro) filtra o mercado
+            // para aquela posição — o maior OVR do mundo não fecha um gol vazio.
+            const emergencia = Object.keys(necessidade.conta).filter(pos => necessidade.conta[pos] === 0);
+            const baseCandidatos = emergencia.length
+                ? app.marketPlayers.filter(p => emergencia.indexOf(p.posicao || 'MID') >= 0)
+                : app.marketPlayers;
+            if (!baseCandidatos.length) return;
+            const candidatos = baseCandidatos
+                .map(p => {
+                    const preco = TransferMarket.contrato(p, false).preco;
+                    const pos = p.posicao || 'MID';
+                    const necessita = necessidade.falta[pos] > 0 ? 1 : 0;
+                    const jovem = p.idade <= 21 && p.potencial != null && p.potencial > (p.overall || 0) + 3;
+                    let nota = ((p.overall || 50) - mediaXI) * 10
+                        + (necessita ? 25 : 0)
+                        + (jovem ? 6 : 0)
+                        - (p.idade >= 33 ? 10 : p.idade >= 30 ? 4 : 0)
+                        - (preco > orcamentoLivres * 0.6 ? 12 : 0);
+                    return { p, preco, nota, pos, necessita };
+                })
+                .filter(x => x.preco <= orcamentoLivres && (x.necessita || x.nota > 8))
+                .sort((a, b) => b.nota - a.nota);
+            const escolhido = candidatos[0];
+            if (!escolhido) return;
+            // Contratação real (mesma API do usuário): valida caixa, luvas e contrato.
+            if (c.contratar(escolhido.p)) {
+                app.marketPlayers = app.marketPlayers.filter(p => p.id !== escolhido.p.id);
+                const porque = linhaCurta.indexOf(escolhido.pos) >= 0
+                    ? 'fechou a linha de ' + escolhido.pos
+                    : 'reforçou o elenco';
+                league.adicionarNoticia('🤝 ' + c.nome + ' contratou ' + escolhido.p.nome + ' (' + escolhido.pos + ', ' + TransferMarket.ovrVisivel(escolhido.p) + ' OVR) — ' + porque + '.');
             }
         });
-    });
     },
 
-    quickSim(h, a) {
+    // seedExtra (opcional): só a bancada de testes usa — permite amostras
+    // independentes sem depender do estado de app.league.
+    quickSim(h, a, seedExtra) {
         const league = typeof app !== 'undefined' ? app.league : null;
-        const seed = [league && league.seed,league && league.temporada,league && league.rodada,h.nome,a.nome].join('|');
-        const sim = new MatchSim(h,a,null,null,{seed,modo:'instantaneo',estilo:h.mentalidade === 'ofensiva' ? 'ofensivo' : 'equilibrado'});
-        sim._emCampo = [sim._xiDoTime(h),sim._xiDoTime(a)];
-        const ch = sim._modeloXG(0), ca = sim._modeloXG(1);
-        // IA em lote: integral dos quatro subticks para evitar rodar milhares de pinturas.
-        const xh = ch.criacao * ch.qualidade * 4 * 94;
-        const xa = ca.criacao * ca.qualidade * 4 * 94;
-        return {h:Math.min(9,sim._poisson(xh)),a:Math.min(9,sim._poisson(xa)),xG:[xh,xa]};
+        const seed = [league && league.seed,league && league.temporada,league && league.rodada,h.nome,a.nome].join('|')
+            + (seedExtra == null ? '' : '|' + seedExtra);
+        const rng = mulberry32((hashStr(String(seed)) >>> 0) || 1);
+        // Elencos CLONADOS: a integração por minuto derruba fôlego virtual dos
+        // clones e nunca toca nos atributos reais salvos dos clubes da IA.
+        const clonar = t => Object.assign({}, t, {
+            elenco: (t.elenco || []).map(p => Object.assign({}, p))
+        });
+        const hc = clonar(h), ac = clonar(a);
+        const sim = new MatchSim(hc, ac, null, null, { seed, modo: 'instantaneo', estilo: hc.mentalidade === 'ofensiva' ? 'ofensivo' : 'equilibrado' });
+        sim._emCampo = [sim._xiDoTime(hc), sim._xiDoTime(ac)];
+        // Integra o MESMO modelo do Rádio detalhado minuto a minuto (§19):
+        // - cada minuto tem 4 subticks de chance, mas só a PRIMEIRA chance vira lance
+        //   (logo a probabilidade de chance é 1-(1-criacao)^4, não 4×criacao);
+        // - fôlego cai como no detalhado (_drenarFolego), rebaixando criação/conversão;
+        // - o VAR anula 8% dos gols no detalhado (_resolverChance) → fator 0,92;
+        // - escanteio (4% dos minutos sem chance) converte com qualidade×0,35, igual
+        //   ao xgEscanteio do _aplicar. Assim rápido e detalhado habitam o mesmo
+        //   universo de gols/xG — a tabela da liga bate com o que o usuário joga.
+        const inicio = sim.startMinute || 0;
+        const minutos = Math.max(1, sim._fimSimulado - inicio);
+        const lam = [0, 0];
+        for (let k = 0; k < minutos; k++) {
+            sim.minuto = inicio + k + 1;
+            sim._drenarFolego();
+            for (let side = 0; side <= 1; side++) {
+                const x = sim._modeloXG(side);
+                const pChance = 1 - Math.pow(1 - Math.max(0, Math.min(0.95, x.criacao)), 4);
+                lam[side] += pChance * x.qualidade * 0.92;
+                lam[side] += (1 - pChance) * 0.04 * x.qualidade * 0.35;
+            }
+        }
+        return { h: Math.min(9, sim._poisson(lam[0])), a: Math.min(9, sim._poisson(lam[1])), xG: lam, rng };
     },
 
 };
@@ -14311,25 +14595,17 @@ const app = {
         // Fase 5: jogador de bom nível (>= 75) é renovado automaticamente com custo (12× salário,
         // igual à renovação manual) se o orçamento cobre; quem não rende sai de graça.
         // Partidas da carreira: contagem por atleta.
-        const expirando = [];
         const res = this.lastResult || null;
+        // Participação real na partida (2026-10-06): partidas, moral e vestiário
+        // contam só quem entrou em campo. ANTES o elenco inteiro somava +1 partida
+        // por rodada (inflava valor de mercado, tier e a hierarquia — aos 15 jogos
+        // TODO mundo virava "Líder de Vestiário") e o ClubEcosystem recebia lista
+        // vazia de usados (aplicarFadiga já tinha zerado Engine._ultimosUsados),
+        // então todo líder era punido como "barrado" em TODA rodada.
+        const part = (typeof Engine !== 'undefined' && Engine._ultimaParticipacao) ? Engine._ultimaParticipacao : null;
+        const idsJogaram = part ? part.usados : (this.club.escalacaoXI || []);
         const deltaMoral = res ? (res.h > res.a ? 2 : (res.h === res.a ? 1 : -2)) : 0;
-        this.club.elenco.forEach(p => {
-            p.contratoRodadas = Math.max(0, (p.contratoRodadas == null ? 8 : p.contratoRodadas) - 1);
-            p.partidas = (p.partidas || 0) + 1;
-            // C3: avalia promoção de tier por marcos (sobe 1 degrau, sem loop).
-            if (typeof p.avaliarPromocaoTier === 'function') {
-                try { p.avaliarPromocaoTier(); } catch (e) { /* promoção nunca quebra o fecho */ }
-            }
-            p.treinoRodada = false; // novo limite de treino pago (Fase 6)
-            // Moral individual (Fase 5): resultado + salário defasado do overall + ausência por lesão.
-            let d = deltaMoral;
-            const justo = (p.overall || 0) * (p.overall || 0);
-            if (justo > 0 && (p.salario || 0) < justo * 0.7) d -= 1; // barato demais pro valor de jogo
-            if ((p.rodadasRecuperacao || 0) > 0) d -= 1;              // fora por lesão: insatisfação
-            if (d !== 0) p.moral = Math.max(0, Math.min(100, (p.moral == null ? 70 : p.moral) + d));
-            if (p.contratoRodadas === 0) expirando.push(p);
-        });
+        const expirando = fecharPartidaElenco(this.club, idsJogaram, deltaMoral);
         const renovados = [], saidas = [];
         expirando.forEach(p => {
             const renovacao = p.overall >= 75 ? TransferMarket.assinar(this.club, p, true) : { ok: false };
@@ -14393,7 +14669,9 @@ const app = {
         if (!this._isDesafio && this.lastResult) {
             ClubEcosystem.afterRound(this.club, this.league, {
                 meusGols: this.lastResult.h, golsAdv: this.lastResult.a,
-                usados: Engine._ultimosUsados || [], userHome
+                // Participação REAL da partida (não Engine._ultimosUsados, que
+                // aplicarFadiga já consumiu — o vestiário depende desta lista).
+                usados: part ? part.usados : (Engine._ultimosUsados || []), userHome
             });
         }
 
