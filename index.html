@@ -937,8 +937,8 @@ body {
     border-left: 3px solid rgba(255,176,0,0.5);
 }
 .feed-min { font-weight: 900; color: #ffb000; flex: none; min-width: 30px; font-family: ui-monospace, Consolas, 'Courier New', monospace; text-shadow: 0 0 6px rgba(255,176,0,0.6); }
-.feed-icon { flex: none; }
-.feed-text { color: #f2e8d2; font-weight: 600; line-height: 1.25; }
+.feed-icon { flex: none; width: 1.25em; text-align: center; }
+.feed-text { color: #f2e8d2; font-weight: 600; line-height: 1.25; overflow-wrap: anywhere; min-width: 0; }
 .feed-info { border-left-color: var(--secondary); }
 .feed-goal { background: rgba(16,185,129,0.16); border-left-color: #34d399; }
 .feed-goal .feed-text { color: #fff; font-weight: 900; }
@@ -948,6 +948,8 @@ body {
 .feed-card { border-left-color: #f5c542; background: rgba(245,197,66,0.12); }
 .feed-corner { border-left-color: #c084fc; background: rgba(192,132,252,0.12); }
 .feed-injury { border-left-color: #f87171; background: rgba(248,113,113,0.14); }
+.feed-goal-rival { background: rgba(239,68,68,0.18); border-left-color: #ef4444; }
+.feed-penalty { border-left-color: #fb923c; background: rgba(251,146,60,0.14); }
 .feed-warn { background: rgba(239,68,68,0.14); border-left-color: #ff5c5c; }
 @keyframes feedIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 
@@ -3337,7 +3339,7 @@ button:focus-visible,summary:focus-visible { outline:3px solid #fff0bd; outline-
     <!-- Narração ao vivo -->
     <div class="match-narrative-section">
       <div id="match-log">Prepare sua estratégia...</div>
-      <div id="ui-match-feed" class="brasfoot-feed"></div>
+      <div id="ui-match-feed" class="brasfoot-feed" role="log" aria-live="polite" aria-label="Lances da partida"></div>
     </div>
 
     <!-- Estatísticas -->
@@ -8980,7 +8982,9 @@ class UI {
       const minText = minuto != null ? (minuto + "'") : "⏱️";
       let icon = "⚡";
       let badgeClass = "feed-info";
-      if ((tipo === 'goal' || /go+ol|gol!|gol do rival|gol de/i.test(text)) && !/anulad|VAR/i.test(text)) {
+      if (/gol do rival|gol contra/i.test(text) && !/anulad|VAR/i.test(text)) {
+        icon = '⚽'; badgeClass = 'feed-goal-rival';
+      } else if ((tipo === 'goal' || /go+ol|gol!|gol de/i.test(text)) && !/anulad|VAR/i.test(text)) {
         icon = "⚽"; badgeClass = "feed-goal";
       } else if (/VAR/i.test(text)) {
         icon = '📺'; badgeClass = 'feed-var';
@@ -8996,7 +9000,9 @@ class UI {
         icon = '🏥'; badgeClass = 'feed-injury';
       } else if (/escanteio/i.test(text)) {
         icon = '🚩'; badgeClass = 'feed-corner';
-      } else if (tipo === 'foul' || /falta|p[eê]nalti/i.test(text)) {
+      } else if (/p[eê]nalti/i.test(text)) {
+        icon = '🥅'; badgeClass = 'feed-penalty';
+      } else if (tipo === 'foul' || /falta/i.test(text)) {
         icon = '👣'; badgeClass = 'feed-foul';
       } else if (tipo === 'warn' || /perigo|contra-ataque|chance clara/i.test(text)) {
         icon = "⚠️"; badgeClass = "feed-warn";
