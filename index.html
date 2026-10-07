@@ -945,6 +945,8 @@ body {
 .feed-def { border-left-color: #22d3ee; }
 .feed-tackle { border-left-color: #34d399; }
 .feed-foul { border-left-color: #ffb000; }
+.feed-card { border-left-color: #f5c542; background: rgba(245,197,66,0.12); }
+.feed-corner { border-left-color: #c084fc; background: rgba(192,132,252,0.12); }
 .feed-warn { background: rgba(239,68,68,0.14); border-left-color: #ff5c5c; }
 @keyframes feedIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 
@@ -8988,9 +8990,11 @@ class UI {
       } else if (/desarme|zaga|afasta/i.test(text)) {
         icon = "🛡️"; badgeClass = "feed-tackle";
       } else if (/cart[aã]o|amarelo/i.test(text)) {
-        icon = "🟨"; badgeClass = "feed-foul";
+        icon = "🟨"; badgeClass = "feed-card";
+      } else if (/escanteio/i.test(text)) {
+        icon = '🚩'; badgeClass = 'feed-corner';
       } else if (tipo === 'foul' || /falta|p[eê]nalti/i.test(text)) {
-        icon = '🛑'; badgeClass = 'feed-foul';
+        icon = '👣'; badgeClass = 'feed-foul';
       } else if (tipo === 'warn' || /perigo|contra-ataque|chance clara/i.test(text)) {
         icon = "⚠️"; badgeClass = "feed-warn";
       }
