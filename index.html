@@ -8980,7 +8980,7 @@ class UI {
       const minText = minuto != null ? (minuto + "'") : "⏱️";
       let icon = "⚡";
       let badgeClass = "feed-info";
-      if (tipo === 'goal' || /go+ol|gol!|gol do rival|gol de/i.test(text) && !/anulad|VAR/i.test(text)) {
+      if ((tipo === 'goal' || /go+ol|gol!|gol do rival|gol de/i.test(text)) && !/anulad|VAR/i.test(text)) {
         icon = "⚽"; badgeClass = "feed-goal";
       } else if (/VAR/i.test(text)) {
         icon = '📺'; badgeClass = 'feed-var';
