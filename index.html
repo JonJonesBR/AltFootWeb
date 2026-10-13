@@ -4,6 +4,11 @@
  <meta charset="UTF-8">
  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
  <title>AltFoot ELITE</title>
+<link rel="manifest" href="manifest.json">
+ <meta name="theme-color" content="#0c0704">
+ <meta name="apple-mobile-web-app-capable" content="yes">
+ <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+ <meta name="apple-mobile-web-app-title" content="AltFoot ELITE">
  <style>
 :root {
     --bg-main: #0c0704;
@@ -15998,6 +16003,42 @@ window.app = app;
     initAllV2();
   }
   window.addEventListener('load', initAllV2);
+})();
+</script>
+<script>
+(function () {
+  // 1. Regista o Service Worker para funcionar 100% offline
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').catch((err) => {
+        console.warn('Aviso SW:', err);
+      });
+    });
+  }
+
+  // 2. Cria botão de instalação rápida no Menu Principal quando suportado
+  let deferredPrompt = null;
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+
+    const menuSlotRow = document.getElementById('menu-slot-row');
+    if (menuSlotRow && !document.getElementById('btn-install-pwa')) {
+      const installBtn = document.createElement('button');
+      installBtn.id = 'btn-install-pwa';
+      installBtn.className = 'btn-secondary';
+      installBtn.style.cssText = 'width: 100%; margin-top: 12px; min-height: 44px; border-color: #ffb000; color: #ffb000;';
+      installBtn.textContent = '📲 INSTALAR APP (JOGAR OFFLINE)';
+      installBtn.addEventListener('click', async () => {
+        if (!deferredPrompt) return;
+        deferredPrompt.prompt();
+        await deferredPrompt.userChoice;
+        deferredPrompt = null;
+        installBtn.remove();
+      });
+      menuSlotRow.parentNode.insertBefore(installBtn, menuSlotRow);
+    }
+  });
 })();
 </script>
 </body>
