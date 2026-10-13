@@ -15617,5 +15617,388 @@ window.app = app;
   window.addEventListener('load', initEnhancements);
 })();
 </script>
+<!-- ====================================================================== -->
+<!-- PACOTE DE EXPANSÃO V2: HOLO 3D, DUELOS 2D, ORDENAÇÃO, ATALHOS E CACHE  -->
+<!-- ====================================================================== -->
+<style>
+  /* Permite reativar o Estádio e o efeito CRT quando o Modo Retrô estiver ativo */
+  body.modo-retro-crt #screen-match::before,
+  body.modo-retro-crt #screen-match::after {
+    display: block !important;
+    opacity: 0.38 !important;
+  }
+  body.modo-retro-crt #screen-match .estadio-gramado {
+    display: block !important;
+    opacity: 0.35 !important;
+  }
+
+  /* Barra de pesquisa e ordenação rápida no Deck */
+  .squad-tools-bar {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .squad-search-input {
+    flex: 1 1 140px;
+    min-height: 36px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--border-bright);
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text);
+    font-size: 0.72rem;
+    font-weight: 700;
+    outline: none;
+  }
+  .squad-search-input:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 10px var(--primary-glow);
+  }
+</style>
+
+<script>
+(function () {
+  'use strict';
+
+  // =========================================================================
+  // 1. PRÉ-CARREGAMENTO INTELIGENTE DOS ÁUDIOS CRÍTICOS (ZERO LATÊNCIA)
+  // =========================================================================
+  function preloadCriticalAudio() {
+    if (!window.altFootNarrator) return;
+    const criticalCategories = ['gol', 'defesa', 'varCheck', 'golAnulado', 'fimDeJogo', 'substituicao'];
+    const base = window.altFootNarrator.basePaths[0];
+    window._altfootAudioCache = window._altfootAudioCache || {};
+
+    criticalCategories.forEach((cat) => {
+      const files = window.altFootNarrator.soundBank[cat] || [];
+      files.forEach((file) => {
+        const url = encodeURI(`${base}/${file}`);
+        if (!window._altfootAudioCache[url]) {
+          const a = new Audio();
+          a.preload = 'auto';
+          a.src = url;
+          window._altfootAudioCache[url] = a;
+        }
+      });
+    });
+  }
+
+  // =========================================================================
+  // 2. EFEITO HOLOGRÁFICO 3D NAS CARTAS OURO E DIAMANTE (--rx, --ry, --foil)
+  // =========================================================================
+  function initHoloCards3D() {
+    document.addEventListener('pointermove', (e) => {
+      const card = e.target.closest('.player-card.rarity-Ouro, .player-card.rarity-Diamante');
+      if (!card || card.classList.contains('is-flipped')) return;
+
+      const rect = card.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const centerX = rect.width / 2;
+      const centerY = rect.height / 2;
+
+      const rotateX = ((y - centerY) / centerY) * -10;
+      const rotateY = ((x - centerX) / centerX) * 10;
+
+      card.style.setProperty('--rx', `${rotateX.toFixed(2)}deg`);
+      card.style.setProperty('--ry', `${rotateY.toFixed(2)}deg`);
+      card.style.setProperty('--foil', '1');
+    }, { passive: true });
+
+    document.addEventListener('pointerout', (e) => {
+      const card = e.target.closest('.player-card.rarity-Ouro, .player-card.rarity-Diamante');
+      if (!card) return;
+      if (!card.contains(e.relatedTarget)) {
+        card.style.setProperty('--rx', '0deg');
+        card.style.setProperty('--ry', '0deg');
+        card.style.setProperty('--foil', '0');
+      }
+    }, { passive: true });
+  }
+
+  // =========================================================================
+  // 3. DUELOS DE MINI-CARTAS, REPLAY BADGE E CELEBRAÇÃO NO CAMPO 2D
+  // =========================================================================
+  function ensurePitchVisualFX() {
+    const campo = document.getElementById('campo-2d');
+    if (!campo) return {};
+
+    let replayBadge = campo.querySelector('.replay-badge');
+    if (!replayBadge) {
+      replayBadge = document.createElement('div');
+      replayBadge.className = 'replay-badge';
+      replayBadge.textContent = 'REPLAY';
+      campo.appendChild(replayBadge);
+    }
+
+    let celebraMini = campo.querySelector('.goal-celebra-mini');
+    if (!celebraMini) {
+      celebraMini = document.createElement('div');
+      celebraMini.className = 'goal-celebra-mini';
+      celebraMini.textContent = '⚽ GOOOOL!';
+      campo.appendChild(celebraMini);
+    }
+
+    let dueloBox = campo.querySelector('.campo-duelo');
+    if (!dueloBox) {
+      dueloBox = document.createElement('div');
+      dueloBox.className = 'campo-duelo';
+      dueloBox.innerHTML = `
+        <div class="duelo-mini d-atk">
+          <div class="dm-pos" id="duelo-atk-pos">ATA</div>
+          <div class="dm-ovr" id="duelo-atk-ovr">82</div>
+          <div class="dm-nome" id="duelo-atk-nome">Atacante</div>
+        </div>
+        <div class="duelo-vs">⚡ VS</div>
+        <div class="duelo-mini d-def">
+          <div class="dm-pos" id="duelo-def-pos">DEF</div>
+          <div class="dm-ovr" id="duelo-def-ovr">79</div>
+          <div class="dm-nome" id="duelo-def-nome">Defensor</div>
+        </div>
+      `;
+      campo.appendChild(dueloBox);
+    }
+
+    return { campo, replayBadge, celebraMini, dueloBox };
+  }
+
+  let dueloTimer = null;
+  function showPitchDuel(atkName, atkPos, atkOvr, defName, defPos, defOvr) {
+    const { dueloBox } = ensurePitchVisualFX();
+    if (!dueloBox) return;
+
+    document.getElementById('duelo-atk-nome').textContent = atkName || 'Ataque';
+    document.getElementById('duelo-atk-pos').textContent = atkPos || 'ATA';
+    document.getElementById('duelo-atk-ovr').textContent = atkOvr || '80';
+
+    document.getElementById('duelo-def-nome').textContent = defName || 'Defesa';
+    document.getElementById('duelo-def-pos').textContent = defPos || 'DEF';
+    document.getElementById('duelo-def-ovr').textContent = defOvr || '78';
+
+    dueloBox.classList.remove('on');
+    void dueloBox.offsetWidth; // Reinicia animação CSS
+    dueloBox.classList.add('on');
+
+    clearTimeout(dueloTimer);
+    dueloTimer = setTimeout(() => {
+      dueloBox.classList.remove('on');
+    }, 2100);
+  }
+
+  function triggerGoalPitchFX(isRivalGoal) {
+    const { replayBadge, celebraMini, campo } = ensurePitchVisualFX();
+    if (celebraMini) {
+      celebraMini.textContent = isRivalGoal ? '🥅 GOL DO RIVAL' : '⚽ GOOOOL!!';
+      celebraMini.style.color = isRivalGoal ? '#f87171' : '#4ade80';
+      celebraMini.classList.remove('on');
+      void celebraMini.offsetWidth;
+      celebraMini.classList.add('on');
+    }
+    if (replayBadge) {
+      replayBadge.classList.add('on');
+      setTimeout(() => replayBadge.classList.remove('on'), 3200);
+    }
+    const bola = campo?.querySelector('.campo-bola');
+    if (bola) {
+      bola.classList.add('rastro');
+      setTimeout(() => bola.classList.remove('rastro'), 3000);
+    }
+  }
+
+  // Observa o feed para acionar os efeitos visuais no Campo 2D
+  function attachPitchFXObserver() {
+    const feedEl = document.getElementById('ui-match-feed');
+    if (!feedEl || feedEl._pitchFXObserved) return;
+    feedEl._pitchFXObserved = true;
+
+    const obs = new MutationObserver((mutations) => {
+      for (const m of mutations) {
+        for (const node of m.addedNodes) {
+          if (!node || node.nodeType !== 1) continue;
+          const cls = node.className || '';
+          const txt = (node.textContent || '').trim();
+
+          if (cls.includes('feed-goal-rival')) {
+            triggerGoalPitchFX(true);
+          } else if (cls.includes('feed-goal')) {
+            triggerGoalPitchFX(false);
+          } else if (cls.includes('feed-def') || cls.includes('feed-tackle')) {
+            // Extrai nomes se disponíveis ou mostra confronto tático
+            const words = txt.replace(/^\d+'\s*/, '').split(/\s+/);
+            const player1 = words.slice(0, 2).join(' ') || 'Atacante';
+            const isSave = cls.includes('feed-def');
+            showPitchDuel(
+              player1,
+              'ATA',
+              Math.floor(75 + Math.random() * 14),
+              isSave ? 'Guarda-Redes' : 'Zagueiro',
+              isSave ? 'GK' : 'DEF',
+              Math.floor(76 + Math.random() * 14)
+            );
+          }
+        }
+      }
+    });
+    obs.observe(feedEl, { childList: true });
+  }
+
+  // =========================================================================
+  // 4. ATALHOS DE TECLADO NA PARTIDA E INDICADORES (.decision-shortcut)
+  // =========================================================================
+  function setupKeyboardShortcuts() {
+    // Adiciona etiquetas [1], [2], [3] nos botões de decisão quando surgirem
+    const decisionBtnsContainer = document.getElementById('match-decision-btns');
+    if (decisionBtnsContainer && !decisionBtnsContainer._shortcutObserved) {
+      decisionBtnsContainer._shortcutObserved = true;
+      const btnObs = new MutationObserver(() => {
+        const btns = decisionBtnsContainer.querySelectorAll('.decision-btn');
+        btns.forEach((btn, idx) => {
+          if (!btn.querySelector('.decision-shortcut')) {
+            const badge = document.createElement('span');
+            badge.className = 'decision-shortcut';
+            badge.textContent = String(idx + 1);
+            btn.prepend(badge);
+          }
+        });
+      });
+      btnObs.observe(decisionBtnsContainer, { childList: true });
+    }
+
+    window.addEventListener('keydown', (e) => {
+      // Ignora se o utilizador estiver a digitar num campo de texto
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) return;
+
+      const matchScreen = document.getElementById('screen-match');
+      if (!matchScreen || matchScreen.classList.contains('hidden')) return;
+
+      const decisionBox = document.getElementById('match-decision');
+      const isDecisionVisible = decisionBox && !decisionBox.classList.contains('hidden');
+
+      // Teclas 1, 2, 3 respondem às decisões do treinador ou mudam velocidade
+      if (['1', '2', '3'].includes(e.key)) {
+        if (isDecisionVisible) {
+          const btns = decisionBox.querySelectorAll('.decision-btn');
+          const targetBtn = btns[parseInt(e.key, 10) - 1];
+          if (targetBtn) {
+            e.preventDefault();
+            targetBtn.click();
+          }
+        } else if (window.app && typeof window.app.setMatchSpeed === 'function') {
+          const speeds = { '1': 1, '2': 2, '3': 4 };
+          window.app.setMatchSpeed(speeds[e.key]);
+        }
+      } else if (e.key.toLowerCase() === 's' && window.app?.abrirSubstituicao) {
+        e.preventDefault();
+        window.app.abrirSubstituicao();
+      } else if (e.key.toLowerCase() === 'c' && window.app?.abrirCartasTaticas) {
+        e.preventDefault();
+        window.app.abrirCartasTaticas();
+      }
+    });
+  }
+
+  // =========================================================================
+  // 5. BARRA DE PESQUISA E ORDENAÇÃO RÁPIDA NO DECK (#subscreen-squad)
+  // =========================================================================
+  function injectSquadSearchAndSort() {
+    const filterBar = document.getElementById('ui-squad-filter-bar');
+    const squadList = document.getElementById('squad-list');
+    if (!filterBar || !squadList || document.getElementById('squad-tools-bar')) return;
+
+    const toolsBar = document.createElement('div');
+    toolsBar.id = 'squad-tools-bar';
+    toolsBar.className = 'squad-tools-bar';
+    toolsBar.innerHTML = `
+      <input type="search" id="squad-search-input" class="squad-search-input" placeholder="🔍 Procurar jogador no deck..." aria-label="Procurar jogador no deck">
+      <button type="button" class="deck-filter-btn" id="btn-sort-ovr" title="Ordenar por maior OVR">⬇️ OVR</button>
+      <button type="button" class="deck-filter-btn" id="btn-sort-cond" title="Ordenar por condição física">🫁 Fôlego</button>
+    `;
+
+    filterBar.parentNode.insertBefore(toolsBar, filterBar.nextSibling);
+
+    const searchInput = document.getElementById('squad-search-input');
+    searchInput.addEventListener('input', () => {
+      const query = searchInput.value.trim().toLowerCase();
+      const cards = squadList.querySelectorAll('.player-card');
+      cards.forEach((card) => {
+        const name = (card.querySelector('.card-name')?.textContent || '').toLowerCase();
+        card.style.display = !query || name.includes(query) ? '' : 'none';
+      });
+    });
+
+    document.getElementById('btn-sort-ovr').addEventListener('click', () => {
+      const cards = Array.from(squadList.querySelectorAll('.player-card'));
+      cards.sort((a, b) => {
+        const ovrA = parseInt(a.querySelector('.card-ovr')?.textContent || '0', 10);
+        const ovrB = parseInt(b.querySelector('.card-ovr')?.textContent || '0', 10);
+        return ovrB - ovrA;
+      });
+      cards.forEach((c) => squadList.appendChild(c));
+    });
+
+    document.getElementById('btn-sort-cond').addEventListener('click', () => {
+      const cards = Array.from(squadList.querySelectorAll('.player-card'));
+      cards.sort((a, b) => {
+        const condA = parseInt((a.querySelector('.card-condition')?.textContent || '100').replace(/\D/g, ''), 10) || 100;
+        const condB = parseInt((b.querySelector('.card-condition')?.textContent || '100').replace(/\D/g, ''), 10) || 100;
+        return condA - condB; // Mostra primeiro quem precisa de descanso
+      });
+      cards.forEach((c) => squadList.appendChild(c));
+    });
+  }
+
+  // =========================================================================
+  // 6. OPÇÃO DE MODO ESTÁDIO & CRT NAS CONFIGURAÇÕES (#modal-settings)
+  // =========================================================================
+  function injectRetroCrtSetting() {
+    const settingsModal = document.querySelector('#modal-settings .modal-content');
+    if (!settingsModal || document.getElementById('set-retro-crt')) return;
+
+    const savedRetro = localStorage.getItem('altfoot_retro_crt') === 'true';
+    if (savedRetro) document.body.classList.add('modo-retro-crt');
+
+    const rows = settingsModal.querySelectorAll('.setting-row');
+    const lastRow = rows[rows.length - 1];
+    if (!lastRow) return;
+
+    const retroRow = document.createElement('div');
+    retroRow.className = 'setting-row';
+    retroRow.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border);';
+    retroRow.innerHTML = `
+      <span>📺 Estádio & Filtro Retrô CRT</span>
+      <button id="set-retro-crt" class="deck-filter-btn ${savedRetro ? 'active' : ''}">${savedRetro ? 'ON' : 'OFF'}</button>
+    `;
+
+    lastRow.parentNode.insertBefore(retroRow, lastRow.nextSibling);
+
+    const btn = document.getElementById('set-retro-crt');
+    btn.addEventListener('click', () => {
+      const isNowActive = document.body.classList.toggle('modo-retro-crt');
+      localStorage.setItem('altfoot_retro_crt', String(isNowActive));
+      btn.textContent = isNowActive ? 'ON' : 'OFF';
+      btn.classList.toggle('active', isNowActive);
+    });
+  }
+
+  function initAllV2() {
+    preloadCriticalAudio();
+    initHoloCards3D();
+    ensurePitchVisualFX();
+    attachPitchFXObserver();
+    setupKeyboardShortcuts();
+    injectSquadSearchAndSort();
+    injectRetroCrtSetting();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initAllV2);
+  } else {
+    initAllV2();
+  }
+  window.addEventListener('load', initAllV2);
+})();
+</script>
 </body>
 </html>
