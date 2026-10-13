@@ -15076,41 +15076,304 @@ window.app = app;
 
 
 
-<!-- === ALTFOOT ELITE: V5 GRAPHICS & ADDICTIVE GAMEPLAY OVERDRIVE === -->
-<style id="altfoot-v5-styles">
-  /* 1. Modo Estádio Retrô CRT opcional */
-  body.modo-retro-crt #screen-match::before,
-  body.modo-retro-crt #screen-match::after {
-    display: block !important;
-    opacity: 0.34 !important;
-  }
-  body.modo-retro-crt #screen-match .estadio-gramado {
-    display: block !important;
-    opacity: 0.32 !important;
+
+
+
+<!-- === ALTFOOT ELITE: V6 TRIPLE-A (AAA) ENGINE EXPANSION === -->
+<style id="altfoot-aaa-styles">
+  /* 1. Visual Broadcast AAA & Glassmorphism */
+  :root {
+    --aaa-gold: #fbbf24;
+    --aaa-neon-green: #10b981;
+    --aaa-cyber-blue: #38bdf8;
+    --aaa-crimson: #f43f5e;
   }
 
-  /* 2. Efeito Screen Shake em Gols e Lances Decisivos */
-  @keyframes matchScreenShake {
-    0%, 100% { transform: translate3d(0, 0, 0); }
-    15% { transform: translate3d(-6px, 4px, 0) rotate(-0.6deg); }
-    30% { transform: translate3d(6px, -4px, 0) rotate(0.6deg); }
-    45% { transform: translate3d(-5px, -3px, 0); }
-    60% { transform: translate3d(5px, 3px, 0); }
-    75% { transform: translate3d(-3px, 2px, 0); }
-  }
-  .match-board.shake-impact {
-    animation: matchScreenShake 0.48s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+  #screen-game header {
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(9, 13, 24, 0.95)) !important;
+    border-bottom: 1px solid rgba(251, 191, 36, 0.35) !important;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.65);
   }
 
-  /* 3. Feixe Holográfico Automático nas Cartas Ouro e Diamante */
+  .bottom-nav {
+    background: linear-gradient(0deg, rgba(9, 13, 24, 0.99), rgba(17, 24, 39, 0.95)) !important;
+    border-top: 1px solid rgba(251, 191, 36, 0.28) !important;
+  }
+
+  /* 2. Placar Estilo Transmissão Champions / Broadcast TV */
+  #screen-match .match-header-card {
+    background:
+      radial-gradient(120% 100% at 50% 0%, rgba(56, 189, 248, 0.16), transparent 60%),
+      linear-gradient(180deg, #0f172a 0%, #090f1d 100%) !important;
+    border: 1px solid rgba(56, 189, 248, 0.38) !important;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
+  }
+  #screen-match .score-big {
+    background: linear-gradient(180deg, #050811 0%, #0f172a 100%) !important;
+    border: 1.5px solid rgba(251, 191, 36, 0.6) !important;
+    color: #fde047 !important;
+    box-shadow: 0 0 22px rgba(251, 191, 36, 0.28), inset 0 0 12px rgba(251, 191, 36, 0.12) !important;
+  }
+
+  /* 3. Canvas 2.5D dentro do #campo-2d */
+  #screen-match #campo-2d {
+    position: relative;
+    border: 2px solid rgba(255, 255, 255, 0.28) !important;
+    border-radius: 14px !important;
+    box-shadow: 0 14px 36px rgba(0, 0, 0, 0.7), inset 0 0 40px rgba(0, 0, 0, 0.55) !important;
+    overflow: hidden;
+  }
+  #aaa-pitch-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+    pointer-events: none;
+  }
+  /* As fichas originais ficam sutis porque o Canvas 2.5D desenha jogadores completos por cima */
+  #screen-match #campo-2d.aaa-canvas-active .campo-chip,
+  #screen-match #campo-2d.aaa-canvas-active .campo-bola,
+  #screen-match #campo-2d.aaa-canvas-active .campo-linhas,
+  #screen-match #campo-2d.aaa-canvas-active .campo-area {
+    opacity: 0 !important;
+  }
+
+  /* 4. Barra de Adrenalina & Botão de Skill-Shot na Partida */
+  .aaa-adrenaline-bar-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 12px;
+    background: linear-gradient(90deg, rgba(15, 23, 42, 0.92), rgba(30, 41, 59, 0.92));
+    border: 1px solid rgba(251, 191, 36, 0.35);
+    margin: 2px 0;
+  }
+  .aaa-adr-label {
+    font-size: 0.66rem;
+    font-weight: 900;
+    letter-spacing: 1px;
+    color: var(--aaa-gold);
+    white-space: nowrap;
+  }
+  .aaa-adr-track {
+    flex: 1;
+    height: 10px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    overflow: hidden;
+    position: relative;
+  }
+  .aaa-adr-fill {
+    height: 100%;
+    width: 0%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #f59e0b, #ef4444, #fbbf24);
+    background-size: 200% 100%;
+    animation: holoSweep 2s linear infinite;
+    transition: width 0.3s ease;
+  }
+  .aaa-skillshot-trigger-btn {
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(251, 191, 36, 0.65);
+    background: linear-gradient(135deg, #fbbf24, #d97706);
+    color: #111827;
+    font-size: 0.68rem;
+    font-weight: 900;
+    letter-spacing: 0.6px;
+    cursor: pointer;
+    white-space: nowrap;
+    box-shadow: 0 0 14px rgba(251, 191, 36, 0.45);
+    transition: transform 0.15s ease, opacity 0.2s ease;
+  }
+  .aaa-skillshot-trigger-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    box-shadow: none;
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-muted);
+    border-color: var(--border);
+  }
+  .aaa-skillshot-trigger-btn:not(:disabled):hover {
+    transform: scale(1.05);
+  }
+
+  /* 5. Mini-Game Interativo 3D de Finalização ("Hora Decisiva") */
+  #aaa-skillshot-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 960;
+    background: radial-gradient(circle at 50% 45%, rgba(6, 18, 38, 0.92), rgba(2, 6, 16, 0.98));
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+  }
+  #aaa-skillshot-modal.hidden {
+    display: none !important;
+  }
+  .ss-box {
+    width: 100%;
+    max-width: 480px;
+    background: linear-gradient(180deg, #0f172a, #090d16);
+    border: 2px solid #fbbf24;
+    border-radius: 18px;
+    padding: 14px;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.85), 0 0 40px rgba(251, 191, 36, 0.25);
+    text-align: center;
+  }
+  .ss-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  .ss-badge {
+    font-size: 0.68rem;
+    font-weight: 900;
+    letter-spacing: 1.5px;
+    color: #111827;
+    background: #fbbf24;
+    padding: 3px 10px;
+    border-radius: 999px;
+  }
+  .ss-Sub {
+    font-size: 0.75rem;
+    color: #cbd5e1;
+    margin-bottom: 8px;
+    font-weight: 700;
+  }
+  #ss-canvas {
+    width: 100%;
+    aspect-ratio: 16 / 10;
+    border-radius: 12px;
+    border: 1.5px solid rgba(255, 255, 255, 0.22);
+    background: #0a2e1c;
+    cursor: crosshair;
+    touch-action: manipulation;
+    display: block;
+  }
+  .ss-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 10px;
+    gap: 8px;
+  }
+
+  /* 6. Laboratório de Evolução & PlayStyles+ (#subscreen-squad) */
+  .aaa-evo-lab {
+    margin: 12px 0 16px;
+    padding: 14px;
+    border-radius: 16px;
+    background:
+      radial-gradient(120% 100% at 100% 0%, rgba(168, 85, 247, 0.18), transparent 55%),
+      linear-gradient(145deg, #131c31 0%, #0b1120 100%);
+    border: 1px solid rgba(168, 85, 247, 0.45);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+  }
+  .aaa-evo-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  .aaa-evo-title {
+    font-size: 0.78rem;
+    font-weight: 900;
+    letter-spacing: 1px;
+    color: #e9d5ff;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .aaa-evo-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .aaa-evo-select {
+    width: 100%;
+    min-height: 40px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.45);
+    border: 1px solid rgba(168, 85, 247, 0.45);
+    color: #fff;
+    font-size: 0.76rem;
+    font-weight: 800;
+  }
+  .aaa-evo-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .aaa-evo-btn {
+    padding: 10px 8px;
+    border-radius: 10px;
+    border: 1px solid rgba(251, 191, 36, 0.5);
+    background: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(168, 85, 247, 0.2));
+    color: #fef08a;
+    font-size: 0.72rem;
+    font-weight: 900;
+    cursor: pointer;
+    transition: transform 0.15s ease, border-color 0.15s ease;
+  }
+  .aaa-evo-btn:hover {
+    transform: translateY(-2px);
+    border-color: #fbbf24;
+  }
+  .playstyle-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 1px 5px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #fbbf24, #d97706);
+    color: #111;
+    font-size: 0.52rem;
+    font-weight: 900;
+    letter-spacing: 0.3px;
+    box-shadow: 0 2px 6px rgba(251, 191, 36, 0.5);
+    margin-left: 3px;
+  }
+
+  /* 7. Complexo Empresarial & Departamentos (#subscreen-clube) */
+  .aaa-dept-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    margin: 14px 0;
+  }
+  .aaa-dept-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 12px 14px;
+    border-radius: 14px;
+    background: linear-gradient(145deg, rgba(15, 23, 42, 0.9), rgba(9, 13, 24, 0.95));
+    border: 1px solid rgba(56, 189, 248, 0.32);
+  }
+  .aaa-dept-info h4 {
+    font-size: 0.82rem;
+    font-weight: 900;
+    color: #fff;
+    margin: 0 0 3px;
+  }
+  .aaa-dept-info p {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    margin: 0;
+  }
+
+  /* 8. Feixe Holográfico Contínuo nas Cartas Ouro e Diamante */
   @keyframes holoSweep {
     0% { background-position: -180% 0; }
     100% { background-position: 220% 0; }
-  }
-  .player-card.rarity-Ouro,
-  .player-card.rarity-Diamante {
-    position: relative;
-    overflow: hidden;
   }
   .player-card.rarity-Ouro::before,
   .player-card.rarity-Diamante::before {
@@ -15122,188 +15385,29 @@ window.app = app;
     background: linear-gradient(
       115deg,
       transparent 28%,
-      rgba(255, 255, 255, 0.22) 45%,
-      rgba(255, 215, 0, 0.28) 50%,
-      rgba(56, 189, 248, 0.22) 55%,
+      rgba(255, 255, 255, 0.24) 45%,
+      rgba(255, 215, 0, 0.30) 50%,
+      rgba(56, 189, 248, 0.24) 55%,
       transparent 72%
     );
     background-size: 220% 100%;
-    animation: holoSweep 4.2s infinite linear;
+    animation: holoSweep 4s infinite linear;
     mix-blend-mode: screen;
     border-radius: inherit;
   }
-  .player-card.rarity-Diamante {
-    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.65), 0 0 18px rgba(56, 189, 248, 0.45) !important;
-  }
 
-  /* 4. Iluminação Dinâmica e Radar no Campo 2D */
-  #screen-match .campo-2d {
-    position: relative;
-    box-shadow: inset 0 0 45px rgba(0, 0, 0, 0.45), 0 8px 24px rgba(0, 0, 0, 0.45) !important;
+  /* 9. Screen Shake, Infra Cards, Filtros e Toast */
+  @keyframes matchScreenShake {
+    0%, 100% { transform: translate3d(0, 0, 0); }
+    15% { transform: translate3d(-7px, 5px, 0) rotate(-0.7deg); }
+    30% { transform: translate3d(7px, -5px, 0) rotate(0.7deg); }
+    45% { transform: translate3d(-5px, -3px, 0); }
+    60% { transform: translate3d(5px, 3px, 0); }
+    75% { transform: translate3d(-3px, 2px, 0); }
   }
-  #screen-match .campo-2d::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    background:
-      radial-gradient(circle at 18% 15%, rgba(255, 255, 255, 0.11), transparent 42%),
-      radial-gradient(circle at 82% 15%, rgba(255, 255, 255, 0.11), transparent 42%),
-      radial-gradient(circle at 50% 50%, rgba(255, 176, 0, 0.05), transparent 60%);
-    z-index: 1;
+  .match-board.shake-impact {
+    animation: matchScreenShake 0.48s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
   }
-  @keyframes pulseRing {
-    0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.85); }
-    70% { box-shadow: 0 0 0 10px rgba(255, 255, 255, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
-  }
-  #screen-match .campo-chip.ativo,
-  #screen-match .campo-chip.atacante {
-    animation: pulseRing 1.1s infinite;
-  }
-  #screen-match .campo-bola {
-    box-shadow: 0 0 12px #fff, 0 0 22px #ffb000 !important;
-  }
-
-  /* 5. Botão Interativo "Inflamar Torcida" na Partida */
-  .crowd-chant-btn {
-    position: relative;
-    overflow: hidden;
-    padding: 11px 12px;
-    border-radius: 10px;
-    border: 1px solid rgba(34, 197, 94, 0.55);
-    background: linear-gradient(135deg, rgba(22, 163, 74, 0.28), rgba(15, 23, 42, 0.9));
-    color: #4ade80;
-    font-weight: 900;
-    font-size: 0.72rem;
-    cursor: pointer;
-    min-height: 42px;
-    transition: transform 0.15s ease, box-shadow 0.2s ease, opacity 0.2s ease;
-  }
-  .crowd-chant-btn:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 0 16px rgba(74, 222, 128, 0.45);
-  }
-  .crowd-chant-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    color: var(--text-muted);
-    border-color: var(--border);
-  }
-  .crowd-chant-btn .chant-cd-bar {
-    position: absolute;
-    left: 0;
-    bottom: 0;
-    height: 3px;
-    width: 0%;
-    background: #4ade80;
-    transition: width 0.2s linear;
-  }
-
-  /* 6. Painel Hot Streak (Sequência Viciante) no Dashboard */
-  .hot-streak-banner {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    padding: 10px 14px;
-    margin-bottom: 12px;
-    border-radius: 14px;
-    background: linear-gradient(135deg, rgba(245, 158, 11, 0.16), rgba(239, 68, 68, 0.12));
-    border: 1px solid rgba(251, 191, 36, 0.4);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
-  }
-  .hot-streak-banner .hs-left {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-  .hot-streak-banner .hs-fire {
-    font-size: 1.45rem;
-    filter: drop-shadow(0 0 10px rgba(245, 158, 11, 0.75));
-    animation: vsPulse 1.4s ease-in-out infinite;
-  }
-  .hot-streak-banner .hs-title {
-    font-size: 0.68rem;
-    font-weight: 900;
-    letter-spacing: 1px;
-    color: var(--gold);
-    text-transform: uppercase;
-  }
-  .hot-streak-banner .hs-sub {
-    font-size: 0.72rem;
-    color: var(--text-muted);
-    font-weight: 700;
-  }
-  .hot-streak-banner .hs-mult {
-    padding: 4px 10px;
-    border-radius: 999px;
-    background: rgba(251, 191, 36, 0.2);
-    border: 1px solid rgba(251, 191, 36, 0.55);
-    color: #fde68a;
-    font-family: ui-monospace, Consolas, monospace;
-    font-size: 0.75rem;
-    font-weight: 900;
-    white-space: nowrap;
-  }
-
-  /* 7. Roleta de Bônus Pós-Jogo (#modal-match-result) */
-  .post-match-roulette {
-    margin: 12px 0 6px;
-    padding: 12px;
-    border-radius: 14px;
-    background: linear-gradient(145deg, rgba(30, 41, 59, 0.85), rgba(15, 23, 42, 0.95));
-    border: 1px solid rgba(251, 191, 36, 0.45);
-    box-shadow: inset 0 0 20px rgba(251, 191, 36, 0.08);
-    text-align: center;
-  }
-  .pmr-title {
-    font-size: 0.68rem;
-    font-weight: 900;
-    letter-spacing: 1.5px;
-    color: var(--gold);
-    text-transform: uppercase;
-    margin-bottom: 6px;
-  }
-  .pmr-slot-window {
-    font-family: ui-monospace, Consolas, monospace;
-    font-size: 0.92rem;
-    font-weight: 900;
-    color: #fff;
-    padding: 8px 12px;
-    border-radius: 10px;
-    background: rgba(0, 0, 0, 0.55);
-    border: 1px solid rgba(255, 176, 0, 0.35);
-    margin-bottom: 8px;
-    min-height: 38px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-shadow: 0 0 10px rgba(251, 191, 36, 0.55);
-  }
-  .pmr-spin-btn {
-    width: 100%;
-    padding: 9px 14px;
-    border-radius: 999px;
-    border: none;
-    background: linear-gradient(135deg, #fbbf24, #d97706);
-    color: #1a1206;
-    font-weight: 900;
-    font-size: 0.78rem;
-    letter-spacing: 0.8px;
-    cursor: pointer;
-    box-shadow: 0 4px 14px rgba(251, 191, 36, 0.4);
-    transition: transform 0.15s ease, opacity 0.2s ease;
-  }
-  .pmr-spin-btn:hover:not(:disabled) {
-    transform: scale(1.02);
-  }
-  .pmr-spin-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  /* 8. Cards de Infraestrutura (#subscreen-clube) */
   .infra-card {
     position: relative;
     border-radius: 16px;
@@ -15314,27 +15418,9 @@ window.app = app;
     padding: 16px;
     margin-bottom: 12px;
     box-shadow: 0 10px 26px rgba(0, 0, 0, 0.45);
-    overflow: hidden;
-    transition: transform 0.2s ease, border-color 0.2s ease;
   }
-  .infra-card:hover {
-    transform: translateY(-2px);
-    border-color: var(--primary);
-  }
-  .infra-card-overlay {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-  }
-  .infra-stars {
-    margin-top: 4px;
-    font-size: 0.95rem;
-    letter-spacing: 2px;
-    filter: drop-shadow(0 0 8px rgba(251, 191, 36, 0.45));
-  }
+  .infra-card-overlay { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
   .upgrade-btn {
-    flex-shrink: 0;
     background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
     color: #1a1206;
     border: none;
@@ -15343,62 +15429,14 @@ window.app = app;
     min-height: 44px;
     font-weight: 900;
     font-size: 0.76rem;
-    letter-spacing: 0.6px;
     cursor: pointer;
-    box-shadow: 0 4px 14px var(--primary-glow);
   }
-
-  /* 9. Barra de ferramentas Deck / Loja / Legenda da Liga */
-  .squad-tools-bar, .market-tools-bar {
-    display: flex;
-    gap: 6px;
-    margin-bottom: 10px;
-    flex-wrap: wrap;
-    align-items: center;
-  }
+  .squad-tools-bar, .market-tools-bar { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; align-items: center; }
   .squad-search-input {
-    flex: 1 1 150px;
-    min-height: 38px;
-    padding: 6px 12px;
-    border-radius: 999px;
-    border: 1px solid var(--border-bright);
-    background: rgba(255, 255, 255, 0.05);
-    color: var(--text);
-    font-size: 0.74rem;
-    font-weight: 700;
-    outline: none;
+    flex: 1 1 150px; min-height: 38px; padding: 6px 12px; border-radius: 999px;
+    border: 1px solid var(--border-bright); background: rgba(255, 255, 255, 0.05);
+    color: var(--text); font-size: 0.74rem; font-weight: 700; outline: none;
   }
-  .squad-search-input:focus {
-    border-color: var(--primary);
-    box-shadow: 0 0 12px var(--primary-glow);
-  }
-  .league-zones-legend {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    justify-content: center;
-    padding: 8px 10px;
-    margin-bottom: 8px;
-    border-radius: 10px;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid var(--border);
-    font-size: 0.66rem;
-    font-weight: 800;
-    color: var(--text-muted);
-  }
-  .league-zones-legend span {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-  }
-  .lz-dot {
-    width: 9px;
-    height: 9px;
-    border-radius: 50%;
-    display: inline-block;
-  }
-
-  /* 10. Toast Flutuante */
   #altfoot-toast {
     position: fixed;
     bottom: calc(70px + var(--safe-bottom));
@@ -15406,82 +15444,68 @@ window.app = app;
     transform: translateX(-50%) translateY(20px);
     z-index: 9999;
     background: rgba(15, 23, 42, 0.96);
-    border: 1px solid var(--primary);
+    border: 1.5px solid #fbbf24;
     color: #fff;
-    padding: 9px 18px;
+    padding: 10px 20px;
     border-radius: 999px;
-    font-size: 0.76rem;
-    font-weight: 800;
-    letter-spacing: 0.4px;
-    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.75);
+    font-size: 0.78rem;
+    font-weight: 900;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.8);
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.22s ease, transform 0.22s ease;
   }
-  #altfoot-toast.show {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
-  }
+  #altfoot-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 </style>
 
-<script id="altfoot-v5-script">
+<!-- Modal Interativo do Mini-Game 3D "Hora Decisiva" -->
+<div id="aaa-skillshot-modal" class="hidden" role="dialog" aria-modal="true" aria-label="Hora Decisiva - Finalização">
+  <div class="ss-box">
+    <div class="ss-header">
+      <span class="ss-badge">⚡ HORA DECISIVA · CHANCE CLARA!</span>
+      <span id="ss-timer-txt" style="font-family:monospace;font-weight:900;color:#fbbf24;font-size:0.85rem;">5.0s</span>
+    </div>
+    <div class="ss-Sub" id="ss-shooter-label">Toque ou clique no alvo dentro da baliza para finalizar no ângulo!</div>
+    <canvas id="ss-canvas" width="460" height="280"></canvas>
+    <div class="ss-footer">
+      <span style="font-size:0.68rem;color:#94a3b8;">🎯 Dica: Os cantos superiores pagam bônus de golaço!</span>
+      <button type="button" class="btn-secondary" id="ss-auto-btn" style="padding:6px 12px;min-height:34px;font-size:0.7rem;">⚡ Chute Automático</button>
+    </div>
+  </div>
+</div>
+
+<script id="altfoot-aaa-script">
 (function () {
   'use strict';
 
   // =========================================================================
-  // 1. DESATIVAÇÃO TOTAL DE NARRAÇÕES (.MP3) + SINTETIZADOR ARCADE WEBAUDIO
+  // 1. SILENCIADOR DE NARRAÇÕES MP3 + SINTETIZADOR POLIFÔNICO AAA
   // =========================================================================
   const NativeAudio = window.Audio;
-
   class SilentNarrationAudio {
     constructor(src = '') {
-      this.src = src;
-      this.volume = 0;
-      this.muted = true;
-      this.paused = true;
-      this.ended = false;
-      this.currentTime = 0;
-      this.duration = 0.05;
-      this.readyState = 4;
+      this.src = src; this.volume = 0; this.muted = true; this.paused = true;
+      this.ended = false; this.currentTime = 0; this.duration = 0.05; this.readyState = 4;
       this._listeners = {};
     }
-    addEventListener(type, fn) {
-      if (!this._listeners[type]) this._listeners[type] = [];
-      this._listeners[type].push(fn);
-      if (['canplaythrough', 'loadeddata', 'loadedmetadata'].includes(type)) {
-        setTimeout(() => this._emit(type), 4);
-      }
+    addEventListener(t, fn) {
+      (this._listeners[t] = this._listeners[t] || []).push(fn);
+      if (['canplaythrough', 'loadeddata', 'loadedmetadata'].includes(t)) setTimeout(() => this._emit(t), 4);
     }
-    removeEventListener(type, fn) {
-      if (!this._listeners[type]) return;
-      this._listeners[type] = this._listeners[type].filter((f) => f !== fn);
+    removeEventListener(t, fn) {
+      if (this._listeners[t]) this._listeners[t] = this._listeners[t].filter(f => f !== fn);
     }
-    _emit(type) {
-      (this._listeners[type] || []).forEach((fn) => {
-        try { fn.call(this, new Event(type)); } catch (_) {}
-      });
-      const handler = this['on' + type];
-      if (typeof handler === 'function') {
-        try { handler.call(this, new Event(type)); } catch (_) {}
-      }
+    _emit(t) {
+      (this._listeners[t] || []).forEach(fn => { try { fn.call(this, new Event(t)); } catch (_) {} });
+      if (typeof this['on' + t] === 'function') { try { this['on' + t](new Event(t)); } catch (_) {} }
     }
     play() {
-      this.paused = false;
-      this._emit('play');
-      setTimeout(() => {
-        this.paused = true;
-        this.ended = true;
-        this._emit('ended');
-      }, 12);
+      this.paused = false; this._emit('play');
+      setTimeout(() => { this.paused = true; this.ended = true; this._emit('ended'); }, 10);
       return Promise.resolve();
     }
-    pause() {
-      this.paused = true;
-      this._emit('pause');
-    }
-    load() {
-      this._emit('canplaythrough');
-    }
+    pause() { this.paused = true; this._emit('pause'); }
+    load() { this._emit('canplaythrough'); }
   }
 
   window.Audio = function (src) {
@@ -15495,164 +15519,50 @@ window.app = app;
   };
   window.Audio.prototype = NativeAudio.prototype;
 
-  // Sintetizador Arcade (0% arquivos externos, 100% WebAudio)
-  const ArcadeSFX = {
+  const AAASound = {
     ctx: null,
-    enabled() {
-      const btn = document.getElementById('set-sfx');
-      if (btn && btn.textContent.trim().toUpperCase() === 'OFF') return false;
-      if (window.app?.settings && window.app.settings.sfx === false) return false;
-      return true;
+    ok() {
+      const b = document.getElementById('set-sfx');
+      if (b && b.textContent.trim().toUpperCase() === 'OFF') return false;
+      return !(window.app?.settings && window.app.settings.sfx === false);
     },
     vol() {
       const el = document.getElementById('set-sfx-vol');
       const v = el ? parseFloat(el.value) : 85;
       return Math.max(0, Math.min(1, (isNaN(v) ? 85 : v) / 100)) * 0.16;
     },
-    _ensureCtx() {
-      if (!this.enabled()) return null;
-      const AC = window.AudioContext || window.webkitAudioContext;
-      if (!AC) return null;
-      if (!this.ctx) this.ctx = new AC();
-      if (this.ctx.state === 'suspended') this.ctx.resume().catch(() => {});
-      return this.ctx;
-    },
-    tone(freq, dur = 0.12, type = 'triangle', delay = 0) {
-      const ctx = this._ensureCtx();
-      if (!ctx) return;
+    tone(freq, dur = 0.14, type = 'triangle', delay = 0) {
+      if (!this.ok()) return;
       try {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        const start = ctx.currentTime + delay;
-        osc.type = type;
-        osc.frequency.setValueAtTime(freq, start);
-        gain.gain.setValueAtTime(0.001, start);
-        gain.gain.linearRampToValueAtTime(this.vol(), start + 0.015);
-        gain.gain.exponentialRampToValueAtTime(0.001, start + dur);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(start);
-        osc.stop(start + dur + 0.02);
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return;
+        if (!this.ctx) this.ctx = new AC();
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+        const o = this.ctx.createOscillator(), g = this.ctx.createGain();
+        const t = this.ctx.currentTime + delay;
+        o.type = type; o.frequency.setValueAtTime(freq, t);
+        g.gain.setValueAtTime(0.001, t);
+        g.gain.linearRampToValueAtTime(this.vol(), t + 0.015);
+        g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+        o.connect(g); g.connect(this.ctx.destination);
+        o.start(t); o.stop(t + dur + 0.02);
       } catch (_) {}
     },
+    kick() { this.tone(130, 0.12, 'sine', 0); this.tone(65, 0.16, 'triangle', 0.02); },
     whistle(double = false) {
-      this.tone(2800, 0.2, 'triangle', 0);
-      if (double) this.tone(2880, 0.34, 'triangle', 0.25);
+      this.tone(2820, 0.2, 'triangle', 0);
+      if (double) this.tone(2900, 0.35, 'triangle', 0.24);
     },
-    goalFanfare() {
-      [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => {
-        this.tone(f, 0.22, 'sawtooth', i * 0.09);
-      });
+    goal() {
+      [523.25, 659.25, 783.99, 1046.5, 1318.5].forEach((f, i) => this.tone(f, 0.24, 'sawtooth', i * 0.08));
     },
-    crowdChant() {
-      [261.63, 329.63, 392.0, 523.25].forEach((f, i) => {
-        this.tone(f, 0.28, 'triangle', i * 0.06);
-      });
-    },
-    slotTick() {
-      this.tone(680 + Math.random() * 240, 0.05, 'sine', 0);
-    },
-    jackpot() {
-      [587.33, 739.99, 880, 1174.66].forEach((f, i) => {
-        this.tone(f, 0.18, 'triangle', i * 0.08);
-      });
+    upgrade() {
+      [440, 554.37, 659.25, 880].forEach((f, i) => this.tone(f, 0.16, 'triangle', i * 0.06));
     }
   };
 
   // =========================================================================
-  // 2. ENGINE DE PARTÍCULAS E FOGOS EM TELA CHEIA (#fx-particles-full)
-  // =========================================================================
-  const ParticleEngine = {
-    particles: [],
-    running: false,
-    areParticlesEnabled() {
-      const btn = document.getElementById('set-particles');
-      if (btn && btn.textContent.trim().toUpperCase() === 'OFF') return false;
-      return true;
-    },
-    burst(type = 'gold') {
-      if (!this.areParticlesEnabled()) return;
-      const canvas = document.getElementById('fx-particles-full');
-      if (!canvas) return;
-
-      canvas.classList.remove('hidden');
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-
-      const palettes = {
-        gold: ['#ffb000', '#fbbf24', '#fef08a', '#ffffff', '#38bdf8'],
-        goal: ['#4ade80', '#22c55e', '#ffb000', '#ffffff', '#facc15'],
-        crowd: ['#3b82f6', '#60a5fa', '#ffb000', '#4ade80']
-      };
-      const colors = palettes[type] || palettes.gold;
-      const count = type === 'goal' ? 95 : 65;
-      const cx = canvas.width / 2;
-      const cy = canvas.height * 0.42;
-
-      for (let i = 0; i < count; i++) {
-        const angle = Math.random() * Math.PI * 2;
-        const speed = 3 + Math.random() * 11;
-        this.particles.push({
-          x: cx + (Math.random() - 0.5) * 80,
-          y: cy + (Math.random() - 0.5) * 40,
-          vx: Math.cos(angle) * speed,
-          vy: Math.sin(angle) * speed - 3,
-          size: 4 + Math.random() * 6,
-          color: colors[Math.floor(Math.random() * colors.length)],
-          alpha: 1,
-          rot: Math.random() * 6.28,
-          vrot: (Math.random() - 0.5) * 0.25
-        });
-      }
-
-      if (!this.running) {
-        this.running = true;
-        this._loop(canvas);
-      }
-    },
-    _loop(canvas) {
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        this.running = false;
-        return;
-      }
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      for (let i = this.particles.length - 1; i >= 0; i--) {
-        const p = this.particles[i];
-        p.x += p.vx;
-        p.y += p.vy;
-        p.vy += 0.24; // gravidade
-        p.vx *= 0.985;
-        p.rot += p.vrot;
-        p.alpha -= 0.016;
-
-        if (p.alpha <= 0 || p.y > canvas.height + 20) {
-          this.particles.splice(i, 1);
-          continue;
-        }
-
-        ctx.save();
-        ctx.globalAlpha = Math.max(0, p.alpha);
-        ctx.translate(p.x, p.y);
-        ctx.rotate(p.rot);
-        ctx.fillStyle = p.color;
-        ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.65);
-        ctx.restore();
-      }
-
-      if (this.particles.length > 0) {
-        requestAnimationFrame(() => this._loop(canvas));
-      } else {
-        this.running = false;
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        canvas.classList.add('hidden');
-      }
-    }
-  };
-
-  // =========================================================================
-  // 3. TOAST E RECOMPENSAS SEGURAS NO ESTADO DO JOGO
+  // 2. TOAST & PARTICLES ENGINE (60 FPS)
   // =========================================================================
   let toastTimer = null;
   function showToast(msg) {
@@ -15665,774 +15575,1046 @@ window.app = app;
     el.textContent = msg;
     el.classList.add('show');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
+    toastTimer = setTimeout(() => el.classList.remove('show'), 2700);
   }
 
-  // Adiciona dinheiro, moral ou fôlego diretamente ao estado do jogo com fallback visual
-  function grantClubReward({ money = 0, moral = 0, folego = 0 }) {
-    const appObj = window.app;
-    if (!appObj) return;
+  const AAAParticles = {
+    list: [],
+    running: false,
+    burst(theme = 'gold') {
+      const btn = document.getElementById('set-particles');
+      if (btn && btn.textContent.trim().toUpperCase() === 'OFF') return;
+      const c = document.getElementById('fx-particles-full');
+      if (!c) return;
+      c.classList.remove('hidden');
+      c.width = window.innerWidth;
+      c.height = window.innerHeight;
+      const cols = theme === 'goal'
+        ? ['#10b981', '#34d399', '#fbbf24', '#ffffff', '#38bdf8']
+        : ['#fbbf24', '#f59e0b', '#fef08a', '#c084fc', '#38bdf8'];
+      const cx = c.width / 2, cy = c.height * 0.42;
+      for (let i = 0; i < 90; i++) {
+        const a = Math.random() * Math.PI * 2;
+        const s = 3 + Math.random() * 12;
+        this.list.push({
+          x: cx, y: cy, vx: Math.cos(a) * s, vy: Math.sin(a) * s - 3,
+          sz: 5 + Math.random() * 6, col: cols[i % cols.length], alpha: 1,
+          rot: Math.random() * 6.2, vrot: (Math.random() - 0.5) * 0.25
+        });
+      }
+      if (!this.running) {
+        this.running = true;
+        this._tick(c);
+      }
+    },
+    _tick(c) {
+      const ctx = c.getContext('2d');
+      if (!ctx) { this.running = false; return; }
+      ctx.clearRect(0, 0, c.width, c.height);
+      for (let i = this.list.length - 1; i >= 0; i--) {
+        const p = this.list[i];
+        p.x += p.vx; p.y += p.vy; p.vy += 0.25; p.vx *= 0.985;
+        p.rot += p.vrot; p.alpha -= 0.016;
+        if (p.alpha <= 0 || p.y > c.height + 20) { this.list.splice(i, 1); continue; }
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, p.alpha);
+        ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+        ctx.fillStyle = p.col;
+        ctx.fillRect(-p.sz / 2, -p.sz / 2, p.sz, p.sz * 0.65);
+        ctx.restore();
+      }
+      if (this.list.length) requestAnimationFrame(() => this._tick(c));
+      else { this.running = false; ctx.clearRect(0, 0, c.width, c.height); c.classList.add('hidden'); }
+    }
+  };
 
-    const candidates = [appObj, appObj.state, appObj.game, appObj.club, appObj.data, appObj.career].filter(Boolean);
-
-    if (money > 0) {
-      let applied = false;
-      for (const target of candidates) {
-        for (const key of ['money', 'dinheiro', 'grana', 'saldo', 'cash', 'budget']) {
-          if (typeof target[key] === 'number') {
-            target[key] += money;
-            applied = true;
+  // =========================================================================
+  // 3. PONTE INTELIGENTE COM O ESTADO INTERNO DO JOGO (AAAStateBridge)
+  // =========================================================================
+  const AAAStateBridge = {
+    getSaveData() {
+      try {
+        return JSON.parse(localStorage.getItem('altfoot_aaa_v6_data') || '{"depts":{"socio":1,"tv":1,"fisio":1},"playstyles":{},"ovrBoosts":{}}');
+      } catch (_) {
+        return { depts: { socio: 1, tv: 1, fisio: 1 }, playstyles: {}, ovrBoosts: {} };
+      }
+    },
+    setSaveData(data) {
+      try { localStorage.setItem('altfoot_aaa_v6_data', JSON.stringify(data)); } catch (_) {}
+    },
+    findClubTargets() {
+      const appObj = window.app;
+      if (!appObj) return [];
+      const out = [appObj];
+      ['state', 'game', 'club', 'data', 'career', 'save', 'user', 'clube'].forEach(k => {
+        if (appObj[k] && typeof appObj[k] === 'object') out.push(appObj[k]);
+      });
+      return out;
+    },
+    getMoney() {
+      for (const t of this.findClubTargets()) {
+        for (const k of ['money', 'dinheiro', 'grana', 'saldo', 'cash', 'orcamento']) {
+          if (typeof t[k] === 'number') return t[k];
+        }
+      }
+      // Fallback: lê do pill #ui-club-money
+      const txt = document.getElementById('ui-club-money')?.textContent || '';
+      const num = parseFloat(txt.replace(/[^\d.,]/g, '').replace(',', '.'));
+      if (!isNaN(num)) return txt.toLowerCase().includes('m') ? num * 1000000 : num * 1000;
+      return 500000;
+    },
+    addMoney(delta) {
+      let updated = false;
+      for (const t of this.findClubTargets()) {
+        for (const k of ['money', 'dinheiro', 'grana', 'saldo', 'cash', 'orcamento']) {
+          if (typeof t[k] === 'number') {
+            if (t[k] + delta < 0) return false;
+            t[k] += delta;
+            updated = true;
             break;
           }
         }
-        if (applied) break;
+        if (updated) break;
       }
-    }
-
-    if (moral > 0) {
-      for (const target of candidates) {
-        for (const key of ['moral', 'morale', 'confianca']) {
-          if (typeof target[key] === 'number') {
-            target[key] = Math.min(100, target[key] + moral);
-            break;
+      this.refreshUI();
+      return true;
+    },
+    getSquadArray() {
+      for (const t of this.findClubTargets()) {
+        for (const k of ['squad', 'elenco', 'players', 'jogadores', 'deck', 'cartas']) {
+          if (Array.isArray(t[k]) && t[k].length > 0 && typeof t[k][0] === 'object') {
+            return t[k];
           }
         }
       }
-    }
+      // Busca profunda de 1 nível
+      for (const t of this.findClubTargets()) {
+        for (const k of Object.keys(t)) {
+          const val = t[k];
+          if (Array.isArray(val) && val.length >= 8 && val[0] && (val[0].ovr || val[0].nome || val[0].name)) {
+            return val;
+          }
+        }
+      }
+      return [];
+    },
+    healSquad(amount = 15) {
+      const squad = this.getSquadArray();
+      squad.forEach(p => {
+        for (const k of ['folego', 'stamina', 'condicao', 'condition', 'energy', 'energia']) {
+          if (typeof p[k] === 'number') p[k] = Math.min(100, p[k] + amount);
+        }
+      });
+      this.refreshUI();
+    },
+    addPlayerGoalInMatch() {
+      // Incrementa o placar no DOM e procura o estado da partida ativa em window.app / window.ui
+      const scoreEl = document.getElementById('match-score');
+      if (scoreEl) {
+        const parts = scoreEl.textContent.split('-').map(s => parseInt(s.trim(), 10));
+        if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+          const myTeamName = (document.getElementById('ui-my-team-name')?.textContent || '').trim();
+          const team2Name = (document.getElementById('team2-nome')?.textContent || '').trim();
+          const isAway = myTeamName && team2Name && team2Name.includes(myTeamName.slice(0, 4));
+          if (isAway) parts[1] += 1;
+          else parts[0] += 1;
+          scoreEl.textContent = `${parts[0]} - ${parts[1]}`;
 
-    if (folego > 0) {
-      for (const target of candidates) {
-        const squad = target.squad || target.elenco || target.players || target.deck;
-        if (Array.isArray(squad)) {
-          squad.forEach((p) => {
-            if (!p || typeof p !== 'object') return;
-            for (const k of ['folego', 'stamina', 'condicao', 'condition', 'energy', 'energia']) {
-              if (typeof p[k] === 'number') {
-                p[k] = Math.min(100, p[k] + folego);
-              }
+          // Sincroniza objetos de partida na memória
+          const roots = [window.app, window.ui, window.app?._match, window.app?.match, window.app?.partida, window.ui?._match].filter(Boolean);
+          roots.forEach(r => {
+            if (isAway) {
+              ['golsFora', 'awayGoals', 'score2', 'gols2', 'placar2'].forEach(k => { if (typeof r[k] === 'number') r[k] = parts[1]; });
+            } else {
+              ['golsCasa', 'homeGoals', 'score1', 'gols1', 'placar1', 'myGoals'].forEach(k => { if (typeof r[k] === 'number') r[k] = parts[0]; });
             }
           });
         }
       }
+    },
+    refreshUI() {
+      try {
+        if (typeof window.ui?.updateHeader === 'function') window.ui.updateHeader();
+        if (typeof window.ui?.updateDashboard === 'function') window.ui.updateDashboard();
+        if (typeof window.ui?.renderSquad === 'function') window.ui.renderSquad();
+        if (typeof window.app?.saveGame === 'function') window.app.saveGame();
+      } catch (_) {}
+      setTimeout(decorateCardsWithPlayStyles, 80);
     }
+  };
 
-    try {
-      if (typeof window.ui?.updateDashboard === 'function') window.ui.updateDashboard();
-      if (typeof window.ui?.updateHeader === 'function') window.ui.updateHeader();
-      if (typeof appObj.saveGame === 'function') appObj.saveGame();
-    } catch (_) {}
+  // =========================================================================
+  // 4. MOTOR GRÁFICO 2.5D EM CANVAS (60 FPS) NO CAMPO (#campo-2d)
+  // =========================================================================
+  const Pitch25DEngine = {
+    canvas: null,
+    ctx: null,
+    ballTrail: [],
+    rainDrops: [],
+    weather: 'clear', // 'clear' ou 'rain'
+    adOffset: 0,
+    goalFlash: 0,
+    lastPassLine: null,
+    lastBallPos: { x: 0.5, y: 0.5 },
+
+    init() {
+      const campo = document.getElementById('campo-2d');
+      if (!campo) return;
+
+      let cv = document.getElementById('aaa-pitch-canvas');
+      if (!cv) {
+        cv = document.createElement('canvas');
+        cv.id = 'aaa-pitch-canvas';
+        campo.prepend(cv);
+      }
+      campo.classList.add('aaa-canvas-active');
+      this.canvas = cv;
+      this.ctx = cv.getContext('2d');
+
+      // Inicializa gotas de chuva para partidas noturnas/clássicos
+      if (this.rainDrops.length === 0) {
+        for (let i = 0; i < 55; i++) {
+          this.rainDrops.push({ x: Math.random(), y: Math.random(), len: 8 + Math.random() * 10, spd: 0.018 + Math.random() * 0.015 });
+        }
+      }
+
+      if (!this._loopStarted) {
+        this._loopStarted = true;
+        requestAnimationFrame(() => this.renderLoop());
+      }
+    },
+
+    renderLoop() {
+      const matchScreen = document.getElementById('screen-match');
+      if (matchScreen && !matchScreen.classList.contains('hidden')) {
+        this.drawFrame();
+      }
+      requestAnimationFrame(() => this.renderLoop());
+    },
+
+    drawFrame() {
+      const campo = document.getElementById('campo-2d');
+      if (!campo || !this.canvas || !this.ctx) return;
+
+      const rect = campo.getBoundingClientRect();
+      if (rect.width < 20 || rect.height < 20) return;
+
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const w = Math.floor(rect.width * dpr);
+      const h = Math.floor(rect.height * dpr);
+      if (this.canvas.width !== w || this.canvas.height !== h) {
+        this.canvas.width = w;
+        this.canvas.height = h;
+      }
+
+      const ctx = this.ctx;
+      ctx.save();
+      ctx.scale(dpr, dpr);
+      const W = rect.width;
+      const H = rect.height;
+
+      // 1. Gramado com faixas em perspectiva e iluminação de estádio
+      const stripeCount = 12;
+      const stripeW = W / stripeCount;
+      for (let i = 0; i < stripeCount; i++) {
+        ctx.fillStyle = i % 2 === 0 ? '#136835' : '#187c40';
+        ctx.fillRect(i * stripeW, 0, stripeW + 1, H);
+      }
+
+      // Vinheta e feixes de refletores nos 4 cantos
+      const vignette = ctx.createRadialGradient(W * 0.5, H * 0.5, W * 0.15, W * 0.5, H * 0.5, W * 0.72);
+      vignette.addColorStop(0, 'rgba(255, 255, 255, 0.05)');
+      vignette.addColorStop(1, 'rgba(3, 12, 6, 0.48)');
+      ctx.fillStyle = vignette;
+      ctx.fillRect(0, 0, W, H);
+
+      // 2. Placa publicitária LED animada no topo do gramado
+      this.adOffset = (this.adOffset + 0.6) % 240;
+      ctx.fillStyle = '#090f1d';
+      ctx.fillRect(0, 0, W, 14);
+      ctx.strokeStyle = 'rgba(251, 191, 36, 0.6)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, 14);
+      ctx.lineTo(W, 14);
+      ctx.stroke();
+
+      ctx.font = '900 8px ui-monospace, Consolas, monospace';
+      ctx.fillStyle = '#fbbf24';
+      for (let x = -this.adOffset; x < W; x += 240) {
+        ctx.fillText('⚡ ALTFOOT ELITE AAA   •   ARENA VIP   •   COPA CONTINENTAL', x + 8, 10);
+      }
+
+      // 3. Linhas oficiais do campo com brilho suave
+      const padX = 10, padY = 18;
+      const pw = W - padX * 2, ph = H - padY - 10;
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.58)';
+      ctx.lineWidth = 1.6;
+      ctx.strokeRect(padX, padY, pw, ph);
+
+      // Linha de meio-campo e círculo central
+      ctx.beginPath();
+      ctx.moveTo(W / 2, padY);
+      ctx.lineTo(W / 2, padY + ph);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(W / 2, padY + ph / 2, Math.min(pw, ph) * 0.16, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Grandes áreas e balizas
+      const areaW = pw * 0.15, areaH = ph * 0.56;
+      const areaY = padY + (ph - areaH) / 2;
+      ctx.strokeRect(padX, areaY, areaW, areaH);
+      ctx.strokeRect(padX + pw - areaW, areaY, areaW, areaH);
+
+      // Balizas com rede
+      const goalW = 6, goalH = ph * 0.24;
+      const goalY = padY + (ph - goalH) / 2;
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.22)';
+      ctx.fillRect(padX - goalW, goalY, goalW, goalH);
+      ctx.fillRect(padX + pw, goalY, goalW, goalH);
+
+      // 4. Lê as fichas (.campo-chip) e a bola (.campo-bola) do DOM
+      const chips = campo.querySelectorAll('.campo-chip');
+      const bolaEl = campo.querySelector('.campo-bola');
+
+      let ballX = W * 0.5, ballY = H * 0.5;
+      if (bolaEl) {
+        const bLeft = parseFloat(bolaEl.style.left || '50') / 100;
+        const bTop = parseFloat(bolaEl.style.top || '50') / 100;
+        ballX = bLeft * W;
+        ballY = Math.max(padY + 4, bTop * H);
+      }
+
+      // Se a bola se moveu significativamente, cria linha de passe a laser
+      const distMove = Math.hypot(ballX - this.lastBallPos.x, ballY - this.lastBallPos.y);
+      if (distMove > 28) {
+        this.lastPassLine = {
+          x1: this.lastBallPos.x, y1: this.lastBallPos.y,
+          x2: ballX, y2: ballY, alpha: 0.85
+        };
+      }
+      this.lastBallPos = { x: ballX, y: ballY };
+
+      if (this.lastPassLine && this.lastPassLine.alpha > 0.02) {
+        ctx.save();
+        ctx.strokeStyle = `rgba(56, 189, 248, ${this.lastPassLine.alpha})`;
+        ctx.lineWidth = 2.2;
+        ctx.setLineDash([5, 4]);
+        ctx.beginPath();
+        ctx.moveTo(this.lastPassLine.x1, this.lastPassLine.y1);
+        ctx.lineTo(this.lastPassLine.x2, this.lastPassLine.y2);
+        ctx.stroke();
+        ctx.restore();
+        this.lastPassLine.alpha *= 0.92;
+      }
+
+      // 5. Desenha cada jogador em 2.5D (Sombra + Anel Tático + Camisa + Rótulo)
+      chips.forEach((chip, idx) => {
+        const px = (parseFloat(chip.style.left || '50') / 100) * W;
+        const py = Math.max(padY + 6, (parseFloat(chip.style.top || '50') / 100) * H);
+        const isHome = chip.classList.contains('casa');
+        const isGk = chip.classList.contains('gk');
+        const isActive = chip.classList.contains('ativo') || chip.classList.contains('atacante') || chip.classList.contains('defensor');
+        const label = chip.querySelector('.chip-label')?.textContent || '';
+
+        const kitColor = isGk ? '#f59e0b' : (isHome ? '#3b82f6' : '#ef4444');
+        const radius = isActive ? 8.5 : 6.8;
+
+        // Sombra elíptica no gramado
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+        ctx.beginPath();
+        ctx.ellipse(px, py + radius - 1, radius * 1.05, radius * 0.45, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Anel de radar pulsante se estiver ativo no lance
+        if (isActive) {
+          ctx.strokeStyle = chip.classList.contains('atacante') ? '#4ade80' : '#fbbf24';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(px, py, radius + 4 + Math.sin(Date.now() * 0.01) * 2, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+
+        // Corpo 2.5D do jogador com gradiente esférico
+        const grad = ctx.createRadialGradient(px - 2, py - 2, 1, px, py, radius);
+        grad.addColorStop(0, '#ffffff');
+        grad.addColorStop(0.28, kitColor);
+        grad.addColorStop(1, '#090d16');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(px, py, radius, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.3;
+        ctx.stroke();
+
+        // Nome do jogador com fundo legível
+        if (label && W > 340) {
+          ctx.font = '800 8.5px Inter, sans-serif';
+          const tw = ctx.measureText(label).width;
+          ctx.fillStyle = 'rgba(8, 14, 26, 0.82)';
+          ctx.fillRect(px - tw / 2 - 3, py + radius + 2, tw + 6, 11);
+          ctx.fillStyle = isActive ? '#fde047' : '#f8fafc';
+          ctx.textAlign = 'center';
+          ctx.fillText(label, px, py + radius + 10);
+        }
+      });
+
+      // 6. Rastro luminoso da bola e Bola 2.5D
+      this.ballTrail.push({ x: ballX, y: ballY, a: 0.75 });
+      if (this.ballTrail.length > 12) this.ballTrail.shift();
+
+      for (let i = 0; i < this.ballTrail.length; i++) {
+        const pt = this.ballTrail[i];
+        const ratio = (i + 1) / this.ballTrail.length;
+        ctx.fillStyle = `rgba(251, 191, 36, ${pt.a * ratio * 0.45})`;
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, 4.5 * ratio, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Sombra da bola + Esfera brilhante
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+      ctx.beginPath();
+      ctx.ellipse(ballX + 1, ballY + 5, 5, 2.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      const bGrad = ctx.createRadialGradient(ballX - 1.5, ballY - 1.5, 1, ballX, ballY, 5.2);
+      bGrad.addColorStop(0, '#ffffff');
+      bGrad.addColorStop(0.7, '#fde047');
+      bGrad.addColorStop(1, '#d97706');
+      ctx.fillStyle = bGrad;
+      ctx.beginPath();
+      ctx.arc(ballX, ballY, 5.2, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 7. Flash de Gol no gramado
+      if (this.goalFlash > 0.02) {
+        ctx.fillStyle = `rgba(251, 191, 36, ${this.goalFlash})`;
+        ctx.fillRect(0, 0, W, H);
+        this.goalFlash *= 0.9;
+      }
+
+      ctx.restore();
+    }
+  };
+
+  // =========================================================================
+  // 5. MINI-GAME INTERATIVO 3D "HORA DECISIVA" (SKILL-SHOT DE FINALIZAÇÃO)
+  // =========================================================================
+  const SkillShotMiniGame = {
+    adrenaline: 40,
+    isOpen: false,
+    gkX: 0.5,
+    gkDir: 1,
+    aimX: 0.5,
+    aimY: 0.45,
+    ballAnim: null,
+    timerId: null,
+
+    addAdrenaline(amount) {
+      this.adrenaline = Math.max(0, Math.min(100, this.adrenaline + amount));
+      const fill = document.getElementById('aaa-adr-fill');
+      const btn = document.getElementById('aaa-ss-btn');
+      if (fill) fill.style.width = `${this.adrenaline}%`;
+      if (btn) {
+        btn.disabled = this.adrenaline < 100;
+        btn.textContent = this.adrenaline >= 100 ? '🎯 FINALIZAR AGORA!' : `⚡ ${Math.floor(this.adrenaline)}%`;
+      }
+    },
+
+    injectBar() {
+      const statsRow = document.getElementById('match-stats');
+      if (!statsRow || document.getElementById('aaa-adr-wrap')) return;
+
+      const wrap = document.createElement('div');
+      wrap.id = 'aaa-adr-wrap';
+      wrap.className = 'aaa-adrenaline-bar-wrap';
+      wrap.style.width = '100%';
+      wrap.innerHTML = `
+        <span class="aaa-adr-label">🔥 ADRENALINA</span>
+        <div class="aaa-adr-track"><div class="aaa-adr-fill" id="aaa-adr-fill" style="width:40%"></div></div>
+        <button type="button" class="aaa-skillshot-trigger-btn" id="aaa-ss-btn" disabled>⚡ 40%</button>
+      `;
+      statsRow.parentNode.insertBefore(wrap, statsRow);
+
+      document.getElementById('aaa-ss-btn')?.addEventListener('click', () => {
+        if (this.adrenaline >= 100) this.open();
+      });
+    },
+
+    open() {
+      if (this.isOpen) return;
+      const modal = document.getElementById('aaa-skillshot-modal');
+      const canvas = document.getElementById('ss-canvas');
+      if (!modal || !canvas) return;
+
+      this.isOpen = true;
+      this.adrenaline = 0;
+      this.addAdrenaline(0);
+      this.ballAnim = null;
+      this.gkX = 0.5;
+      modal.classList.remove('hidden');
+      AAASound.whistle(false);
+
+      // Escolhe o atacante titular de maior OVR para exibir o nome
+      const squad = AAAStateBridge.getSquadArray();
+      const striker = squad.find(p => (p.pos || '').includes('ATT')) || squad[0];
+      const shooterName = striker ? (striker.nome || striker.name || 'Seu Craque') : 'Seu Camisa 9';
+      const lbl = document.getElementById('ss-shooter-label');
+      if (lbl) lbl.textContent = `👟 ${shooterName} na cara do gol! Toque onde quer chutar!`;
+
+      let timeLeft = 5.0;
+      const timerTxt = document.getElementById('ss-timer-txt');
+      clearInterval(this.timerId);
+      this.timerId = setInterval(() => {
+        if (!this.isOpen || this.ballAnim) return;
+        timeLeft = Math.max(0, timeLeft - 0.1);
+        if (timerTxt) timerTxt.textContent = `${timeLeft.toFixed(1)}s`;
+        if (timeLeft <= 0) {
+          this.shoot(0.2 + Math.random() * 0.6, 0.25 + Math.random() * 0.45);
+        }
+      }, 100);
+
+      this._animateCanvas(canvas);
+    },
+
+    shoot(targetX, targetY) {
+      if (this.ballAnim) return;
+      clearInterval(this.timerId);
+      AAASound.kick();
+
+      // Goleiro salta em direção ao chute com chance baseada na precisão no ângulo
+      const isTopCorner = (targetX < 0.26 || targetX > 0.74) && targetY < 0.38;
+      const gkDiveX = this.gkX + (targetX - this.gkX) * (isTopCorner ? 0.55 : 0.82) + (Math.random() - 0.5) * 0.22;
+
+      this.ballAnim = {
+        progress: 0,
+        tx: targetX,
+        ty: targetY,
+        gkTarget: Math.max(0.18, Math.min(0.82, gkDiveX)),
+        isTopCorner
+      };
+    },
+
+    _animateCanvas(canvas) {
+      if (!this.isOpen) return;
+      const ctx = canvas.getContext('2d');
+      const W = canvas.width, H = canvas.height;
+      ctx.clearRect(0, 0, W, H);
+
+      // Céu de estádio e arquibancada
+      const sky = ctx.createLinearGradient(0, 0, 0, H * 0.65);
+      sky.addColorStop(0, '#040914');
+      sky.addColorStop(1, '#0f243c');
+      ctx.fillStyle = sky;
+      ctx.fillRect(0, 0, W, H * 0.62);
+
+      // Gramado 3D
+      const grass = ctx.createLinearGradient(0, H * 0.6, 0, H);
+      grass.addColorStop(0, '#14532d');
+      grass.addColorStop(1, '#166534');
+      ctx.fillStyle = grass;
+      ctx.fillRect(0, H * 0.6, W, H * 0.4);
+
+      // Traves da baliza em perspectiva
+      const gx = W * 0.14, gy = H * 0.16, gw = W * 0.72, gh = H * 0.46;
+
+      // Rede da baliza
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
+      ctx.lineWidth = 1;
+      for (let x = gx; x <= gx + gw; x += 16) {
+        ctx.beginPath(); ctx.moveTo(x, gy); ctx.lineTo(x, gy + gh); ctx.stroke();
+      }
+      for (let y = gy; y <= gy + gh; y += 14) {
+        ctx.beginPath(); ctx.moveTo(gx, y); ctx.lineTo(gx + gw, y); ctx.stroke();
+      }
+
+      // Alvos de "Gaveta" (Ângulos Superiores)
+      ctx.strokeStyle = 'rgba(251, 191, 36, 0.65)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(gx + 6, gy + 6, 56, 44);
+      ctx.strokeRect(gx + gw - 62, gy + 6, 56, 44);
+      ctx.font = '900 9px monospace';
+      ctx.fillStyle = '#fbbf24';
+      ctx.fillText('2× GAVETA', gx + 10, gy + 20);
+      ctx.fillText('2× GAVETA', gx + gw - 58, gy + 20);
+
+      // Traves brancas
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 5;
+      ctx.strokeRect(gx, gy, gw, gh);
+
+      // Movimento do Goleiro
+      if (!this.ballAnim) {
+        this.gkX += 0.011 * this.gkDir;
+        if (this.gkX > 0.72) this.gkDir = -1;
+        if (this.gkX < 0.28) this.gkDir = 1;
+      } else {
+        this.gkX += (this.ballAnim.gkTarget - this.gkX) * 0.18;
+      }
+
+      const keeperPx = gx + this.gkX * gw;
+      const keeperPy = gy + gh * 0.62;
+
+      // Desenha o Goleiro
+      ctx.fillStyle = '#f43f5e';
+      ctx.beginPath();
+      ctx.roundRect(keeperPx - 22, keeperPy - 26, 44, 52, 8);
+      ctx.fill();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Luvas do goleiro
+      ctx.fillStyle = '#fbbf24';
+      ctx.beginPath();
+      ctx.arc(keeperPx - 28, keeperPy - 8, 8, 0, Math.PI * 2);
+      ctx.arc(keeperPx + 28, keeperPy - 8, 8, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Bola na marca do pênalti / em voo
+      let bx = W * 0.5, by = H * 0.88, br = 14;
+      if (this.ballAnim) {
+        this.ballAnim.progress += 0.065;
+        const p = Math.min(1, this.ballAnim.progress);
+        const targetPx = gx + this.ballAnim.tx * gw;
+        const targetPy = gy + this.ballAnim.ty * gh;
+        bx = W * 0.5 + (targetPx - W * 0.5) * p;
+        by = H * 0.88 + (targetPy - H * 0.88) * p - Math.sin(p * Math.PI) * 38;
+        br = 14 * (1 - p * 0.45);
+
+        if (p >= 1 && !this.ballAnim.resolved) {
+          this.ballAnim.resolved = true;
+          const distToGk = Math.hypot(targetPx - keeperPx, targetPy - keeperPy);
+          const isSaved = distToGk < 34 && !this.ballAnim.isTopCorner;
+
+          if (!isSaved) {
+            // GOL MARCADO!
+            AAASound.goal();
+            AAAParticles.burst('goal');
+            AAAStateBridge.addPlayerGoalInMatch();
+            const prize = this.ballAnim.isTopCorner ? 40000 : 20000;
+            AAAStateBridge.addMoney(prize);
+            Pitch25DEngine.goalFlash = 0.65;
+            showToast(this.ballAnim.isTopCorner ? `🚀 GOLAÇO NA GAVETA! +1 Gol & +R$ 40k!` : `⚽ GOOOOL CONFIRMADO! +1 Gol & +R$ 20k!`);
+          } else {
+            AAASound.whistle(false);
+            showToast('🧤 DEFESAÇA DO GOLEIRO! Quase foi gol!');
+          }
+
+          setTimeout(() => {
+            this.isOpen = false;
+            document.getElementById('aaa-skillshot-modal')?.classList.add('hidden');
+          }, 950);
+        }
+      }
+
+      // Desenha a bola
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(bx, by, br, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#fbbf24';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      if (this.isOpen) requestAnimationFrame(() => this._animateCanvas(canvas));
+    }
+  };
+
+  function bindSkillShotEvents() {
+    const canvas = document.getElementById('ss-canvas');
+    if (canvas && !canvas._bound) {
+      canvas._bound = true;
+      canvas.addEventListener('pointerdown', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const x = (e.clientX - rect.left) / rect.width;
+        const y = (e.clientY - rect.top) / rect.height;
+        // Converte clique para coordenada relativa da baliza
+        const tx = Math.max(0.05, Math.min(0.95, (x - 0.14) / 0.72));
+        const ty = Math.max(0.08, Math.min(0.92, (y - 0.16) / 0.46));
+        SkillShotMiniGame.shoot(tx, ty);
+      });
+    }
+    const autoBtn = document.getElementById('ss-auto-btn');
+    if (autoBtn && !autoBtn._bound) {
+      autoBtn._bound = true;
+      autoBtn.addEventListener('click', () => {
+        SkillShotMiniGame.shoot(0.15 + Math.random() * 0.7, 0.15 + Math.random() * 0.45);
+      });
+    }
   }
 
   // =========================================================================
-  // 4. SISTEMA DE HOT STREAK (COMBO DE VITÓRIAS NO DASHBOARD)
+  // 6. LABORATÓRIO DE EVOLUÇÃO & PLAYSTYLES+ (#subscreen-squad)
   // =========================================================================
-  function getStreak() {
-    return Math.max(0, parseInt(localStorage.getItem('altfoot_win_streak') || '0', 10) || 0);
+  const PLAYSTYLES_CATALOG = [
+    { id: 'TRIVELA', badge: '🚀 TRIVELA+' },
+    { id: 'LASER', badge: '🎯 LASER+' },
+    { id: 'TURBO', badge: '⚡ TURBO 99' },
+    { id: 'PAREDAO', badge: '🧱 PAREDÃO+' },
+    { id: 'MAESTRO', badge: '👑 MAESTRO+' }
+  ];
+
+  function decorateCardsWithPlayStyles() {
+    const save = AAAStateBridge.getSaveData();
+    document.querySelectorAll('#squad-list .player-card').forEach(card => {
+      const nameEl = card.querySelector('.card-name');
+      const posEl = card.querySelector('.card-pos');
+      const ovrEl = card.querySelector('.card-ovr');
+      if (!nameEl || !posEl) return;
+      const pName = nameEl.textContent.trim();
+
+      if (save.ovrBoosts[pName] && ovrEl && !ovrEl._aaaBoosted) {
+        ovrEl._aaaBoosted = true;
+      }
+
+      const ps = save.playstyles[pName];
+      if (ps && !card.querySelector('.playstyle-badge')) {
+        const b = document.createElement('span');
+        b.className = 'playstyle-badge';
+        b.textContent = ps;
+        posEl.appendChild(b);
+      }
+    });
   }
-  function setStreak(val) {
-    const v = Math.max(0, val);
-    localStorage.setItem('altfoot_win_streak', String(v));
-    renderHotStreakBanner();
-    return v;
-  }
 
-  function renderHotStreakBanner() {
-    const dash = document.getElementById('subscreen-dashboard');
-    const heroCard = dash?.querySelector('.hero-match-card');
-    if (!dash || !heroCard) return;
+  function injectEvolutionLab() {
+    const squadSub = document.getElementById('subscreen-squad');
+    const filterBar = document.getElementById('ui-squad-filter-bar');
+    if (!squadSub || !filterBar || document.getElementById('aaa-evo-lab')) return;
 
-    let banner = document.getElementById('hot-streak-banner');
-    if (!banner) {
-      banner = document.createElement('div');
-      banner.id = 'hot-streak-banner';
-      banner.className = 'hot-streak-banner';
-      heroCard.parentNode.insertBefore(banner, heroCard.nextSibling);
-    }
-
-    const streak = getStreak();
-    const bonusCash = Math.min(200, Math.max(25, (streak + 1) * 25));
-    const fireIcons = streak >= 5 ? '🔥🔥🔥' : streak >= 2 ? '🔥🔥' : '🔥';
-
-    banner.innerHTML = `
-      <div class="hs-left">
-        <span class="hs-fire">${fireIcons}</span>
-        <div>
-          <div class="hs-title">SEQUÊNCIA DE VITÓRIAS: ${streak} ${streak === 1 ? 'JOGO' : 'JOGOS'}</div>
-          <div class="hs-sub">${streak > 0 ? 'Mantenha a invencibilidade para multiplicar a premiação!' : 'Vença a próxima partida para iniciar o Combo da Torcida!'}</div>
+    const lab = document.createElement('div');
+    lab.id = 'aaa-evo-lab';
+    lab.className = 'aaa-evo-lab';
+    lab.innerHTML = `
+      <div class="aaa-evo-header">
+        <div class="aaa-evo-title">🧬 LABORATÓRIO DE EVOLUÇÃO & PLAYSTYLES+</div>
+        <span style="font-size:0.65rem;color:#c084fc;font-weight:800;">TREINO DE ELITE</span>
+      </div>
+      <div class="aaa-evo-grid">
+        <select id="aaa-evo-player-select" class="aaa-evo-select" aria-label="Escolher jogador para evoluir">
+          <option value="">Selecione um jogador do seu elenco...</option>
+        </select>
+        <div class="aaa-evo-actions">
+          <button type="button" class="aaa-evo-btn" id="btn-evo-ovr">⬆️ +1 OVR DEFINITIVO (R$ 120k)</button>
+          <button type="button" class="aaa-evo-btn" id="btn-evo-playstyle">🌟 EQUIPAR PLAYSTYLE+ (R$ 90k)</button>
         </div>
       </div>
-      <div class="hs-mult">+R$ ${bonusCash}k / VITÓRIA</div>
     `;
+    filterBar.parentNode.insertBefore(lab, filterBar);
+
+    const selectEl = document.getElementById('aaa-evo-player-select');
+    const populateSelect = () => {
+      if (!selectEl) return;
+      const currentVal = selectEl.value;
+      const squad = AAAStateBridge.getSquadArray();
+      selectEl.innerHTML = '<option value="">Selecione um jogador do seu elenco...</option>';
+      if (squad.length > 0) {
+        squad.forEach((p, idx) => {
+          const nm = p.nome || p.name || `Jogador ${idx + 1}`;
+          const ov = p.ovr || p.overall || 70;
+          const ps = p.pos || p.posicao || '';
+          const opt = document.createElement('option');
+          opt.value = nm;
+          opt.textContent = `${ps ? '[' + ps + '] ' : ''}${nm} — OVR ${ov}`;
+          selectEl.appendChild(opt);
+        });
+      } else {
+        // Fallback: lê dos cartões no DOM
+        document.querySelectorAll('#squad-list .player-card').forEach(c => {
+          const nm = c.querySelector('.card-name')?.textContent?.trim();
+          const ov = c.querySelector('.card-ovr')?.textContent?.trim();
+          if (nm) {
+            const opt = document.createElement('option');
+            opt.value = nm;
+            opt.textContent = `${nm} — OVR ${ov || ''}`;
+            selectEl.appendChild(opt);
+          }
+        });
+      }
+      if (currentVal) selectEl.value = currentVal;
+    };
+
+    selectEl?.addEventListener('focus', populateSelect);
+    document.getElementById('nav-squad')?.addEventListener('click', () => setTimeout(() => {
+      populateSelect();
+      decorateCardsWithPlayStyles();
+    }, 120));
+
+    // Evoluir +1 OVR
+    document.getElementById('btn-evo-ovr')?.addEventListener('click', () => {
+      populateSelect();
+      const chosenName = selectEl?.value;
+      if (!chosenName) {
+        showToast('⚠️ Escolha um jogador na lista primeiro!');
+        return;
+      }
+      if (AAAStateBridge.getMoney() < 120000) {
+        showToast('🔒 Saldo insuficiente! Precisa de R$ 120k.');
+        return;
+      }
+
+      const squad = AAAStateBridge.getSquadArray();
+      const player = squad.find(p => (p.nome || p.name) === chosenName);
+      if (player) {
+        if (typeof player.ovr === 'number') player.ovr = Math.min(99, player.ovr + 1);
+        if (typeof player.overall === 'number') player.overall = Math.min(99, player.overall + 1);
+        ['vel', 'fin', 'pas', 'dri', 'def', 'fis', 'atk', 'mid'].forEach(stat => {
+          if (typeof player[stat] === 'number') player[stat] = Math.min(99, player[stat] + 2);
+        });
+      }
+
+      // Atualiza também no DOM imediatamente
+      document.querySelectorAll('#squad-list .player-card').forEach(c => {
+        const nm = c.querySelector('.card-name')?.textContent?.trim();
+        const ovEl = c.querySelector('.card-ovr');
+        if (nm === chosenName && ovEl) {
+          const cur = parseInt(ovEl.textContent || '70', 10);
+          if (!isNaN(cur)) ovEl.textContent = String(Math.min(99, cur + 1));
+        }
+      });
+
+      const save = AAAStateBridge.getSaveData();
+      save.ovrBoosts[chosenName] = (save.ovrBoosts[chosenName] || 0) + 1;
+      AAAStateBridge.setSaveData(save);
+
+      AAAStateBridge.addMoney(-120000);
+      AAASound.upgrade();
+      AAAParticles.burst('gold');
+      populateSelect();
+      showToast(`⬆️ ${chosenName} evoluiu +1 de OVR permanentemente!`);
+    });
+
+    // Equipar PlayStyle+
+    document.getElementById('btn-evo-playstyle')?.addEventListener('click', () => {
+      populateSelect();
+      const chosenName = selectEl?.value;
+      if (!chosenName) {
+        showToast('⚠️ Escolha um jogador na lista primeiro!');
+        return;
+      }
+      if (AAAStateBridge.getMoney() < 90000) {
+        showToast('🔒 Saldo insuficiente! Precisa de R$ 90k.');
+        return;
+      }
+
+      const ps = PLAYSTYLES_CATALOG[Math.floor(Math.random() * PLAYSTYLES_CATALOG.length)];
+      const save = AAAStateBridge.getSaveData();
+      save.playstyles[chosenName] = ps.badge;
+      AAAStateBridge.setSaveData(save);
+
+      const squad = AAAStateBridge.getSquadArray();
+      const player = squad.find(p => (p.nome || p.name) === chosenName);
+      if (player && typeof player.ovr === 'number') {
+        player.ovr = Math.min(99, player.ovr + 1);
+      }
+
+      AAAStateBridge.addMoney(-90000);
+      AAASound.upgrade();
+      AAAParticles.burst('gold');
+      decorateCardsWithPlayStyles();
+      showToast(`🌟 ${chosenName} desbloqueou o PlayStyle+ ${ps.badge}!`);
+    });
   }
 
   // =========================================================================
-  // 5. ROLETA DE PRÊMIOS PÓS-JOGO (#modal-match-result)
+  // 7. COMPLEXO EMPRESARIAL & DEPARTAMENTOS (#subscreen-clube)
   // =========================================================================
-  function injectPostMatchRoulette() {
-    const summaryEl = document.getElementById('modal-result-summary');
-    if (!summaryEl) return;
+  function injectClubDepartments() {
+    const clubeSub = document.getElementById('subscreen-clube');
+    const museumBox = document.getElementById('museum-summary')?.parentNode;
+    if (!clubeSub || !museumBox || document.getElementById('aaa-dept-section')) return;
 
-    let box = document.getElementById('post-match-roulette');
-    if (!box) {
-      box = document.createElement('div');
-      box.id = 'post-match-roulette';
-      box.className = 'post-match-roulette';
-      summaryEl.parentNode.insertBefore(box, summaryEl.nextSibling);
-    }
-
-    box.innerHTML = `
-      <div class="pmr-title">🎰 BÔNUS EXTRA PÓS-JOGO (1 GIRO GRÁTIS)</div>
-      <div class="pmr-slot-window" id="pmr-slot-display">🎁 Gire para sortear um prêmio para o clube!</div>
-      <button type="button" class="pmr-spin-btn" id="pmr-spin-btn">🎰 GIRAR ROLETA DE PRÊMIOS</button>
+    const sec = document.createElement('div');
+    sec.id = 'aaa-dept-section';
+    sec.innerHTML = `
+      <h2 style="font-size:1.05rem;margin:18px 0 8px;">🏢 DEPARTAMENTOS DE ELITE (RENDA & FISIOTERAPIA)</h2>
+      <div class="aaa-dept-grid" id="aaa-dept-grid"></div>
     `;
+    clubeSub.insertBefore(sec, museumBox);
+    renderClubDepartments();
+  }
 
-    const spinBtn = document.getElementById('pmr-spin-btn');
-    const display = document.getElementById('pmr-slot-display');
-    if (!spinBtn || !display) return;
+  function renderClubDepartments() {
+    const grid = document.getElementById('aaa-dept-grid');
+    if (!grid) return;
+    const save = AAAStateBridge.getSaveData();
+    const d = save.depts || { socio: 1, tv: 1, fisio: 1 };
 
-    const prizes = [
-      { label: '💰 +R$ 50k de Bilheteria Extra!', fn: () => grantClubReward({ money: 50000 }) },
-      { label: '🫁 +20% Fôlego para Todo o Elenco!', fn: () => grantClubReward({ folego: 20 }) },
-      { label: '💎 Bônus do Patrocinador: +R$ 100k!', fn: () => grantClubReward({ money: 100000 }) },
-      { label: '😊 Vestiário Unido: +12% Moral & +R$ 35k!', fn: () => grantClubReward({ moral: 12, money: 35000 }) },
-      { label: '🏆 Prêmio Máximo da Rodada: +R$ 150k!', fn: () => grantClubReward({ money: 150000 }) }
+    const items = [
+      {
+        key: 'socio',
+        title: `🎟️ Programa Sócio-Torcedor VIP (Nv. ${d.socio})`,
+        desc: `Gera +R$ ${d.socio * 25}k garantidos ao fim de cada partida`,
+        cost: d.socio * 110000
+      },
+      {
+        key: 'tv',
+        title: `📡 Direitos Internacionais de TV (Nv. ${d.tv})`,
+        desc: `Bônus de +R$ ${d.tv * 40}k por cada vitória na temporada`,
+        cost: d.tv * 140000
+      },
+      {
+        key: 'fisio',
+        title: `🧬 Centro de Fisioterapia & Criogenia (Nv. ${d.fisio})`,
+        desc: `Recupera +${d.fisio * 5}% de fôlego extra para todo o elenco pós-jogo`,
+        cost: d.fisio * 100000
+      }
     ];
 
-    spinBtn.addEventListener('click', () => {
-      if (spinBtn.disabled) return;
-      spinBtn.disabled = true;
-      spinBtn.textContent = '⏳ SORTEANDO...';
+    grid.innerHTML = items.map(it => `
+      <div class="aaa-dept-card">
+        <div class="aaa-dept-info">
+          <h4>${it.title}</h4>
+          <p>${it.desc}</p>
+        </div>
+        <button type="button" class="upgrade-btn" data-dept="${it.key}" data-cost="${it.cost}">
+          EVOLUIR (R$ ${Math.round(it.cost / 1000)}k)
+        </button>
+      </div>
+    `).join('');
 
-      let ticks = 0;
-      const maxTicks = 16;
-      const interval = setInterval(() => {
-        ArcadeSFX.slotTick();
-        const randomItem = prizes[ticks % prizes.length];
-        display.textContent = randomItem.label;
-        ticks++;
-
-        if (ticks >= maxTicks) {
-          clearInterval(interval);
-          const winner = prizes[Math.floor(Math.random() * prizes.length)];
-          display.textContent = '🎉 ' + winner.label;
-          spinBtn.textContent = '✔ PRÊMIO RESGATADO!';
-          winner.fn();
-          ArcadeSFX.jackpot();
-          ParticleEngine.burst('gold');
-          showToast(winner.label);
+    grid.querySelectorAll('[data-dept]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const key = btn.getAttribute('data-dept');
+        const cost = parseInt(btn.getAttribute('data-cost') || '100000', 10);
+        if (AAAStateBridge.getMoney() < cost) {
+          showToast(`🔒 Saldo insuficiente! Precisa de R$ ${Math.round(cost / 1000)}k.`);
+          return;
         }
-      }, 85);
+        const s = AAAStateBridge.getSaveData();
+        s.depts[key] = (s.depts[key] || 1) + 1;
+        AAAStateBridge.setSaveData(s);
+        AAAStateBridge.addMoney(-cost);
+        AAASound.upgrade();
+        AAAParticles.burst('gold');
+        renderClubDepartments();
+        showToast('🏢 Departamento evoluído com sucesso!');
+      });
     });
   }
 
   // =========================================================================
-  // 6. BOTÃO INTERATIVO "INFLAMAR TORCIDA" DURANTE A PARTIDA
+  // 8. OBSERVADORES DE PARTIDA, ADRENALINA E RECOMPENSAS AUTOMÁTICAS
   // =========================================================================
-  function injectCrowdChantButton() {
-    const footerRow = document.querySelector('#screen-match .match-footer-row');
-    if (!footerRow || document.getElementById('btn-crowd-chant')) return;
-
-    const btn = document.createElement('button');
-    btn.id = 'btn-crowd-chant';
-    btn.type = 'button';
-    btn.className = 'crowd-chant-btn';
-    btn.title = 'Inflamar a arquibancada para empurrar o time (Atalho: T)';
-    btn.innerHTML = `📣 TORCIDA<span class="chant-cd-bar" id="chant-cd-bar"></span>`;
-
-    footerRow.insertBefore(btn, footerRow.lastElementChild);
-
-    let cooldown = false;
-    btn.addEventListener('click', () => {
-      if (cooldown) return;
-      cooldown = true;
-      btn.disabled = true;
-
-      ArcadeSFX.crowdChant();
-      ParticleEngine.burst('crowd');
-
-      const estadioBg = document.querySelector('#screen-match .estadio-bg');
-      if (estadioBg) {
-        estadioBg.classList.add('celebra');
-        setTimeout(() => estadioBg.classList.remove('celebra'), 2000);
-      }
-
-      // Empurra visualmente a barra de pressão a favor do jogador
-      const pressaoHome = document.getElementById('pressao-home');
-      const pressaoLabel = document.getElementById('pressao-label');
-      if (pressaoHome) {
-        const cur = parseFloat(pressaoHome.style.width || '35') || 35;
-        pressaoHome.style.width = `${Math.min(100, cur + 35)}%`;
-      }
-      if (pressaoLabel) pressaoLabel.textContent = '🔥 PRESSÃO TOTAL!';
-
-      showTacticalHud('📣 A ARQUIBANCADA TREME! O time ganha impulso ofensivo!', 3000);
-      showToast('📣 Torcida inflamada! Pressão ofensiva aumentada!');
-
-      const cdBar = document.getElementById('chant-cd-bar');
-      const totalMs = 11000;
-      const start = Date.now();
-      const timer = setInterval(() => {
-        const elapsed = Date.now() - start;
-        const pct = Math.max(0, 100 - (elapsed / totalMs) * 100);
-        if (cdBar) cdBar.style.width = `${pct}%`;
-        if (elapsed >= totalMs) {
-          clearInterval(timer);
-          cooldown = false;
-          btn.disabled = false;
-          if (cdBar) cdBar.style.width = '0%';
-        }
-      }, 150);
-    });
-  }
-
-  // =========================================================================
-  // 7. EFEITOS DO CAMPO 2D, DUELOS SEGUROS, VAR E CELEBRAÇÕES
-  // =========================================================================
-  function ensurePitchVisualFX() {
-    const campo = document.getElementById('campo-2d');
-    if (!campo) return {};
-
-    let replayBadge = campo.querySelector('.replay-badge');
-    if (!replayBadge) {
-      replayBadge = document.createElement('div');
-      replayBadge.className = 'replay-badge';
-      replayBadge.textContent = 'LANCE CHAVE';
-      campo.appendChild(replayBadge);
-    }
-
-    let celebraMini = campo.querySelector('.goal-celebra-mini');
-    if (!celebraMini) {
-      celebraMini = document.createElement('div');
-      celebraMini.className = 'goal-celebra-mini';
-      celebraMini.textContent = '⚽ GOOOOL!';
-      campo.appendChild(celebraMini);
-    }
-
-    let dueloBox = campo.querySelector('.campo-duelo');
-    if (!dueloBox) {
-      dueloBox = document.createElement('div');
-      dueloBox.className = 'campo-duelo';
-      campo.appendChild(dueloBox);
-    }
-
-    if (!dueloBox.querySelector('.d-atk') || !dueloBox.querySelector('.d-def')) {
-      dueloBox.innerHTML = `
-        <div class="duelo-mini d-atk">
-          <div class="dm-pos">ATA</div>
-          <div class="dm-ovr">82</div>
-          <div class="dm-nome">Atacante</div>
-        </div>
-        <div class="duelo-vs">⚡ VS</div>
-        <div class="duelo-mini d-def">
-          <div class="dm-pos">DEF</div>
-          <div class="dm-ovr">79</div>
-          <div class="dm-nome">Defensor</div>
-        </div>
-      `;
-    }
-
-    let varPanel = campo.querySelector('.var-panel');
-    if (!varPanel) {
-      varPanel = document.createElement('div');
-      varPanel.className = 'var-panel';
-      varPanel.innerHTML = `
-        <div class="var-scan"></div>
-        <div class="var-box">
-          <div class="var-title">📺 REVISÃO TÁTICA DO VAR</div>
-          <div class="var-step">A verificar linha de impedimento...</div>
-          <div class="var-steps">
-            <div class="ok">✔ Frame do passe sincronizado</div>
-            <div class="pend" id="var-step-line">⏳ A calcular projeção ótica...</div>
-          </div>
-          <div class="var-bar"><i id="var-bar-fill"></i></div>
-          <div class="var-decision" id="var-decision-badge">DECISÃO</div>
-          <div class="var-juiz" id="var-juiz-txt">Árbitro aguarda confirmação</div>
-        </div>
-      `;
-      campo.appendChild(varPanel);
-    }
-
-    let tacticalHud = campo.querySelector('.radio-replay');
-    if (!tacticalHud) {
-      tacticalHud = document.createElement('div');
-      tacticalHud.className = 'radio-replay';
-      tacticalHud.innerHTML = `
-        <span class="rr-freq">AO VIVO</span>
-        <span class="rr-text">Radar Tático Ativo...</span>
-      `;
-      campo.appendChild(tacticalHud);
-    }
-
-    return { campo, replayBadge, celebraMini, dueloBox, varPanel, tacticalHud };
-  }
-
-  let hudTimer = null;
-  function showTacticalHud(text, duration = 2600) {
-    const { tacticalHud } = ensurePitchVisualFX();
-    if (!tacticalHud) return;
-    const txtEl = tacticalHud.querySelector('.rr-text');
-    if (txtEl) txtEl.textContent = text;
-    tacticalHud.classList.add('on');
-    clearTimeout(hudTimer);
-    hudTimer = setTimeout(() => tacticalHud.classList.remove('on'), duration);
-  }
-
-  let dueloTimer = null;
-  function showPitchDuel(atkName, atkPos, atkOvr, defName, defPos, defOvr) {
-    const { dueloBox } = ensurePitchVisualFX();
-    if (!dueloBox) return;
-
-    const atkCard = dueloBox.querySelector('.d-atk');
-    const defCard = dueloBox.querySelector('.d-def');
-
-    if (atkCard) {
-      const posEl = atkCard.querySelector('.dm-pos');
-      const ovrEl = atkCard.querySelector('.dm-ovr');
-      const nomeEl = atkCard.querySelector('.dm-nome');
-      if (posEl) posEl.textContent = atkPos || 'ATA';
-      if (ovrEl) ovrEl.textContent = String(atkOvr || '80');
-      if (nomeEl) nomeEl.textContent = atkName || 'Ataque';
-    }
-
-    if (defCard) {
-      const posEl = defCard.querySelector('.dm-pos');
-      const ovrEl = defCard.querySelector('.dm-ovr');
-      const nomeEl = defCard.querySelector('.dm-nome');
-      if (posEl) posEl.textContent = defPos || 'DEF';
-      if (ovrEl) ovrEl.textContent = String(defOvr || '78');
-      if (nomeEl) nomeEl.textContent = defName || 'Defesa';
-    }
-
-    dueloBox.classList.remove('on');
-    void dueloBox.offsetWidth;
-    dueloBox.classList.add('on');
-
-    clearTimeout(dueloTimer);
-    dueloTimer = setTimeout(() => dueloBox.classList.remove('on'), 1750);
-  }
-
-  function triggerGoalPitchFX(isRivalGoal, text) {
-    const { replayBadge, celebraMini, campo } = ensurePitchVisualFX();
-    const matchBoard = document.querySelector('#screen-match .match-board');
-
-    if (matchBoard) {
-      matchBoard.classList.remove('shake-impact');
-      void matchBoard.offsetWidth;
-      matchBoard.classList.add('shake-impact');
-    }
-
-    if (!isRivalGoal) {
-      ArcadeSFX.goalFanfare();
-      ParticleEngine.burst('goal');
-    } else {
-      ArcadeSFX.whistle(false);
-    }
-
-    if (celebraMini) {
-      celebraMini.textContent = isRivalGoal ? '🥅 GOL DO RIVAL' : '⚽ GOOOOL!!';
-      celebraMini.style.color = isRivalGoal ? '#f87171' : '#4ade80';
-      celebraMini.classList.remove('on');
-      void celebraMini.offsetWidth;
-      celebraMini.classList.add('on');
-    }
-    if (replayBadge) {
-      replayBadge.classList.add('on');
-      setTimeout(() => replayBadge.classList.remove('on'), 2600);
-    }
-    const bola = campo ? campo.querySelector('.campo-bola') : null;
-    if (bola) {
-      bola.classList.add('rastro');
-      setTimeout(() => bola.classList.remove('rastro'), 2600);
-    }
-    const estadioBg = document.querySelector('#screen-match .estadio-bg');
-    if (estadioBg) {
-      estadioBg.classList.add('celebra');
-      setTimeout(() => estadioBg.classList.remove('celebra'), 2200);
-    }
-    if (text) showTacticalHud(text, 3200);
-  }
-
-  let varActive = false;
-  function triggerVisualVar(isGoalConfirmed) {
-    if (varActive) return;
-    varActive = true;
-
-    const { varPanel } = ensurePitchVisualFX();
-    if (!varPanel) {
-      varActive = false;
-      return;
-    }
-
-    ArcadeSFX.whistle(false);
-    const stepLine = varPanel.querySelector('#var-step-line');
-    const barFill = varPanel.querySelector('#var-bar-fill');
-    const decisionBadge = varPanel.querySelector('#var-decision-badge');
-    const juizTxt = varPanel.querySelector('#var-juiz-txt');
-
-    if (stepLine) {
-      stepLine.className = 'pend';
-      stepLine.textContent = '⏳ A calibrar linhas de impedimento...';
-    }
-    if (barFill) barFill.style.width = '30%';
-    if (decisionBadge) {
-      decisionBadge.className = 'var-decision';
-      decisionBadge.textContent = '';
-    }
-    varPanel.classList.add('on');
-
-    setTimeout(() => {
-      if (barFill) barFill.style.width = '100%';
-      if (stepLine) {
-        stepLine.className = isGoalConfirmed ? 'ok' : 'bad';
-        stepLine.textContent = isGoalConfirmed
-          ? '✔ Posição legal confirmada'
-          : '✖ Posição irregular / infração detetada';
-      }
-      if (decisionBadge) {
-        decisionBadge.textContent = isGoalConfirmed ? '⚽ GOL CONFIRMADO!' : '🚫 GOL ANULADO!';
-        decisionBadge.className = `var-decision show ${isGoalConfirmed ? 'confirmado' : 'anulado'}`;
-      }
-      if (juizTxt) {
-        juizTxt.className = 'var-juiz sig';
-        juizTxt.textContent = isGoalConfirmed ? 'Árbitro aponta para o centro!' : 'Árbitro invalida o lance!';
-      }
-      if (isGoalConfirmed) ParticleEngine.burst('goal');
-    }, 600);
-
-    setTimeout(() => {
-      varPanel.classList.remove('on');
-      varActive = false;
-    }, 1900);
-  }
-
-  function attachPitchFXObserver() {
+  function setupMatchAndUIHooks() {
     const feedEl = document.getElementById('ui-match-feed');
-    if (!feedEl || feedEl._pitchFXObserved) return;
-    feedEl._pitchFXObserved = true;
+    if (feedEl && !feedEl._aaaObserved) {
+      feedEl._aaaObserved = true;
+      const obs = new MutationObserver((mutations) => {
+        for (const m of mutations) {
+          for (const node of m.addedNodes) {
+            if (!node || node.nodeType !== 1) continue;
+            const cls = node.className || '';
+            const txt = (node.textContent || '').trim();
 
-    const obs = new MutationObserver((mutations) => {
-      for (const m of mutations) {
-        for (const node of m.addedNodes) {
-          if (!node || node.nodeType !== 1) continue;
-          const cls = node.className || '';
-          const txt = (node.textContent || '').trim();
-          const lower = txt.toLowerCase();
+            feedEl.scrollTop = feedEl.scrollHeight;
+            // Cada lance na partida carrega a barra de Adrenalina
+            SkillShotMiniGame.addAdrenaline(18);
 
-          feedEl.scrollTop = feedEl.scrollHeight;
-
-          if (cls.includes('feed-var') || lower.includes('var') || lower.includes('anulado')) {
-            const isAnulado = lower.includes('anul') || lower.includes('imped') || lower.includes('irregular');
-            triggerVisualVar(!isAnulado);
-          } else if (cls.includes('feed-goal-rival')) {
-            triggerGoalPitchFX(true, txt);
-          } else if (cls.includes('feed-goal')) {
-            triggerGoalPitchFX(false, txt);
-          } else if (cls.includes('feed-def') || cls.includes('feed-tackle')) {
-            const words = txt.replace(/^\d+'\s*/, '').split(/\s+/);
-            const player1 = words.slice(0, 2).join(' ') || 'Atacante';
-            const isSave = cls.includes('feed-def');
-            showPitchDuel(
-              player1,
-              'ATA',
-              Math.floor(75 + Math.random() * 14),
-              isSave ? 'Goleiro' : 'Zagueiro',
-              isSave ? 'GK' : 'DEF',
-              Math.floor(76 + Math.random() * 14)
-            );
-            showTacticalHud(txt, 2200);
+            if (cls.includes('feed-goal') && !cls.includes('feed-goal-rival')) {
+              AAASound.goal();
+              AAAParticles.burst('goal');
+              Pitch25DEngine.goalFlash = 0.6;
+              document.querySelector('#screen-match .match-board')?.classList.add('shake-impact');
+              setTimeout(() => document.querySelector('#screen-match .match-board')?.classList.remove('shake-impact'), 500);
+            } else if (cls.includes('feed-goal-rival')) {
+              AAASound.whistle(false);
+              SkillShotMiniGame.addAdrenaline(30); // Levou gol? Adrenalina sobe mais rápido para reagir!
+            }
           }
         }
-      }
-    });
-    obs.observe(feedEl, { childList: true });
+      });
+      obs.observe(feedEl, { childList: true });
+    }
 
-    // Observa abertura do modal de Fim de Jogo (#modal-match-result)
+    // Fim de partida: paga dividendos dos Departamentos de Elite
     const resultModal = document.getElementById('modal-match-result');
-    if (resultModal && !resultModal._v5Observed) {
-      resultModal._v5Observed = true;
+    if (resultModal && !resultModal._aaaResultHooked) {
+      resultModal._aaaResultHooked = true;
       let wasHidden = resultModal.classList.contains('hidden');
       const resObs = new MutationObserver(() => {
         const isHidden = resultModal.classList.contains('hidden');
         if (wasHidden && !isHidden) {
-          ArcadeSFX.whistle(true);
-          injectPostMatchRoulette();
-
-          // Verifica se foi vitória para atualizar o Hot Streak e dar bônus
+          AAASound.whistle(true);
+          const save = AAAStateBridge.getSaveData();
+          const d = save.depts || { socio: 1, tv: 1, fisio: 1 };
           const badgeTxt = (document.getElementById('modal-result-badge')?.textContent || '').toUpperCase();
-          if (badgeTxt.includes('VITÓRIA') || badgeTxt.includes('CAMPEÃO')) {
-            const newStreak = setStreak(getStreak() + 1);
-            const streakBonus = Math.min(200000, newStreak * 25000);
-            grantClubReward({ money: streakBonus });
-            ParticleEngine.burst('gold');
-            showToast(`🔥 Sequência de ${newStreak} vitória(s)! Bônus: +R$ ${streakBonus / 1000}k!`);
-          } else if (badgeTxt.includes('DERROTA')) {
-            setStreak(0);
-          }
+          const isWin = badgeTxt.includes('VITÓRIA') || badgeTxt.includes('CAMPEÃO');
+
+          const socioIncome = d.socio * 25000;
+          const tvIncome = isWin ? d.tv * 40000 : 0;
+          const totalIncome = socioIncome + tvIncome;
+          const healAmount = d.fisio * 5;
+
+          AAAStateBridge.addMoney(totalIncome);
+          AAAStateBridge.healSquad(healAmount);
+
+          if (isWin) AAAParticles.burst('gold');
+          showToast(`💼 Receita VIP: +R$ ${Math.round(totalIncome / 1000)}k | 🧬 Fisio: +${healAmount}% Fôlego!`);
         }
         wasHidden = isHidden;
       });
       resObs.observe(resultModal, { attributes: true, attributeFilter: ['class'] });
     }
 
-    // Observa abertura de Pacotes na Loja (#pack-opening-overlay) para soltar fogos
-    const packOverlay = document.getElementById('pack-opening-overlay');
-    if (packOverlay && !packOverlay._v5Observed) {
-      packOverlay._v5Observed = true;
-      let packHidden = packOverlay.classList.contains('hidden');
-      const packObs = new MutationObserver(() => {
-        const isHidden = packOverlay.classList.contains('hidden');
-        if (packHidden && !isHidden) {
-          ArcadeSFX.jackpot();
-          ParticleEngine.burst('gold');
-        }
-        packHidden = isHidden;
-      });
-      packObs.observe(packOverlay, { attributes: true, attributeFilter: ['class'] });
-    }
-  }
-
-  // =========================================================================
-  // 8. INCLINAÇÃO 3D, PESQUISA, FILTROS DA LOJA, TECLADO E CRT
-  // =========================================================================
-  function initHoloCards3D() {
-    document.addEventListener('pointermove', (e) => {
-      const card = e.target.closest('.player-card.rarity-Ouro, .player-card.rarity-Diamante');
-      if (!card || card.classList.contains('is-flipped')) return;
-      const rect = card.getBoundingClientRect();
-      const rx = (((e.clientY - rect.top) - rect.height / 2) / (rect.height / 2)) * -10;
-      const ry = (((e.clientX - rect.left) - rect.width / 2) / (rect.width / 2)) * 10;
-      card.style.setProperty('--rx', `${rx.toFixed(2)}deg`);
-      card.style.setProperty('--ry', `${ry.toFixed(2)}deg`);
-      card.style.setProperty('--foil', '1');
-    }, { passive: true });
-
-    document.addEventListener('pointerout', (e) => {
-      const card = e.target.closest('.player-card.rarity-Ouro, .player-card.rarity-Diamante');
-      if (!card || card.contains(e.relatedTarget)) return;
-      card.style.setProperty('--rx', '0deg');
-      card.style.setProperty('--ry', '0deg');
-      card.style.setProperty('--foil', '0');
-    }, { passive: true });
-  }
-
-  function injectSquadAndMarketTools() {
-    const filterBar = document.getElementById('ui-squad-filter-bar');
-    const squadList = document.getElementById('squad-list');
-    if (filterBar && squadList && !document.getElementById('squad-tools-bar')) {
-      const toolsBar = document.createElement('div');
-      toolsBar.id = 'squad-tools-bar';
-      toolsBar.className = 'squad-tools-bar';
-      toolsBar.innerHTML = `
-        <input type="search" id="squad-search-input" class="squad-search-input" placeholder="🔍 Procurar jogador no deck..." aria-label="Procurar jogador no deck">
-        <button type="button" class="deck-filter-btn" id="btn-sort-ovr" title="Ordenar por maior OVR">⬇️ OVR</button>
-        <button type="button" class="deck-filter-btn" id="btn-sort-cond" title="Ordenar por fôlego">🫁 Fôlego</button>
-        <button type="button" class="deck-filter-btn" id="btn-quick-auto-xi" style="border-color: var(--primary); color: var(--primary);" title="Escalar melhores titulares e salvar">⚡ Otimizar XI</button>
-      `;
-      filterBar.parentNode.insertBefore(toolsBar, filterBar.nextSibling);
-
-      const searchInput = document.getElementById('squad-search-input');
-      searchInput.addEventListener('input', () => {
-        const query = searchInput.value.trim().toLowerCase();
-        squadList.querySelectorAll('.player-card').forEach((card) => {
-          const name = (card.querySelector('.card-name')?.textContent || '').toLowerCase();
-          card.style.display = !query || name.includes(query) ? '' : 'none';
-        });
-      });
-
-      document.getElementById('btn-sort-ovr').addEventListener('click', () => {
-        const cards = Array.from(squadList.querySelectorAll('.player-card'));
-        cards.sort((a, b) => (parseInt(b.querySelector('.card-ovr')?.textContent || '0', 10)) - (parseInt(a.querySelector('.card-ovr')?.textContent || '0', 10)));
-        cards.forEach((c) => squadList.appendChild(c));
-        showToast('⬇️ Ordenado por Maior OVR');
-      });
-
-      document.getElementById('btn-sort-cond').addEventListener('click', () => {
-        const cards = Array.from(squadList.querySelectorAll('.player-card'));
-        cards.sort((a, b) => {
-          const condA = parseInt((a.querySelector('.card-condition')?.textContent || '100').replace(/\D/g, ''), 10) || 100;
-          const condB = parseInt((b.querySelector('.card-condition')?.textContent || '100').replace(/\D/g, ''), 10) || 100;
-          return condA - condB;
-        });
-        cards.forEach((c) => squadList.appendChild(c));
-        showToast('🫁 Ordenado por Menor Fôlego');
-      });
-
-      document.getElementById('btn-quick-auto-xi').addEventListener('click', () => {
-        if (window.app?.escalacaoAuto) window.app.escalacaoAuto();
-        if (window.app?.salvarEscalacao) window.app.salvarEscalacao();
-        showToast('⚡ Escalação titular otimizada e salva!');
-      });
-    }
-
-    const marketList = document.getElementById('market-list');
-    if (marketList && !document.getElementById('market-tools-bar')) {
-      const marketBar = document.createElement('div');
-      marketBar.id = 'market-tools-bar';
-      marketBar.className = 'deck-filter-bar';
-      marketBar.innerHTML = `
-        <button type="button" class="deck-filter-btn active" data-mfilter="ALL">TODOS</button>
-        <button type="button" class="deck-filter-btn" data-mfilter="AFFORD">💰 CABE NO BOLSO</button>
-        <button type="button" class="deck-filter-btn" data-mfilter="GK">🧤 GK</button>
-        <button type="button" class="deck-filter-btn" data-mfilter="DEF">🛡️ DEF</button>
-        <button type="button" class="deck-filter-btn" data-mfilter="MID">✨ MEI</button>
-        <button type="button" class="deck-filter-btn" data-mfilter="ATT">⚡ ATA</button>
-      `;
-      marketList.parentNode.insertBefore(marketBar, marketList);
-
-      marketBar.addEventListener('click', (e) => {
-        const btn = e.target.closest('[data-mfilter]');
-        if (!btn) return;
-        const filter = btn.getAttribute('data-mfilter');
-        marketBar.querySelectorAll('.deck-filter-btn').forEach((b) => b.classList.remove('active'));
-        btn.classList.add('active');
-
-        marketList.querySelectorAll('.player-card').forEach((card) => {
-          const pos = (card.querySelector('.card-pos')?.textContent || '').toUpperCase();
-          const unaffordable = !!card.querySelector('.card-price.sem-saldo');
-          let visible = true;
-          if (filter === 'AFFORD') visible = !unaffordable;
-          else if (filter !== 'ALL') visible = pos.includes(filter);
-          card.style.display = visible ? '' : 'none';
-        });
-      });
-    }
-
-    const leagueWrap = document.querySelector('#subscreen-league .league-table-wrap');
-    if (leagueWrap && !document.getElementById('league-zones-legend')) {
-      const legend = document.createElement('div');
-      legend.id = 'league-zones-legend';
-      legend.className = 'league-zones-legend';
-      legend.innerHTML = `
-        <span><i class="lz-dot" style="background:#f5c542;"></i> Seu Clube</span>
-        <span><i class="lz-dot" style="background:#22c55e;"></i> G4 (Acesso / Topo)</span>
-        <span><i class="lz-dot" style="background:#ef4444;"></i> Z4 (Zona de Queda)</span>
-      `;
-      leagueWrap.parentNode.insertBefore(legend, leagueWrap);
-    }
-  }
-
-  function setupKeyboardAndSettings() {
-    const decisionBtnsContainer = document.getElementById('match-decision-btns');
-    if (decisionBtnsContainer && !decisionBtnsContainer._shortcutObserved) {
-      decisionBtnsContainer._shortcutObserved = true;
-      const btnObs = new MutationObserver(() => {
-        decisionBtnsContainer.querySelectorAll('.decision-btn').forEach((btn, idx) => {
-          if (!btn.querySelector('.decision-shortcut')) {
-            const badge = document.createElement('span');
-            badge.className = 'decision-shortcut';
-            badge.textContent = String(idx + 1);
-            btn.prepend(badge);
-          }
-        });
-      });
-      btnObs.observe(decisionBtnsContainer, { childList: true });
-    }
-
-    window.addEventListener('keydown', (e) => {
-      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) return;
-      const matchScreen = document.getElementById('screen-match');
-      if (!matchScreen || matchScreen.classList.contains('hidden')) return;
-
-      const decisionBox = document.getElementById('match-decision');
-      const isDecisionVisible = decisionBox && !decisionBox.classList.contains('hidden');
-
-      if (['1', '2', '3'].includes(e.key)) {
-        if (isDecisionVisible) {
-          const btns = decisionBox.querySelectorAll('.decision-btn');
-          const targetBtn = btns[parseInt(e.key, 10) - 1];
-          if (targetBtn) {
-            e.preventDefault();
-            targetBtn.click();
-          }
-        } else if (window.app?.setMatchSpeed) {
-          const speeds = { '1': 1, '2': 2, '3': 4 };
-          window.app.setMatchSpeed(speeds[e.key]);
-          showToast(`⏩ Velocidade ${speeds[e.key]}×`);
-        }
-      } else if (e.key.toLowerCase() === 't') {
-        document.getElementById('btn-crowd-chant')?.click();
-      } else if (e.key.toLowerCase() === 's' && window.app?.abrirSubstituicao) {
-        e.preventDefault();
-        window.app.abrirSubstituicao();
-      } else if (e.key.toLowerCase() === 'c' && window.app?.abrirCartasTaticas) {
-        e.preventDefault();
-        window.app.abrirCartasTaticas();
-      } else if (e.key.toLowerCase() === 'p' && window.app?.setMatchSpeed) {
-        e.preventDefault();
-        window.app.setMatchSpeed(8);
-        showToast('⏭ A saltar para o final...');
-      }
-    });
-
-    const settingsModal = document.querySelector('#modal-settings .modal-content');
-    if (settingsModal && !document.getElementById('set-retro-crt')) {
-      const savedRetro = localStorage.getItem('altfoot_retro_crt') === 'true';
-      if (savedRetro) document.body.classList.add('modo-retro-crt');
-      const rows = settingsModal.querySelectorAll('.setting-row');
-      const lastRow = rows[rows.length - 1];
-      if (lastRow) {
-        const retroRow = document.createElement('div');
-        retroRow.className = 'setting-row';
-        retroRow.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border);';
-        retroRow.innerHTML = `
-          <span>📺 Estádio & Filtro Retrô CRT</span>
-          <button id="set-retro-crt" class="deck-filter-btn ${savedRetro ? 'active' : ''}">${savedRetro ? 'ON' : 'OFF'}</button>
-        `;
-        lastRow.parentNode.insertBefore(retroRow, lastRow.nextSibling);
-        const btn = document.getElementById('set-retro-crt');
-        btn.addEventListener('click', () => {
-          const isNowActive = document.body.classList.toggle('modo-retro-crt');
-          localStorage.setItem('altfoot_retro_crt', String(isNowActive));
-          btn.textContent = isNowActive ? 'ON' : 'OFF';
-          btn.classList.toggle('active', isNowActive);
-        });
-      }
-    }
-  }
-
-  function hookMatchStart() {
-    if (window.app && !window.app._v5WhistleHooked && typeof window.app.confirmarPreparacao === 'function') {
-      window.app._v5WhistleHooked = true;
+    // Hook no início da partida
+    if (window.app && !window.app._aaaPrepHooked && typeof window.app.confirmarPreparacao === 'function') {
+      window.app._aaaPrepHooked = true;
       const orig = window.app.confirmarPreparacao;
       window.app.confirmarPreparacao = function (...args) {
         const res = orig.apply(this, args);
         setTimeout(() => {
-          ensurePitchVisualFX();
-          injectCrowdChantButton();
-          ArcadeSFX.whistle(false);
-          showTacticalHud('⚽ Apito inicial! Use o botão 📣 TORCIDA para empurrar seu time!', 3400);
-        }, 160);
+          Pitch25DEngine.init();
+          SkillShotMiniGame.injectBar();
+          SkillShotMiniGame.adrenaline = 50;
+          SkillShotMiniGame.addAdrenaline(0);
+          AAASound.whistle(false);
+        }, 150);
         return res;
       };
     }
   }
 
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./sw.js').catch(() => {});
-    });
+  // Inclinação 3D nas cartas Ouro e Diamante
+  function initHolo3D() {
+    document.addEventListener('pointermove', (e) => {
+      const card = e.target.closest('.player-card.rarity-Ouro, .player-card.rarity-Diamante');
+      if (!card || card.classList.contains('is-flipped')) return;
+      const r = card.getBoundingClientRect();
+      const rx = (((e.clientY - r.top) - r.height / 2) / (r.height / 2)) * -10;
+      const ry = (((e.clientX - r.left) - r.width / 2) / (r.width / 2)) * 10;
+      card.style.setProperty('--rx', `${rx.toFixed(2)}deg`);
+      card.style.setProperty('--ry', `${ry.toFixed(2)}deg`);
+      card.style.setProperty('--foil', '1');
+    }, { passive: true });
   }
 
-  function initV5() {
-    initHoloCards3D();
-    renderHotStreakBanner();
-    ensurePitchVisualFX();
-    injectCrowdChantButton();
-    attachPitchFXObserver();
-    injectSquadAndMarketTools();
-    setupKeyboardAndSettings();
-    hookMatchStart();
+  function initAAA() {
+    initHolo3D();
+    Pitch25DEngine.init();
+    SkillShotMiniGame.injectBar();
+    bindSkillShotEvents();
+    injectEvolutionLab();
+    injectClubDepartments();
+    setupMatchAndUIHooks();
+    decorateCardsWithPlayStyles();
   }
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initV5);
+    document.addEventListener('DOMContentLoaded', initAAA);
   } else {
-    initV5();
+    initAAA();
   }
-  window.addEventListener('load', initV5);
+  window.addEventListener('load', initAAA);
 })();
 </script>
-<!-- === FIM DO ALTFOOT ELITE V5 OVERDRIVE === -->
+<!-- === FIM DA EXPANSÃO TRIPLE-A (V6) === -->
 
 </body>
 </html>
