@@ -15059,5 +15059,563 @@ window.app = app;
 
 
 </script>
+<!-- ====================================================================== -->
+<!-- MOTOR DE MELHORIAS ALTFOOT ELITE (ÁUDIO DINÂMICO, VAR 2 FASES E RÁDIO) -->
+<!-- ====================================================================== -->
+<script>
+(function () {
+  'use strict';
+
+  class AltFootAudioManager {
+    constructor() {
+      // Suporta o nome original com espaços/acentos e eventuais pastas normalizadas no GitHub Pages
+      this.basePaths = [
+        'SONS DA NARRAÇÃO DO GAME',
+        'SONS DA NARRAÇÃO DO GAME'.normalize('NFD'),
+        'sons-narracao'
+      ];
+      this.activeBasePathIndex = 0;
+      this.currentAudio = null;
+      this.currentPriority = 0;
+      this.isSuspended = false;
+      this.lastPlayTime = 0;
+
+      // Mapeamento exato dos ficheiros do repositório (sem o gol-2.mp3 inexistente)
+      this.soundBank = {
+        introNormal: [
+          'INTRO 1.mp3', 'INTRO 2.mp3', 'INTRO 3.mp3', 'INTRO 4.mp3', 'INTRO 5.mp3'
+        ],
+        introFinal: [
+          'INTRO PARA JOGOS DE FINAIS.mp3'
+        ],
+        passe: [
+          'PASSE 1.mp3', 'PASSE 2.mp3', 'PASSE 3.mp3', 'PASSE 4.mp3', 'PASSE 5.mp3'
+        ],
+        drible: [
+          'DRIBLE 1.mp3', 'DRIBLE 2.mp3', 'DRIBLE 3.mp3', 'DRIBLE 4.mp3'
+        ],
+        cruzamento: [
+          'CRUZAMENTO 1.mp3', 'CRUZAMENTO 2.mp3'
+        ],
+        contraAtaque: [
+          'CONTRA ATAQUE 1.mp3', 'CONTRA ATAQUE 2.mp3'
+        ],
+        gol: [
+          'curtas/gol-1.mp3', 'curtas/gol-3.mp3', 'curtas/gol-4.mp3'
+        ],
+        defesa: [
+          'curtas/defesa-1.mp3'
+        ],
+        varCheck: [
+          'curtas/var-1.mp3', 'curtas/var-2.mp3'
+        ],
+        golAnulado: [
+          'curtas/anulado-1.mp3'
+        ],
+        substituicao: [
+          'curtas/substituicao-1.mp3', 'curtas/substituicao-2.mp3'
+        ],
+        fimDeJogo: [
+          'curtas/fim-1.mp3'
+        ]
+      };
+
+      // Prioridades: 1 = Construção, 2 = Transição/Intro, 3 = Desfecho Crítico
+      this.priorities = {
+        passe: 1,
+        drible: 1,
+        cruzamento: 2,
+        contraAtaque: 2,
+        substituicao: 2,
+        introNormal: 2,
+        introFinal: 3,
+        defesa: 3,
+        varCheck: 3,
+        golAnulado: 3,
+        gol: 3,
+        fimDeJogo: 3
+      };
+
+      // Cooldown mínimo (ms) para evitar atropelamento de narrações em velocidades 2x/4x
+      this.cooldowns = {
+        1: 2400,
+        2: 1200,
+        3: 0
+      };
+    }
+
+    isSfxEnabled() {
+      const sfxBtn = document.getElementById('set-sfx');
+      if (sfxBtn && sfxBtn.textContent.trim().toUpperCase() === 'OFF') return false;
+      if (window.app && window.app.settings && window.app.settings.sfx === false) return false;
+      return true;
+    }
+
+    getVolume() {
+      const sfxSlider = document.getElementById('set-sfx-vol');
+      if (sfxSlider) {
+        const val = parseFloat(sfxSlider.value);
+        if (!isNaN(val)) return Math.max(0, Math.min(1, val / 100));
+      }
+      if (window.app && window.app.settings && typeof window.app.settings.sfxVol === 'number') {
+        return Math.max(0, Math.min(1, window.app.settings.sfxVol / 100));
+      }
+      return 0.9;
+    }
+
+    playRandom(category, onEnded = null) {
+      if (!this.isSfxEnabled() || this.isSuspended) {
+        if (onEnded) onEnded();
+        return;
+      }
+
+      const files = this.soundBank[category];
+      if (!files || !files.length) {
+        if (onEnded) onEnded();
+        return;
+      }
+
+      const priority = this.priorities[category] || 1;
+      const now = Date.now();
+
+      // Se houver um áudio de prioridade superior ou igual (crítico) a tocar, não interrompe
+      if (this.currentAudio && !this.currentAudio.paused) {
+        if (priority < this.currentPriority) return;
+        if (priority === 1 && (now - this.lastPlayTime) < this.cooldowns[1]) return;
+      }
+
+      this.stop();
+
+      const chosenFile = files[Math.floor(Math.random() * files.length)];
+      this._playFileWithFallback(chosenFile, priority, 0, onEnded);
+    }
+
+    _playFileWithFallback(relativeFile, priority, pathIdx, onEnded) {
+      if (pathIdx >= this.basePaths.length) {
+        this.currentPriority = 0;
+        if (onEnded) onEnded();
+        return;
+      }
+
+      const base = this.basePaths[pathIdx];
+      const url = encodeURI(`${base}/${relativeFile}`);
+      const audio = new Audio(url);
+      audio.volume = this.getVolume();
+
+      this.currentAudio = audio;
+      this.currentPriority = priority;
+      this.lastPlayTime = Date.now();
+
+      audio.addEventListener('ended', () => {
+        if (this.currentAudio === audio) {
+          this.currentPriority = 0;
+          this.currentAudio = null;
+        }
+        if (onEnded) onEnded();
+      }, { once: true });
+
+      audio.addEventListener('error', () => {
+        // Tenta caminho alternativo caso o servidor rejeite a codificação
+        this._playFileWithFallback(relativeFile, priority, pathIdx + 1, onEnded);
+      }, { once: true });
+
+      audio.play().catch(() => {
+        this.currentPriority = 0;
+        if (onEnded) onEnded();
+      });
+    }
+
+    stop() {
+      if (this.currentAudio) {
+        try {
+          this.currentAudio.pause();
+          this.currentAudio.currentTime = 0;
+        } catch (_) {}
+        this.currentAudio = null;
+        this.currentPriority = 0;
+      }
+    }
+
+    suspend(pauseState) {
+      this.isSuspended = !!pauseState;
+      if (!this.currentAudio) return;
+      try {
+        if (this.isSuspended && !this.currentAudio.paused) {
+          this.currentAudio.pause();
+          this.currentAudio._pausedByVisibility = true;
+        } else if (!this.isSuspended && this.currentAudio._pausedByVisibility) {
+          this.currentAudio._pausedByVisibility = false;
+          this.currentAudio.play().catch(() => {});
+        }
+      } catch (_) {}
+    }
+
+    refreshVolume() {
+      if (this.currentAudio) {
+        this.currentAudio.volume = this.getVolume();
+      }
+    }
+  }
+
+  // Instância global acessível
+  const narrator = new AltFootAudioManager();
+  window.altFootNarrator = narrator;
+
+  // =========================================================================
+  // ELEMENTOS VISUAIS DO RELVADO 2D (FITA DE RÁDIO 95.3 FM + PAINEL DO VAR)
+  // =========================================================================
+  function ensureCampoOverlays() {
+    const campo = document.getElementById('campo-2d');
+    if (!campo) return {};
+
+    let radioBar = campo.querySelector('.radio-replay');
+    if (!radioBar) {
+      radioBar = document.createElement('div');
+      radioBar.className = 'radio-replay';
+      radioBar.innerHTML = `
+        <span class="rr-freq">95.3 FM</span>
+        <span class="rr-text">Sintonizado na Rádio do Estádio...</span>
+      `;
+      campo.appendChild(radioBar);
+    }
+
+    let varPanel = campo.querySelector('.var-panel');
+    if (!varPanel) {
+      varPanel = document.createElement('div');
+      varPanel.className = 'var-panel';
+      varPanel.innerHTML = `
+        <div class="var-scan"></div>
+        <div class="var-box">
+          <div class="var-title">📺 REVISÃO DO VAR</div>
+          <div class="var-step">A analisar imagens do lance...</div>
+          <div class="var-steps">
+            <div class="ok">✔ Sincronização do ponto de contacto</div>
+            <div class="pend" id="var-step-line">⏳ A traçar linhas de posição...</div>
+          </div>
+          <div class="var-bar"><i id="var-bar-fill"></i></div>
+          <div class="var-decision" id="var-decision-badge">DECISÃO</div>
+          <div class="var-juiz" id="var-juiz-txt">Árbitro aguarda comunicação da cabine</div>
+        </div>
+      `;
+      campo.appendChild(varPanel);
+    }
+
+    return { campo, radioBar, varPanel };
+  }
+
+  let radioHideTimer = null;
+  function showRadioTicker(text, duration = 3400) {
+    const { radioBar } = ensureCampoOverlays();
+    if (!radioBar) return;
+    const txtEl = radioBar.querySelector('.rr-text');
+    if (txtEl) {
+      txtEl.textContent = text;
+      txtEl.classList.add('typing');
+    }
+    radioBar.classList.add('on');
+    clearTimeout(radioHideTimer);
+    radioHideTimer = setTimeout(() => {
+      radioBar.classList.remove('on');
+      if (txtEl) txtEl.classList.remove('typing');
+    }, duration);
+  }
+
+  // Sequência visual e sonora do VAR em 2 fases
+  let varActive = false;
+  function triggerVarDrama(isGoalConfirmed, rawText) {
+    if (varActive) return;
+    varActive = true;
+
+    const { varPanel } = ensureCampoOverlays();
+    const stepLine = document.getElementById('var-step-line');
+    const barFill = document.getElementById('var-bar-fill');
+    const decisionBadge = document.getElementById('var-decision-badge');
+    const juizTxt = document.getElementById('var-juiz-txt');
+
+    if (varPanel) {
+      if (stepLine) {
+        stepLine.className = 'pend';
+        stepLine.textContent = '⏳ A calibrar câmaras de fora de jogo...';
+      }
+      if (barFill) barFill.style.width = '15%';
+      if (decisionBadge) {
+        decisionBadge.className = 'var-decision';
+        decisionBadge.textContent = '';
+      }
+      if (juizTxt) {
+        juizTxt.className = 'var-juiz';
+        juizTxt.textContent = 'Árbitro com a mão no auricular...';
+      }
+      varPanel.classList.add('on');
+    }
+
+    showRadioTicker('⚖️ ATENÇÃO! O VAR está a rever a legalidade do lance!', 4800);
+
+    // Adiciona marcador do VAR na barra de tempo se existir
+    const tlTrack = document.getElementById('tl-track');
+    const clockEl = document.getElementById('match-clock');
+    if (tlTrack && clockEl) {
+      const minMatch = (clockEl.textContent || '').match(/(\d+)/);
+      const min = minMatch ? Math.min(90, Math.max(1, parseInt(minMatch[1], 10))) : 45;
+      const marker = document.createElement('div');
+      marker.className = 'tl-marker var';
+      marker.style.left = `${(min / 90) * 100}%`;
+      marker.title = `${min}' Revisão VAR`;
+      marker.textContent = 'V';
+      tlTrack.appendChild(marker);
+    }
+
+    setTimeout(() => {
+      if (barFill) barFill.style.width = '65%';
+      if (stepLine) {
+        stepLine.className = isGoalConfirmed ? 'ok' : 'bad';
+        stepLine.textContent = isGoalConfirmed
+          ? '✔ Posição legal confirmada (−2cm)'
+          : '✖ Infração / Posição irregular detetada';
+      }
+    }, 800);
+
+    // Toca o áudio de chamada do VAR e encadeia com o desfecho
+    narrator.playRandom('varCheck', () => {
+      if (barFill) barFill.style.width = '100%';
+      if (decisionBadge) {
+        decisionBadge.textContent = isGoalConfirmed ? '⚽ GOLO CONFIRMADO!' : '🚫 GOLO ANULADO!';
+        decisionBadge.className = `var-decision show ${isGoalConfirmed ? 'confirmado' : 'anulado'}`;
+      }
+      if (juizTxt) {
+        juizTxt.className = 'var-juiz sig';
+        juizTxt.textContent = isGoalConfirmed
+          ? 'Árbitro aponta para o centro do terreno!'
+          : 'Árbitro ergue o braço e invalida o lance!';
+      }
+
+      setTimeout(() => {
+        narrator.playRandom(isGoalConfirmed ? 'gol' : 'golAnulado');
+      }, 350);
+
+      setTimeout(() => {
+        if (varPanel) varPanel.classList.remove('on');
+        varActive = false;
+      }, 2600);
+    });
+  }
+
+  // =========================================================================
+  // DETETOR DE LANCES DO FEED E CONSTRUÇÃO DE JOGADAS
+  // =========================================================================
+  function classifyAndNarrateFeedItem(node) {
+    if (!node || node.nodeType !== 1) return;
+    const classes = node.className || '';
+    const text = (node.textContent || '').trim();
+    const lower = text.toLowerCase();
+
+    // 1. Verificação de VAR / Golo Anulado
+    if (classes.includes('feed-var') || lower.includes('var') || lower.includes('anulado') || lower.includes('impedimento') || lower.includes('fora de jogo')) {
+      const isAnulado = lower.includes('anul') || lower.includes('imped') || lower.includes('irregular') || lower.includes('falta');
+      triggerVarDrama(!isAnulado, text);
+      return;
+    }
+
+    // 2. Golo marcado (equipa do utilizador ou rival)
+    if (classes.includes('feed-goal') || classes.includes('feed-goal-rival') || /\bgol+\b|\bgolaço\b/i.test(lower)) {
+      narrator.playRandom('gol');
+      showRadioTicker(`🎙️ ${text}`, 4200);
+      const estadioBg = document.querySelector('#screen-match .estadio-bg');
+      if (estadioBg) {
+        estadioBg.classList.add('celebra');
+        setTimeout(() => estadioBg.classList.remove('celebra'), 2400);
+      }
+      return;
+    }
+
+    // 3. Defesa de guarda-redes
+    if (classes.includes('feed-def') || lower.includes('defende') || lower.includes('defesa') || lower.includes('espalma') || lower.includes('goleiro') || lower.includes('guarda-redes')) {
+      narrator.playRandom('defesa');
+      showRadioTicker(`🧤 ${text}`, 3200);
+      return;
+    }
+
+    // 4. Contra-ataque rápido
+    if (lower.includes('contra-ataque') || lower.includes('contra ataque') || lower.includes('transição rápida') || lower.includes('dispara em velocidade')) {
+      narrator.playRandom('contraAtaque');
+      showRadioTicker(`⚡ ${text}`, 3000);
+      return;
+    }
+
+    // 5. Cruzamento / Canto / Chuveirinho
+    if (classes.includes('feed-corner') || lower.includes('cruza') || lower.includes('cruzamento') || lower.includes('escanteio') || lower.includes('área') || lower.includes('cabece')) {
+      narrator.playRandom('cruzamento');
+      showRadioTicker(`📐 ${text}`, 2800);
+      return;
+    }
+
+    // 6. Drible / Jogada individual
+    if (lower.includes('dribl') || lower.includes('finta') || lower.includes('deixa para trás') || lower.includes('individual') || lower.includes('costura')) {
+      narrator.playRandom('drible');
+      showRadioTicker(`✨ ${text}`, 2800);
+      return;
+    }
+
+    // 7. Passe / Construção no meio-campo
+    if (lower.includes('passe') || lower.includes('toca') || lower.includes('tabela') || lower.includes('lançamento') || lower.includes('arma') || classes.includes('feed-info')) {
+      narrator.playRandom('passe');
+      showRadioTicker(`📻 ${text}`, 2500);
+    }
+  }
+
+  // Observa o feed da partida (#ui-match-feed) e o cabeçalho (#match-log)
+  function setupMatchObservers() {
+    const feedEl = document.getElementById('ui-match-feed');
+    if (feedEl && !feedEl._altfootObserved) {
+      feedEl._altfootObserved = true;
+      const feedObserver = new MutationObserver((mutations) => {
+        for (const m of mutations) {
+          for (const added of m.addedNodes) {
+            classifyAndNarrateFeedItem(added);
+          }
+        }
+      });
+      feedObserver.observe(feedEl, { childList: true });
+    }
+
+    // Observa abertura do modal de Fim de Jogo (#modal-match-result) para tocar fim-1.mp3
+    const resultModal = document.getElementById('modal-match-result');
+    if (resultModal && !resultModal._altfootObserved) {
+      resultModal._altfootObserved = true;
+      let wasHidden = resultModal.classList.contains('hidden');
+      const modalObserver = new MutationObserver(() => {
+        const isHidden = resultModal.classList.contains('hidden');
+        if (wasHidden && !isHidden) {
+          narrator.playRandom('fimDeJogo');
+        }
+        wasHidden = isHidden;
+      });
+      modalObserver.observe(resultModal, { attributes: true, attributeFilter: ['class'] });
+    }
+  }
+
+  // =========================================================================
+  // INTEGRAÇÃO COM OS MÉTODOS DE `app` E `ui`
+  // =========================================================================
+  function hookGameMethods() {
+    if (typeof window.app === 'object' && window.app && !window.app._altfootEnhanced) {
+      window.app._altfootEnhanced = true;
+
+      // 1. Hook em confirmarPreparacao: Deteta jogos de Final vs Jogos Normais
+      const origConfirmarPrep = window.app.confirmarPreparacao;
+      if (typeof origConfirmarPrep === 'function') {
+        window.app.confirmarPreparacao = function (...args) {
+          const res = origConfirmarPrep.apply(this, args);
+          setTimeout(() => {
+            ensureCampoOverlays();
+            const matchScreen = document.getElementById('screen-match');
+            const seloTxt = (document.getElementById('match-tema-selo')?.textContent || '').toUpperCase();
+            const compTxt = (document.getElementById('match-competicao')?.textContent || '').toUpperCase();
+            const temaAttr = matchScreen?.getAttribute('data-tema') || '';
+
+            const isFinal =
+              temaAttr === 'final' ||
+              seloTxt.includes('FINAL') ||
+              compTxt.includes('FINAL') ||
+              compTxt.includes('DECISÃO') ||
+              compTxt.includes('TÍTULO');
+
+            if (isFinal && matchScreen) {
+              matchScreen.setAttribute('data-tema', 'final');
+            }
+
+            narrator.playRandom(isFinal ? 'introFinal' : 'introNormal');
+            showRadioTicker(
+              isFinal
+                ? '🏆 TRANSMISSÃO ESPECIAL DE FINAL! Rádio do Estádio 95.3 FM!'
+                : '📻 Apito inicial! Acompanhe tudo na Rádio do Estádio 95.3 FM!',
+              4500
+            );
+          }, 180);
+          return res;
+        };
+      }
+
+      // 2. Hook em confirmarSubstituicao: Dispara áudio de substituição e fita de rádio
+      const origConfirmarSub = window.app.confirmarSubstituicao;
+      if (typeof origConfirmarSub === 'function') {
+        window.app.confirmarSubstituicao = function (...args) {
+          const saiSelected = document.querySelector('#sub-sai-list .sub-player-btn.selected .nome')?.textContent || 'Titular';
+          const entraSelected = document.querySelector('#sub-entra-list .sub-player-btn.selected .nome')?.textContent || 'Suplente';
+          const res = origConfirmarSub.apply(this, args);
+          narrator.playRandom('substituicao');
+          showRadioTicker(`🔄 Substituição: entra ${entraSelected} no lugar de ${saiSelected}!`, 3800);
+          return res;
+        };
+      }
+
+      // 3. Hook em setVolume e toggleSetting para atualizar o motor de narração em tempo real
+      const origSetVolume = window.app.setVolume;
+      if (typeof origSetVolume === 'function') {
+        window.app.setVolume = function (type, val) {
+          const res = origSetVolume.apply(this, arguments);
+          if (type === 'sfxVol') narrator.refreshVolume();
+          return res;
+        };
+      }
+
+      const origToggleSetting = window.app.toggleSetting;
+      if (typeof origToggleSetting === 'function') {
+        window.app.toggleSetting = function (key) {
+          const res = origToggleSetting.apply(this, arguments);
+          if (key === 'sfx' && !narrator.isSfxEnabled()) {
+            narrator.stop();
+          }
+          return res;
+        };
+      }
+    }
+
+    // 4. Hook em ui.suspenderAudioPagina para pausar narração quando o separador é ocultado
+    if (typeof window.ui === 'object' && window.ui && !window.ui._altfootEnhanced) {
+      window.ui._altfootEnhanced = true;
+      const origSuspender = window.ui.suspenderAudioPagina;
+      window.ui.suspenderAudioPagina = function (oculto) {
+        narrator.suspend(oculto);
+        if (typeof origSuspender === 'function') {
+          return origSuspender.apply(this, arguments);
+        }
+      };
+    }
+  }
+
+  // Interceptador global de segurança para Audio(): corrige chamadas diretas a gol-2.mp3 no código legado
+  const OrigAudio = window.Audio;
+  window.Audio = function (src) {
+    if (typeof src === 'string') {
+      if (src.includes('gol-2.mp3')) {
+        const validGols = ['gol-1.mp3', 'gol-3.mp3', 'gol-4.mp3'];
+        const replacement = validGols[Math.floor(Math.random() * validGols.length)];
+        src = src.replace('gol-2.mp3', replacement);
+      }
+      // Garante encodeURI em caminhos com espaços ou acentos
+      if (src.includes('SONS DA NARRA') && !src.includes('%20')) {
+        src = encodeURI(src);
+      }
+    }
+    return new OrigAudio(src);
+  };
+  window.Audio.prototype = OrigAudio.prototype;
+
+  // Inicialização automática quando o DOM estiver pronto
+  function initEnhancements() {
+    ensureCampoOverlays();
+    setupMatchObservers();
+    hookGameMethods();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initEnhancements);
+  } else {
+    initEnhancements();
+  }
+  window.addEventListener('load', initEnhancements);
+})();
+</script>
 </body>
 </html>
