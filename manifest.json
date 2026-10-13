@@ -1,0 +1,20 @@
+{
+  "name": "AltFoot ELITE - TCG Football Manager",
+  "short_name": "AltFoot ELITE",
+  "description": "Manager de futebol com cartas colecionáveis e narração de rádio ao vivo 95.3 FM.",
+  "lang": "pt-BR",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0c0704",
+  "theme_color": "#0c0704",
+  "icons": [
+    {
+      "src": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='112' fill='%230c0704'/><rect x='24' y='24' width='464' height='464' rx='92' fill='none' stroke='%23ffb000' stroke-width='16'/><circle cx='256' cy='230' r='110' fill='%23ffb000'/><text x='256' y='272' font-size='130' text-anchor='middle'>⚽</text><text x='256' y='425' font-family='monospace, sans-serif' font-weight='900' font-size='56' fill='%23ffffff' text-anchor='middle'>ALTFOOT</text></svg>",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
