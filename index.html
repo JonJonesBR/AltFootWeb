@@ -5,7 +5,9 @@
  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
  <title>AltFoot ELITE</title>
 <link rel="manifest" href="manifest.json">
+ <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%230c0704'/><text x='50' y='68' font-size='58' text-anchor='middle'>⚽</text></svg>">
  <meta name="theme-color" content="#0c0704">
+ <meta name="mobile-web-app-capable" content="yes">
  <meta name="apple-mobile-web-app-capable" content="yes">
  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
  <meta name="apple-mobile-web-app-title" content="AltFoot ELITE">
@@ -3589,7 +3591,6 @@ button:focus-visible,summary:focus-visible { outline:3px solid #fff0bd; outline-
      </div>
      
      <p style="font-size: 0.78rem; color: var(--text-muted); line-height: 1.4; margin-bottom: 14px;">
-            <p style="font-size: 0.78rem; color: var(--text-muted); line-height: 1.4; margin-bottom: 14px;">
        O <strong>AltFoot ELITE</strong> é um manager de futebol: simule partidas com narração ao vivo (Rádio do Estádio), monte o elenco e leve seu clube da Série B ao topo. Domine o jogo em 3 passos:
      </p>
 
@@ -4167,7 +4168,7 @@ const AudioSynthesizer = {
 
 // Locução humana (opção 3 — caminho relativo, pronto para GitHub Pages).
 // Pasta commitada junto do index.html; encodeURI cuida de espaços/acentos na URL.
-const NARRACAO_DIR = 'SONS DA NARRAÇÃO DO GAME/';
+const NARRACAO_DIR = 'narration_disabled/';
 const NARRACAO_SOUNDS = {
   intro: ['INTRO 1.mp3', 'INTRO 2.mp3', 'INTRO 3.mp3', 'INTRO 4.mp3', 'INTRO 5.mp3'],
   introFinal: ['INTRO PARA JOGOS DE FINAIS.mp3'],
@@ -8814,7 +8815,7 @@ class UI {
     } catch (_) {}
   }
 
-  // Locução humana da pasta SONS DA NARRAÇÃO DO GAME/ (caminho relativo — GitHub Pages).
+  // Locução humana da pasta narration_disabled/ (caminho relativo — GitHub Pages).
   _atualizarMixNarracao() {
     const base = (typeof app !== 'undefined' && app.settings && typeof app.settings.bgmVol === 'number') ? app.settings.bgmVol : 0.12;
     if (this.currentBGM) this.currentBGM.volume = base;
@@ -15064,569 +15065,14 @@ window.app = app;
 
 
 </script>
-<!-- ====================================================================== -->
-<!-- MOTOR DE MELHORIAS ALTFOOT ELITE (ÁUDIO DINÂMICO, VAR 2 FASES E RÁDIO) -->
-<!-- ====================================================================== -->
-<script>
-(function () {
-  'use strict';
 
-  class AltFootAudioManager {
-    constructor() {
-      // Suporta o nome original com espaços/acentos e eventuais pastas normalizadas no GitHub Pages
-      this.basePaths = [
-        'SONS DA NARRAÇÃO DO GAME',
-        'SONS DA NARRAÇÃO DO GAME'.normalize('NFD'),
-        'sons-narracao'
-      ];
-      this.activeBasePathIndex = 0;
-      this.currentAudio = null;
-      this.currentPriority = 0;
-      this.isSuspended = false;
-      this.lastPlayTime = 0;
 
-      // Mapeamento exato dos ficheiros do repositório (sem o gol-2.mp3 inexistente)
-      this.soundBank = {
-        introNormal: [
-          'INTRO 1.mp3', 'INTRO 2.mp3', 'INTRO 3.mp3', 'INTRO 4.mp3', 'INTRO 5.mp3'
-        ],
-        introFinal: [
-          'INTRO PARA JOGOS DE FINAIS.mp3'
-        ],
-        passe: [
-          'PASSE 1.mp3', 'PASSE 2.mp3', 'PASSE 3.mp3', 'PASSE 4.mp3', 'PASSE 5.mp3'
-        ],
-        drible: [
-          'DRIBLE 1.mp3', 'DRIBLE 2.mp3', 'DRIBLE 3.mp3', 'DRIBLE 4.mp3'
-        ],
-        cruzamento: [
-          'CRUZAMENTO 1.mp3', 'CRUZAMENTO 2.mp3'
-        ],
-        contraAtaque: [
-          'CONTRA ATAQUE 1.mp3', 'CONTRA ATAQUE 2.mp3'
-        ],
-        gol: [
-          'curtas/gol-1.mp3', 'curtas/gol-3.mp3', 'curtas/gol-4.mp3'
-        ],
-        defesa: [
-          'curtas/defesa-1.mp3'
-        ],
-        varCheck: [
-          'curtas/var-1.mp3', 'curtas/var-2.mp3'
-        ],
-        golAnulado: [
-          'curtas/anulado-1.mp3'
-        ],
-        substituicao: [
-          'curtas/substituicao-1.mp3', 'curtas/substituicao-2.mp3'
-        ],
-        fimDeJogo: [
-          'curtas/fim-1.mp3'
-        ]
-      };
-
-      // Prioridades: 1 = Construção, 2 = Transição/Intro, 3 = Desfecho Crítico
-      this.priorities = {
-        passe: 1,
-        drible: 1,
-        cruzamento: 2,
-        contraAtaque: 2,
-        substituicao: 2,
-        introNormal: 2,
-        introFinal: 3,
-        defesa: 3,
-        varCheck: 3,
-        golAnulado: 3,
-        gol: 3,
-        fimDeJogo: 3
-      };
-
-      // Cooldown mínimo (ms) para evitar atropelamento de narrações em velocidades 2x/4x
-      this.cooldowns = {
-        1: 2400,
-        2: 1200,
-        3: 0
-      };
-    }
-
-    isSfxEnabled() {
-      const sfxBtn = document.getElementById('set-sfx');
-      if (sfxBtn && sfxBtn.textContent.trim().toUpperCase() === 'OFF') return false;
-      if (window.app && window.app.settings && window.app.settings.sfx === false) return false;
-      return true;
-    }
-
-    getVolume() {
-      const sfxSlider = document.getElementById('set-sfx-vol');
-      if (sfxSlider) {
-        const val = parseFloat(sfxSlider.value);
-        if (!isNaN(val)) return Math.max(0, Math.min(1, val / 100));
-      }
-      if (window.app && window.app.settings && typeof window.app.settings.sfxVol === 'number') {
-        return Math.max(0, Math.min(1, window.app.settings.sfxVol / 100));
-      }
-      return 0.9;
-    }
-
-    playRandom(category, onEnded = null) {
-      if (!this.isSfxEnabled() || this.isSuspended) {
-        if (onEnded) onEnded();
-        return;
-      }
-
-      const files = this.soundBank[category];
-      if (!files || !files.length) {
-        if (onEnded) onEnded();
-        return;
-      }
-
-      const priority = this.priorities[category] || 1;
-      const now = Date.now();
-
-      // Se houver um áudio de prioridade superior ou igual (crítico) a tocar, não interrompe
-      if (this.currentAudio && !this.currentAudio.paused) {
-        if (priority < this.currentPriority) return;
-        if (priority === 1 && (now - this.lastPlayTime) < this.cooldowns[1]) return;
-      }
-
-      this.stop();
-
-      const chosenFile = files[Math.floor(Math.random() * files.length)];
-      this._playFileWithFallback(chosenFile, priority, 0, onEnded);
-    }
-
-    _playFileWithFallback(relativeFile, priority, pathIdx, onEnded) {
-      if (pathIdx >= this.basePaths.length) {
-        this.currentPriority = 0;
-        if (onEnded) onEnded();
-        return;
-      }
-
-      const base = this.basePaths[pathIdx];
-      const url = encodeURI(`${base}/${relativeFile}`);
-      const audio = new Audio(url);
-      audio.volume = this.getVolume();
-
-      this.currentAudio = audio;
-      this.currentPriority = priority;
-      this.lastPlayTime = Date.now();
-
-      audio.addEventListener('ended', () => {
-        if (this.currentAudio === audio) {
-          this.currentPriority = 0;
-          this.currentAudio = null;
-        }
-        if (onEnded) onEnded();
-      }, { once: true });
-
-      audio.addEventListener('error', () => {
-        // Tenta caminho alternativo caso o servidor rejeite a codificação
-        this._playFileWithFallback(relativeFile, priority, pathIdx + 1, onEnded);
-      }, { once: true });
-
-      audio.play().catch(() => {
-        this.currentPriority = 0;
-        if (onEnded) onEnded();
-      });
-    }
-
-    stop() {
-      if (this.currentAudio) {
-        try {
-          this.currentAudio.pause();
-          this.currentAudio.currentTime = 0;
-        } catch (_) {}
-        this.currentAudio = null;
-        this.currentPriority = 0;
-      }
-    }
-
-    suspend(pauseState) {
-      this.isSuspended = !!pauseState;
-      if (!this.currentAudio) return;
-      try {
-        if (this.isSuspended && !this.currentAudio.paused) {
-          this.currentAudio.pause();
-          this.currentAudio._pausedByVisibility = true;
-        } else if (!this.isSuspended && this.currentAudio._pausedByVisibility) {
-          this.currentAudio._pausedByVisibility = false;
-          this.currentAudio.play().catch(() => {});
-        }
-      } catch (_) {}
-    }
-
-    refreshVolume() {
-      if (this.currentAudio) {
-        this.currentAudio.volume = this.getVolume();
-      }
-    }
-  }
-
-  // Instância global acessível
-  const narrator = new AltFootAudioManager();
-  window.altFootNarrator = narrator;
-
-  // =========================================================================
-  // ELEMENTOS VISUAIS DO RELVADO 2D (FITA DE RÁDIO 95.3 FM + PAINEL DO VAR)
-  // =========================================================================
-  function ensureCampoOverlays() {
-    const campo = document.getElementById('campo-2d');
-    if (!campo) return {};
-
-    let radioBar = campo.querySelector('.radio-replay');
-    if (!radioBar) {
-      radioBar = document.createElement('div');
-      radioBar.className = 'radio-replay';
-      radioBar.innerHTML = `
-        <span class="rr-freq">95.3 FM</span>
-        <span class="rr-text">Sintonizado na Rádio do Estádio...</span>
-      `;
-      campo.appendChild(radioBar);
-    }
-
-    let varPanel = campo.querySelector('.var-panel');
-    if (!varPanel) {
-      varPanel = document.createElement('div');
-      varPanel.className = 'var-panel';
-      varPanel.innerHTML = `
-        <div class="var-scan"></div>
-        <div class="var-box">
-          <div class="var-title">📺 REVISÃO DO VAR</div>
-          <div class="var-step">A analisar imagens do lance...</div>
-          <div class="var-steps">
-            <div class="ok">✔ Sincronização do ponto de contacto</div>
-            <div class="pend" id="var-step-line">⏳ A traçar linhas de posição...</div>
-          </div>
-          <div class="var-bar"><i id="var-bar-fill"></i></div>
-          <div class="var-decision" id="var-decision-badge">DECISÃO</div>
-          <div class="var-juiz" id="var-juiz-txt">Árbitro aguarda comunicação da cabine</div>
-        </div>
-      `;
-      campo.appendChild(varPanel);
-    }
-
-    return { campo, radioBar, varPanel };
-  }
-
-  let radioHideTimer = null;
-  function showRadioTicker(text, duration = 3400) {
-    const { radioBar } = ensureCampoOverlays();
-    if (!radioBar) return;
-    const txtEl = radioBar.querySelector('.rr-text');
-    if (txtEl) {
-      txtEl.textContent = text;
-      txtEl.classList.add('typing');
-    }
-    radioBar.classList.add('on');
-    clearTimeout(radioHideTimer);
-    radioHideTimer = setTimeout(() => {
-      radioBar.classList.remove('on');
-      if (txtEl) txtEl.classList.remove('typing');
-    }, duration);
-  }
-
-  // Sequência visual e sonora do VAR em 2 fases
-  let varActive = false;
-  function triggerVarDrama(isGoalConfirmed, rawText) {
-    if (varActive) return;
-    varActive = true;
-
-    const { varPanel } = ensureCampoOverlays();
-    const stepLine = document.getElementById('var-step-line');
-    const barFill = document.getElementById('var-bar-fill');
-    const decisionBadge = document.getElementById('var-decision-badge');
-    const juizTxt = document.getElementById('var-juiz-txt');
-
-    if (varPanel) {
-      if (stepLine) {
-        stepLine.className = 'pend';
-        stepLine.textContent = '⏳ A calibrar câmaras de fora de jogo...';
-      }
-      if (barFill) barFill.style.width = '15%';
-      if (decisionBadge) {
-        decisionBadge.className = 'var-decision';
-        decisionBadge.textContent = '';
-      }
-      if (juizTxt) {
-        juizTxt.className = 'var-juiz';
-        juizTxt.textContent = 'Árbitro com a mão no auricular...';
-      }
-      varPanel.classList.add('on');
-    }
-
-    showRadioTicker('⚖️ ATENÇÃO! O VAR está a rever a legalidade do lance!', 4800);
-
-    // Adiciona marcador do VAR na barra de tempo se existir
-    const tlTrack = document.getElementById('tl-track');
-    const clockEl = document.getElementById('match-clock');
-    if (tlTrack && clockEl) {
-      const minMatch = (clockEl.textContent || '').match(/(\d+)/);
-      const min = minMatch ? Math.min(90, Math.max(1, parseInt(minMatch[1], 10))) : 45;
-      const marker = document.createElement('div');
-      marker.className = 'tl-marker var';
-      marker.style.left = `${(min / 90) * 100}%`;
-      marker.title = `${min}' Revisão VAR`;
-      marker.textContent = 'V';
-      tlTrack.appendChild(marker);
-    }
-
-    setTimeout(() => {
-      if (barFill) barFill.style.width = '65%';
-      if (stepLine) {
-        stepLine.className = isGoalConfirmed ? 'ok' : 'bad';
-        stepLine.textContent = isGoalConfirmed
-          ? '✔ Posição legal confirmada (−2cm)'
-          : '✖ Infração / Posição irregular detetada';
-      }
-    }, 800);
-
-    // Toca o áudio de chamada do VAR e encadeia com o desfecho
-    narrator.playRandom('varCheck', () => {
-      if (barFill) barFill.style.width = '100%';
-      if (decisionBadge) {
-        decisionBadge.textContent = isGoalConfirmed ? '⚽ GOLO CONFIRMADO!' : '🚫 GOLO ANULADO!';
-        decisionBadge.className = `var-decision show ${isGoalConfirmed ? 'confirmado' : 'anulado'}`;
-      }
-      if (juizTxt) {
-        juizTxt.className = 'var-juiz sig';
-        juizTxt.textContent = isGoalConfirmed
-          ? 'Árbitro aponta para o centro do terreno!'
-          : 'Árbitro ergue o braço e invalida o lance!';
-      }
-
-      setTimeout(() => {
-        narrator.playRandom(isGoalConfirmed ? 'gol' : 'golAnulado');
-      }, 350);
-
-      setTimeout(() => {
-        if (varPanel) varPanel.classList.remove('on');
-        varActive = false;
-      }, 2600);
-    });
-  }
-
-  // =========================================================================
-  // DETETOR DE LANCES DO FEED E CONSTRUÇÃO DE JOGADAS
-  // =========================================================================
-  function classifyAndNarrateFeedItem(node) {
-    if (!node || node.nodeType !== 1) return;
-    const classes = node.className || '';
-    const text = (node.textContent || '').trim();
-    const lower = text.toLowerCase();
-
-    // 1. Verificação de VAR / Golo Anulado
-    if (classes.includes('feed-var') || lower.includes('var') || lower.includes('anulado') || lower.includes('impedimento') || lower.includes('fora de jogo')) {
-      const isAnulado = lower.includes('anul') || lower.includes('imped') || lower.includes('irregular') || lower.includes('falta');
-      triggerVarDrama(!isAnulado, text);
-      return;
-    }
-
-    // 2. Golo marcado (equipa do utilizador ou rival)
-    if (classes.includes('feed-goal') || classes.includes('feed-goal-rival') || /\bgol+\b|\bgolaço\b/i.test(lower)) {
-      narrator.playRandom('gol');
-      showRadioTicker(`🎙️ ${text}`, 4200);
-      const estadioBg = document.querySelector('#screen-match .estadio-bg');
-      if (estadioBg) {
-        estadioBg.classList.add('celebra');
-        setTimeout(() => estadioBg.classList.remove('celebra'), 2400);
-      }
-      return;
-    }
-
-    // 3. Defesa de guarda-redes
-    if (classes.includes('feed-def') || lower.includes('defende') || lower.includes('defesa') || lower.includes('espalma') || lower.includes('goleiro') || lower.includes('guarda-redes')) {
-      narrator.playRandom('defesa');
-      showRadioTicker(`🧤 ${text}`, 3200);
-      return;
-    }
-
-    // 4. Contra-ataque rápido
-    if (lower.includes('contra-ataque') || lower.includes('contra ataque') || lower.includes('transição rápida') || lower.includes('dispara em velocidade')) {
-      narrator.playRandom('contraAtaque');
-      showRadioTicker(`⚡ ${text}`, 3000);
-      return;
-    }
-
-    // 5. Cruzamento / Canto / Chuveirinho
-    if (classes.includes('feed-corner') || lower.includes('cruza') || lower.includes('cruzamento') || lower.includes('escanteio') || lower.includes('área') || lower.includes('cabece')) {
-      narrator.playRandom('cruzamento');
-      showRadioTicker(`📐 ${text}`, 2800);
-      return;
-    }
-
-    // 6. Drible / Jogada individual
-    if (lower.includes('dribl') || lower.includes('finta') || lower.includes('deixa para trás') || lower.includes('individual') || lower.includes('costura')) {
-      narrator.playRandom('drible');
-      showRadioTicker(`✨ ${text}`, 2800);
-      return;
-    }
-
-    // 7. Passe / Construção no meio-campo
-    if (lower.includes('passe') || lower.includes('toca') || lower.includes('tabela') || lower.includes('lançamento') || lower.includes('arma') || classes.includes('feed-info')) {
-      narrator.playRandom('passe');
-      showRadioTicker(`📻 ${text}`, 2500);
-    }
-  }
-
-  // Observa o feed da partida (#ui-match-feed) e o cabeçalho (#match-log)
-  function setupMatchObservers() {
-    const feedEl = document.getElementById('ui-match-feed');
-    if (feedEl && !feedEl._altfootObserved) {
-      feedEl._altfootObserved = true;
-      const feedObserver = new MutationObserver((mutations) => {
-        for (const m of mutations) {
-          for (const added of m.addedNodes) {
-            classifyAndNarrateFeedItem(added);
-          }
-        }
-      });
-      feedObserver.observe(feedEl, { childList: true });
-    }
-
-    // Observa abertura do modal de Fim de Jogo (#modal-match-result) para tocar fim-1.mp3
-    const resultModal = document.getElementById('modal-match-result');
-    if (resultModal && !resultModal._altfootObserved) {
-      resultModal._altfootObserved = true;
-      let wasHidden = resultModal.classList.contains('hidden');
-      const modalObserver = new MutationObserver(() => {
-        const isHidden = resultModal.classList.contains('hidden');
-        if (wasHidden && !isHidden) {
-          narrator.playRandom('fimDeJogo');
-        }
-        wasHidden = isHidden;
-      });
-      modalObserver.observe(resultModal, { attributes: true, attributeFilter: ['class'] });
-    }
-  }
-
-  // =========================================================================
-  // INTEGRAÇÃO COM OS MÉTODOS DE `app` E `ui`
-  // =========================================================================
-  function hookGameMethods() {
-    if (typeof window.app === 'object' && window.app && !window.app._altfootEnhanced) {
-      window.app._altfootEnhanced = true;
-
-      // 1. Hook em confirmarPreparacao: Deteta jogos de Final vs Jogos Normais
-      const origConfirmarPrep = window.app.confirmarPreparacao;
-      if (typeof origConfirmarPrep === 'function') {
-        window.app.confirmarPreparacao = function (...args) {
-          const res = origConfirmarPrep.apply(this, args);
-          setTimeout(() => {
-            ensureCampoOverlays();
-            const matchScreen = document.getElementById('screen-match');
-            const seloTxt = (document.getElementById('match-tema-selo')?.textContent || '').toUpperCase();
-            const compTxt = (document.getElementById('match-competicao')?.textContent || '').toUpperCase();
-            const temaAttr = matchScreen?.getAttribute('data-tema') || '';
-
-            const isFinal =
-              temaAttr === 'final' ||
-              seloTxt.includes('FINAL') ||
-              compTxt.includes('FINAL') ||
-              compTxt.includes('DECISÃO') ||
-              compTxt.includes('TÍTULO');
-
-            if (isFinal && matchScreen) {
-              matchScreen.setAttribute('data-tema', 'final');
-            }
-
-            narrator.playRandom(isFinal ? 'introFinal' : 'introNormal');
-            showRadioTicker(
-              isFinal
-                ? '🏆 TRANSMISSÃO ESPECIAL DE FINAL! Rádio do Estádio 95.3 FM!'
-                : '📻 Apito inicial! Acompanhe tudo na Rádio do Estádio 95.3 FM!',
-              4500
-            );
-          }, 180);
-          return res;
-        };
-      }
-
-      // 2. Hook em confirmarSubstituicao: Dispara áudio de substituição e fita de rádio
-      const origConfirmarSub = window.app.confirmarSubstituicao;
-      if (typeof origConfirmarSub === 'function') {
-        window.app.confirmarSubstituicao = function (...args) {
-          const saiSelected = document.querySelector('#sub-sai-list .sub-player-btn.selected .nome')?.textContent || 'Titular';
-          const entraSelected = document.querySelector('#sub-entra-list .sub-player-btn.selected .nome')?.textContent || 'Suplente';
-          const res = origConfirmarSub.apply(this, args);
-          narrator.playRandom('substituicao');
-          showRadioTicker(`🔄 Substituição: entra ${entraSelected} no lugar de ${saiSelected}!`, 3800);
-          return res;
-        };
-      }
-
-      // 3. Hook em setVolume e toggleSetting para atualizar o motor de narração em tempo real
-      const origSetVolume = window.app.setVolume;
-      if (typeof origSetVolume === 'function') {
-        window.app.setVolume = function (type, val) {
-          const res = origSetVolume.apply(this, arguments);
-          if (type === 'sfxVol') narrator.refreshVolume();
-          return res;
-        };
-      }
-
-      const origToggleSetting = window.app.toggleSetting;
-      if (typeof origToggleSetting === 'function') {
-        window.app.toggleSetting = function (key) {
-          const res = origToggleSetting.apply(this, arguments);
-          if (key === 'sfx' && !narrator.isSfxEnabled()) {
-            narrator.stop();
-          }
-          return res;
-        };
-      }
-    }
-
-    // 4. Hook em ui.suspenderAudioPagina para pausar narração quando o separador é ocultado
-    if (typeof window.ui === 'object' && window.ui && !window.ui._altfootEnhanced) {
-      window.ui._altfootEnhanced = true;
-      const origSuspender = window.ui.suspenderAudioPagina;
-      window.ui.suspenderAudioPagina = function (oculto) {
-        narrator.suspend(oculto);
-        if (typeof origSuspender === 'function') {
-          return origSuspender.apply(this, arguments);
-        }
-      };
-    }
-  }
-
-  // Interceptador global de segurança para Audio(): corrige chamadas diretas a gol-2.mp3 no código legado
-  const OrigAudio = window.Audio;
-  window.Audio = function (src) {
-    if (typeof src === 'string') {
-      if (src.includes('gol-2.mp3')) {
-        const validGols = ['gol-1.mp3', 'gol-3.mp3', 'gol-4.mp3'];
-        const replacement = validGols[Math.floor(Math.random() * validGols.length)];
-        src = src.replace('gol-2.mp3', replacement);
-      }
-      // Garante encodeURI em caminhos com espaços ou acentos
-      if (src.includes('SONS DA NARRA') && !src.includes('%20')) {
-        src = encodeURI(src);
-      }
-    }
-    return new OrigAudio(src);
-  };
-  window.Audio.prototype = OrigAudio.prototype;
-
-  // Inicialização automática quando o DOM estiver pronto
-  function initEnhancements() {
-    ensureCampoOverlays();
-    setupMatchObservers();
-    hookGameMethods();
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initEnhancements);
-  } else {
-    initEnhancements();
-  }
-  window.addEventListener('load', initEnhancements);
-})();
 </script>
-<!-- ====================================================================== -->
-<!-- PACOTE DE EXPANSÃO V2: HOLO 3D, DUELOS 2D, ORDENAÇÃO, ATALHOS E CACHE  -->
-<!-- ====================================================================== -->
-<style>
-  /* Permite reativar o Estádio e o efeito CRT quando o Modo Retrô estiver ativo */
+
+
+<!-- === ALTFOOT ELITE: PACOTE VISUAL & UX (SEM NARRAÇÃO) === -->
+<style id="altfoot-v3-styles">
+  /* Permite ativar o Estádio e o efeito CRT quando o Modo Retrô estiver ligado */
   body.modo-retro-crt #screen-match::before,
   body.modo-retro-crt #screen-match::after {
     display: block !important;
@@ -15663,32 +15109,79 @@ window.app = app;
   }
 </style>
 
-<script>
+<script id="altfoot-v3-script">
 (function () {
   'use strict';
 
   // =========================================================================
-  // 1. PRÉ-CARREGAMENTO INTELIGENTE DOS ÁUDIOS CRÍTICOS (ZERO LATÊNCIA)
+  // 1. DESATIVAÇÃO TOTAL DE NARRAÇÕES (.MP3) SEM TRAVAR O MOTOR DO JOGO
   // =========================================================================
-  function preloadCriticalAudio() {
-    if (!window.altFootNarrator) return;
-    const criticalCategories = ['gol', 'defesa', 'varCheck', 'golAnulado', 'fimDeJogo', 'substituicao'];
-    const base = window.altFootNarrator.basePaths[0];
-    window._altfootAudioCache = window._altfootAudioCache || {};
+  const NativeAudio = window.Audio;
 
-    criticalCategories.forEach((cat) => {
-      const files = window.altFootNarrator.soundBank[cat] || [];
-      files.forEach((file) => {
-        const url = encodeURI(`${base}/${file}`);
-        if (!window._altfootAudioCache[url]) {
-          const a = new Audio();
-          a.preload = 'auto';
-          a.src = url;
-          window._altfootAudioCache[url] = a;
-        }
+  class SilentNarrationAudio {
+    constructor(src = '') {
+      this.src = src;
+      this.volume = 0;
+      this.muted = true;
+      this.paused = true;
+      this.ended = false;
+      this.currentTime = 0;
+      this.duration = 0.1;
+      this.readyState = 4;
+      this._listeners = {};
+    }
+    addEventListener(type, fn) {
+      if (!this._listeners[type]) this._listeners[type] = [];
+      this._listeners[type].push(fn);
+      if (type === 'canplaythrough' || type === 'loadeddata' || type === 'loadedmetadata') {
+        setTimeout(() => this._emit(type), 5);
+      }
+    }
+    removeEventListener(type, fn) {
+      if (!this._listeners[type]) return;
+      this._listeners[type] = this._listeners[type].filter((f) => f !== fn);
+    }
+    _emit(type) {
+      const list = this._listeners[type] || [];
+      list.forEach((fn) => {
+        try { fn.call(this, new Event(type)); } catch (_) {}
       });
-    });
+      const propHandler = this['on' + type];
+      if (typeof propHandler === 'function') {
+        try { propHandler.call(this, new Event(type)); } catch (_) {}
+      }
+    }
+    play() {
+      this.paused = false;
+      this._emit('play');
+      // Dispara 'ended' rapidamente para destravar animações/filas como ui._narAposCena
+      setTimeout(() => {
+        this.paused = true;
+        this.ended = true;
+        this._emit('ended');
+      }, 15);
+      return Promise.resolve();
+    }
+    pause() {
+      this.paused = true;
+      this._emit('pause');
+    }
+    load() {
+      this._emit('canplaythrough');
+    }
   }
+
+  // Intercepta qualquer tentativa de criar um Audio() de narração .mp3
+  window.Audio = function (src) {
+    if (!src || typeof src === 'string') {
+      const s = String(src || '').toLowerCase();
+      if (!src || s.includes('.mp3') || s.includes('narrac') || s.includes('narraç') || s.includes('curtas/')) {
+        return new SilentNarrationAudio(src);
+      }
+    }
+    return new NativeAudio(src);
+  };
+  window.Audio.prototype = NativeAudio.prototype;
 
   // =========================================================================
   // 2. EFEITO HOLOGRÁFICO 3D NAS CARTAS OURO E DIAMANTE (--rx, --ry, --foil)
@@ -15724,7 +15217,7 @@ window.app = app;
   }
 
   // =========================================================================
-  // 3. DUELOS DE MINI-CARTAS, REPLAY BADGE E CELEBRAÇÃO NO CAMPO 2D
+  // 3. ELEMENTOS VISUAIS DO RELVADO 2D (SAFE DOM - SEM ERROS NULL)
   // =========================================================================
   function ensurePitchVisualFX() {
     const campo = document.getElementById('campo-2d');
@@ -15750,23 +15243,47 @@ window.app = app;
     if (!dueloBox) {
       dueloBox = document.createElement('div');
       dueloBox.className = 'campo-duelo';
-      dueloBox.innerHTML = `
-        <div class="duelo-mini d-atk">
-          <div class="dm-pos" id="duelo-atk-pos">ATA</div>
-          <div class="dm-ovr" id="duelo-atk-ovr">82</div>
-          <div class="dm-nome" id="duelo-atk-nome">Atacante</div>
-        </div>
-        <div class="duelo-vs">⚡ VS</div>
-        <div class="duelo-mini d-def">
-          <div class="dm-pos" id="duelo-def-pos">DEF</div>
-          <div class="dm-ovr" id="duelo-def-ovr">79</div>
-          <div class="dm-nome" id="duelo-def-nome">Defensor</div>
-        </div>
-      `;
       campo.appendChild(dueloBox);
     }
 
-    return { campo, replayBadge, celebraMini, dueloBox };
+    if (!dueloBox.querySelector('.d-atk') || !dueloBox.querySelector('.d-def')) {
+      dueloBox.innerHTML = `
+        <div class="duelo-mini d-atk">
+          <div class="dm-pos">ATA</div>
+          <div class="dm-ovr">82</div>
+          <div class="dm-nome">Atacante</div>
+        </div>
+        <div class="duelo-vs">⚡ VS</div>
+        <div class="duelo-mini d-def">
+          <div class="dm-pos">DEF</div>
+          <div class="dm-ovr">79</div>
+          <div class="dm-nome">Defensor</div>
+        </div>
+      `;
+    }
+
+    let varPanel = campo.querySelector('.var-panel');
+    if (!varPanel) {
+      varPanel = document.createElement('div');
+      varPanel.className = 'var-panel';
+      varPanel.innerHTML = `
+        <div class="var-scan"></div>
+        <div class="var-box">
+          <div class="var-title">📺 REVISÃO DO VAR</div>
+          <div class="var-step">A analisar imagens do lance...</div>
+          <div class="var-steps">
+            <div class="ok">✔ Sincronização do ponto de contacto</div>
+            <div class="pend" id="var-step-line">⏳ A traçar linhas de posição...</div>
+          </div>
+          <div class="var-bar"><i id="var-bar-fill"></i></div>
+          <div class="var-decision" id="var-decision-badge">DECISÃO</div>
+          <div class="var-juiz" id="var-juiz-txt">Árbitro aguarda confirmação</div>
+        </div>
+      `;
+      campo.appendChild(varPanel);
+    }
+
+    return { campo, replayBadge, celebraMini, dueloBox, varPanel };
   }
 
   let dueloTimer = null;
@@ -15774,22 +15291,35 @@ window.app = app;
     const { dueloBox } = ensurePitchVisualFX();
     if (!dueloBox) return;
 
-    document.getElementById('duelo-atk-nome').textContent = atkName || 'Ataque';
-    document.getElementById('duelo-atk-pos').textContent = atkPos || 'ATA';
-    document.getElementById('duelo-atk-ovr').textContent = atkOvr || '80';
+    const atkCard = dueloBox.querySelector('.d-atk');
+    const defCard = dueloBox.querySelector('.d-def');
 
-    document.getElementById('duelo-def-nome').textContent = defName || 'Defesa';
-    document.getElementById('duelo-def-pos').textContent = defPos || 'DEF';
-    document.getElementById('duelo-def-ovr').textContent = defOvr || '78';
+    if (atkCard) {
+      const posEl = atkCard.querySelector('.dm-pos');
+      const ovrEl = atkCard.querySelector('.dm-ovr');
+      const nomeEl = atkCard.querySelector('.dm-nome');
+      if (posEl) posEl.textContent = atkPos || 'ATA';
+      if (ovrEl) ovrEl.textContent = String(atkOvr || '80');
+      if (nomeEl) nomeEl.textContent = atkName || 'Ataque';
+    }
+
+    if (defCard) {
+      const posEl = defCard.querySelector('.dm-pos');
+      const ovrEl = defCard.querySelector('.dm-ovr');
+      const nomeEl = defCard.querySelector('.dm-nome');
+      if (posEl) posEl.textContent = defPos || 'DEF';
+      if (ovrEl) ovrEl.textContent = String(defOvr || '78');
+      if (nomeEl) nomeEl.textContent = defName || 'Defesa';
+    }
 
     dueloBox.classList.remove('on');
-    void dueloBox.offsetWidth; // Reinicia animação CSS
+    void dueloBox.offsetWidth;
     dueloBox.classList.add('on');
 
     clearTimeout(dueloTimer);
     dueloTimer = setTimeout(() => {
       dueloBox.classList.remove('on');
-    }, 2100);
+    }, 1800);
   }
 
   function triggerGoalPitchFX(isRivalGoal) {
@@ -15803,16 +15333,71 @@ window.app = app;
     }
     if (replayBadge) {
       replayBadge.classList.add('on');
-      setTimeout(() => replayBadge.classList.remove('on'), 3200);
+      setTimeout(() => replayBadge.classList.remove('on'), 2600);
     }
-    const bola = campo?.querySelector('.campo-bola');
+    const bola = campo ? campo.querySelector('.campo-bola') : null;
     if (bola) {
       bola.classList.add('rastro');
-      setTimeout(() => bola.classList.remove('rastro'), 3000);
+      setTimeout(() => bola.classList.remove('rastro'), 2600);
+    }
+    const estadioBg = document.querySelector('#screen-match .estadio-bg');
+    if (estadioBg) {
+      estadioBg.classList.add('celebra');
+      setTimeout(() => estadioBg.classList.remove('celebra'), 2200);
     }
   }
 
-  // Observa o feed para acionar os efeitos visuais no Campo 2D
+  let varActive = false;
+  function triggerVisualVar(isGoalConfirmed) {
+    if (varActive) return;
+    varActive = true;
+
+    const { varPanel } = ensurePitchVisualFX();
+    if (!varPanel) {
+      varActive = false;
+      return;
+    }
+
+    const stepLine = varPanel.querySelector('#var-step-line');
+    const barFill = varPanel.querySelector('#var-bar-fill');
+    const decisionBadge = varPanel.querySelector('#var-decision-badge');
+    const juizTxt = varPanel.querySelector('#var-juiz-txt');
+
+    if (stepLine) {
+      stepLine.className = 'pend';
+      stepLine.textContent = '⏳ A calibrar linhas de fora de jogo...';
+    }
+    if (barFill) barFill.style.width = '25%';
+    if (decisionBadge) {
+      decisionBadge.className = 'var-decision';
+      decisionBadge.textContent = '';
+    }
+    varPanel.classList.add('on');
+
+    setTimeout(() => {
+      if (barFill) barFill.style.width = '100%';
+      if (stepLine) {
+        stepLine.className = isGoalConfirmed ? 'ok' : 'bad';
+        stepLine.textContent = isGoalConfirmed
+          ? '✔ Posição legal confirmada'
+          : '✖ Infração / Posição irregular detetada';
+      }
+      if (decisionBadge) {
+        decisionBadge.textContent = isGoalConfirmed ? '⚽ GOL CONFIRMADO!' : '🚫 GOL ANULADO!';
+        decisionBadge.className = `var-decision show ${isGoalConfirmed ? 'confirmado' : 'anulado'}`;
+      }
+      if (juizTxt) {
+        juizTxt.className = 'var-juiz sig';
+        juizTxt.textContent = isGoalConfirmed ? 'Árbitro valida o lance!' : 'Árbitro invalida o lance!';
+      }
+    }, 650);
+
+    setTimeout(() => {
+      varPanel.classList.remove('on');
+      varActive = false;
+    }, 2000);
+  }
+
   function attachPitchFXObserver() {
     const feedEl = document.getElementById('ui-match-feed');
     if (!feedEl || feedEl._pitchFXObserved) return;
@@ -15824,13 +15409,16 @@ window.app = app;
           if (!node || node.nodeType !== 1) continue;
           const cls = node.className || '';
           const txt = (node.textContent || '').trim();
+          const lower = txt.toLowerCase();
 
-          if (cls.includes('feed-goal-rival')) {
+          if (cls.includes('feed-var') || lower.includes('var') || lower.includes('anulado')) {
+            const isAnulado = lower.includes('anul') || lower.includes('imped') || lower.includes('irregular');
+            triggerVisualVar(!isAnulado);
+          } else if (cls.includes('feed-goal-rival')) {
             triggerGoalPitchFX(true);
           } else if (cls.includes('feed-goal')) {
             triggerGoalPitchFX(false);
           } else if (cls.includes('feed-def') || cls.includes('feed-tackle')) {
-            // Extrai nomes se disponíveis ou mostra confronto tático
             const words = txt.replace(/^\d+'\s*/, '').split(/\s+/);
             const player1 = words.slice(0, 2).join(' ') || 'Atacante';
             const isSave = cls.includes('feed-def');
@@ -15838,7 +15426,7 @@ window.app = app;
               player1,
               'ATA',
               Math.floor(75 + Math.random() * 14),
-              isSave ? 'Guarda-Redes' : 'Zagueiro',
+              isSave ? 'Goleiro' : 'Zagueiro',
               isSave ? 'GK' : 'DEF',
               Math.floor(76 + Math.random() * 14)
             );
@@ -15853,7 +15441,6 @@ window.app = app;
   // 4. ATALHOS DE TECLADO NA PARTIDA E INDICADORES (.decision-shortcut)
   // =========================================================================
   function setupKeyboardShortcuts() {
-    // Adiciona etiquetas [1], [2], [3] nos botões de decisão quando surgirem
     const decisionBtnsContainer = document.getElementById('match-decision-btns');
     if (decisionBtnsContainer && !decisionBtnsContainer._shortcutObserved) {
       decisionBtnsContainer._shortcutObserved = true;
@@ -15872,7 +15459,6 @@ window.app = app;
     }
 
     window.addEventListener('keydown', (e) => {
-      // Ignora se o utilizador estiver a digitar num campo de texto
       if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) return;
 
       const matchScreen = document.getElementById('screen-match');
@@ -15881,7 +15467,6 @@ window.app = app;
       const decisionBox = document.getElementById('match-decision');
       const isDecisionVisible = decisionBox && !decisionBox.classList.contains('hidden');
 
-      // Teclas 1, 2, 3 respondem às decisões do treinador ou mudam velocidade
       if (['1', '2', '3'].includes(e.key)) {
         if (isDecisionVisible) {
           const btns = decisionBox.querySelectorAll('.decision-btn');
@@ -15948,7 +15533,7 @@ window.app = app;
       cards.sort((a, b) => {
         const condA = parseInt((a.querySelector('.card-condition')?.textContent || '100').replace(/\D/g, ''), 10) || 100;
         const condB = parseInt((b.querySelector('.card-condition')?.textContent || '100').replace(/\D/g, ''), 10) || 100;
-        return condA - condB; // Mostra primeiro quem precisa de descanso
+        return condA - condB;
       });
       cards.forEach((c) => squadList.appendChild(c));
     });
@@ -15987,8 +15572,16 @@ window.app = app;
     });
   }
 
-  function initAllV2() {
-    preloadCriticalAudio();
+  // =========================================================================
+  // 7. PWA OFFLINE (SEM CACHE DE NARRAÇÕES)
+  // =========================================================================
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').catch(() => {});
+    });
+  }
+
+  function initAllV3() {
     initHoloCards3D();
     ensurePitchVisualFX();
     attachPitchFXObserver();
@@ -15998,48 +15591,14 @@ window.app = app;
   }
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initAllV2);
+    document.addEventListener('DOMContentLoaded', initAllV3);
   } else {
-    initAllV2();
+    initAllV3();
   }
-  window.addEventListener('load', initAllV2);
+  window.addEventListener('load', initAllV3);
 })();
 </script>
-<script>
-(function () {
-  // 1. Regista o Service Worker para funcionar 100% offline
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./sw.js').catch((err) => {
-        console.warn('Aviso SW:', err);
-      });
-    });
-  }
+<!-- === FIM DO PACOTE ALTFOOT ELITE V3 === -->
 
-  // 2. Cria botão de instalação rápida no Menu Principal quando suportado
-  let deferredPrompt = null;
-  window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    deferredPrompt = e;
-
-    const menuSlotRow = document.getElementById('menu-slot-row');
-    if (menuSlotRow && !document.getElementById('btn-install-pwa')) {
-      const installBtn = document.createElement('button');
-      installBtn.id = 'btn-install-pwa';
-      installBtn.className = 'btn-secondary';
-      installBtn.style.cssText = 'width: 100%; margin-top: 12px; min-height: 44px; border-color: #ffb000; color: #ffb000;';
-      installBtn.textContent = '📲 INSTALAR APP (JOGAR OFFLINE)';
-      installBtn.addEventListener('click', async () => {
-        if (!deferredPrompt) return;
-        deferredPrompt.prompt();
-        await deferredPrompt.userChoice;
-        deferredPrompt = null;
-        installBtn.remove();
-      });
-      menuSlotRow.parentNode.insertBefore(installBtn, menuSlotRow);
-    }
-  });
-})();
-</script>
 </body>
 </html>
