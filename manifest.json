@@ -1,7 +1,7 @@
 {
   "name": "AltFoot ELITE - TCG Football Manager",
   "short_name": "AltFoot ELITE",
-  "description": "Manager de futebol com cartas colecionáveis e narração de rádio ao vivo 95.3 FM.",
+  "description": "Manager de futebol com cartas colecionáveis e simulação tática 2D.",
   "lang": "pt-BR",
   "start_url": "./index.html",
   "scope": "./",

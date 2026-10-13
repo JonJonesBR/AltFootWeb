@@ -15070,21 +15070,79 @@ window.app = app;
 </script>
 
 
-<!-- === ALTFOOT ELITE: PACOTE VISUAL & UX (SEM NARRAÇÃO) === -->
-<style id="altfoot-v3-styles">
-  /* Permite ativar o Estádio e o efeito CRT quando o Modo Retrô estiver ligado */
+
+
+
+<!-- === ALTFOOT ELITE: ULTIMATE EDITION UPGRADE (V4 - SEM NARRAÇÃO) === -->
+<style id="altfoot-ultimate-styles">
+  /* 1. Modo Estádio Retrô CRT opcional nas Configurações */
   body.modo-retro-crt #screen-match::before,
   body.modo-retro-crt #screen-match::after {
     display: block !important;
-    opacity: 0.38 !important;
+    opacity: 0.36 !important;
   }
   body.modo-retro-crt #screen-match .estadio-gramado {
     display: block !important;
-    opacity: 0.35 !important;
+    opacity: 0.32 !important;
   }
 
-  /* Barra de pesquisa e ordenação rápida no Deck */
-  .squad-tools-bar {
+  /* 2. Estilização completa dos Cards de Infraestrutura (#subscreen-clube) */
+  .infra-card {
+    position: relative;
+    border-radius: 16px;
+    border: 1px solid var(--border-bright);
+    background:
+      radial-gradient(120% 90% at 90% 10%, rgba(255, 176, 0, 0.16), transparent 55%),
+      linear-gradient(145deg, #1f170d 0%, #120d07 100%);
+    padding: 16px;
+    margin-bottom: 12px;
+    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.45);
+    overflow: hidden;
+    transition: transform 0.2s ease, border-color 0.2s ease;
+  }
+  .infra-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--primary);
+  }
+  .infra-card-overlay {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .infra-stars {
+    margin-top: 4px;
+    font-size: 0.95rem;
+    letter-spacing: 2px;
+    filter: drop-shadow(0 0 8px rgba(251, 191, 36, 0.45));
+  }
+  .upgrade-btn {
+    flex-shrink: 0;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    color: #1a1206;
+    border: none;
+    border-radius: 12px;
+    padding: 10px 16px;
+    min-height: 44px;
+    font-weight: 900;
+    font-size: 0.76rem;
+    letter-spacing: 0.6px;
+    cursor: pointer;
+    box-shadow: 0 4px 14px var(--primary-glow);
+    transition: transform 0.15s ease, filter 0.15s ease;
+  }
+  .upgrade-btn:hover {
+    transform: scale(1.03);
+    filter: brightness(1.08);
+  }
+  .upgrade-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  /* 3. Ferramentas de Pesquisa e Ordenação no Deck e na Loja */
+  .squad-tools-bar, .market-tools-bar {
     display: flex;
     gap: 6px;
     margin-bottom: 10px;
@@ -15092,29 +15150,100 @@ window.app = app;
     align-items: center;
   }
   .squad-search-input {
-    flex: 1 1 140px;
-    min-height: 36px;
+    flex: 1 1 150px;
+    min-height: 38px;
     padding: 6px 12px;
     border-radius: 999px;
     border: 1px solid var(--border-bright);
     background: rgba(255, 255, 255, 0.05);
     color: var(--text);
-    font-size: 0.72rem;
+    font-size: 0.74rem;
     font-weight: 700;
     outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
   }
   .squad-search-input:focus {
     border-color: var(--primary);
-    box-shadow: 0 0 10px var(--primary-glow);
+    box-shadow: 0 0 12px var(--primary-glow);
+  }
+
+  /* 4. Legenda da Tabela da Liga (#subscreen-league) */
+  .league-zones-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+    padding: 8px 10px;
+    margin-bottom: 8px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border);
+    font-size: 0.66rem;
+    font-weight: 800;
+    color: var(--text-muted);
+  }
+  .league-zones-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .lz-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+
+  /* 5. Painel Consultor Rápido no Dashboard */
+  .tactical-advisor-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 9px 12px;
+    margin-bottom: 12px;
+    border-radius: 12px;
+    background: linear-gradient(90deg, rgba(59, 130, 246, 0.12), rgba(255, 176, 0, 0.08));
+    border: 1px solid rgba(59, 130, 246, 0.32);
+    font-size: 0.72rem;
+    color: var(--text);
+  }
+  .tactical-advisor-bar b {
+    color: var(--primary);
+  }
+
+  /* 6. Toast de Feedback Rápido */
+  #altfoot-toast {
+    position: fixed;
+    bottom: calc(70px + var(--safe-bottom));
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    z-index: 9999;
+    background: rgba(15, 23, 42, 0.96);
+    border: 1px solid var(--primary);
+    color: #fff;
+    padding: 8px 16px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.4px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.65);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.22s ease, transform 0.22s ease;
+  }
+  #altfoot-toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
   }
 </style>
 
-<script id="altfoot-v3-script">
+<script id="altfoot-ultimate-script">
 (function () {
   'use strict';
 
   // =========================================================================
-  // 1. DESATIVAÇÃO TOTAL DE NARRAÇÕES (.MP3) SEM TRAVAR O MOTOR DO JOGO
+  // 1. BLOQUEADOR TOTAL DE NARRAÇÕES (.MP3) + SINTETIZADOR DE APITO LEVE
   // =========================================================================
   const NativeAudio = window.Audio;
 
@@ -15126,15 +15255,15 @@ window.app = app;
       this.paused = true;
       this.ended = false;
       this.currentTime = 0;
-      this.duration = 0.1;
+      this.duration = 0.05;
       this.readyState = 4;
       this._listeners = {};
     }
     addEventListener(type, fn) {
       if (!this._listeners[type]) this._listeners[type] = [];
       this._listeners[type].push(fn);
-      if (type === 'canplaythrough' || type === 'loadeddata' || type === 'loadedmetadata') {
-        setTimeout(() => this._emit(type), 5);
+      if (['canplaythrough', 'loadeddata', 'loadedmetadata'].includes(type)) {
+        setTimeout(() => this._emit(type), 4);
       }
     }
     removeEventListener(type, fn) {
@@ -15142,24 +15271,22 @@ window.app = app;
       this._listeners[type] = this._listeners[type].filter((f) => f !== fn);
     }
     _emit(type) {
-      const list = this._listeners[type] || [];
-      list.forEach((fn) => {
+      (this._listeners[type] || []).forEach((fn) => {
         try { fn.call(this, new Event(type)); } catch (_) {}
       });
-      const propHandler = this['on' + type];
-      if (typeof propHandler === 'function') {
-        try { propHandler.call(this, new Event(type)); } catch (_) {}
+      const handler = this['on' + type];
+      if (typeof handler === 'function') {
+        try { handler.call(this, new Event(type)); } catch (_) {}
       }
     }
     play() {
       this.paused = false;
       this._emit('play');
-      // Dispara 'ended' rapidamente para destravar animações/filas como ui._narAposCena
       setTimeout(() => {
         this.paused = true;
         this.ended = true;
         this._emit('ended');
-      }, 15);
+      }, 12);
       return Promise.resolve();
     }
     pause() {
@@ -15171,11 +15298,10 @@ window.app = app;
     }
   }
 
-  // Intercepta qualquer tentativa de criar um Audio() de narração .mp3
   window.Audio = function (src) {
     if (!src || typeof src === 'string') {
       const s = String(src || '').toLowerCase();
-      if (!src || s.includes('.mp3') || s.includes('narrac') || s.includes('narraç') || s.includes('curtas/')) {
+      if (!src || s.includes('.mp3') || s.includes('narrac') || s.includes('narraç') || s.includes('curtas/') || s.includes('narration_disabled')) {
         return new SilentNarrationAudio(src);
       }
     }
@@ -15183,8 +15309,74 @@ window.app = app;
   };
   window.Audio.prototype = NativeAudio.prototype;
 
+  // Pequeno gerador WebAudio para apito do árbitro (sem ficheiros externos)
+  const StadiumSynth = {
+    ctx: null,
+    isEnabled() {
+      const btn = document.getElementById('set-sfx');
+      if (btn && btn.textContent.trim().toUpperCase() === 'OFF') return false;
+      if (window.app?.settings && window.app.settings.sfx === false) return false;
+      return true;
+    },
+    getVol() {
+      const el = document.getElementById('set-sfx-vol');
+      const v = el ? parseFloat(el.value) : 80;
+      return Math.max(0, Math.min(1, (isNaN(v) ? 80 : v) / 100)) * 0.18;
+    },
+    whistle(doubleWhistle = false) {
+      if (!this.isEnabled()) return;
+      try {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return;
+        if (!this.ctx) this.ctx = new AC();
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+
+        const playTone = (startOffset, duration) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'triangle';
+          const now = this.ctx.currentTime + startOffset;
+          osc.frequency.setValueAtTime(2750, now);
+          osc.frequency.exponentialRampToValueAtTime(2920, now + duration * 0.5);
+          osc.frequency.exponentialRampToValueAtTime(2680, now + duration);
+
+          const vol = this.getVol();
+          gain.gain.setValueAtTime(0.001, now);
+          gain.gain.linearRampToValueAtTime(vol, now + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + duration + 0.02);
+        };
+
+        playTone(0, 0.22);
+        if (doubleWhistle) playTone(0.28, 0.35);
+      } catch (_) {}
+    }
+  };
+
   // =========================================================================
-  // 2. EFEITO HOLOGRÁFICO 3D NAS CARTAS OURO E DIAMANTE (--rx, --ry, --foil)
+  // 2. SISTEMA DE NOTIFICAÇÃO TOAST RÁPIDA
+  // =========================================================================
+  let toastTimer = null;
+  function showToast(msg) {
+    let el = document.getElementById('altfoot-toast');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'altfoot-toast';
+      document.body.appendChild(el);
+    }
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('show'), 2400);
+  }
+  window.altfootToast = showToast;
+
+  // =========================================================================
+  // 3. EFEITO HOLOGRÁFICO 3D NAS CARTAS OURO E DIAMANTE
   // =========================================================================
   function initHoloCards3D() {
     document.addEventListener('pointermove', (e) => {
@@ -15194,30 +15386,25 @@ window.app = app;
       const rect = card.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
-      const centerX = rect.width / 2;
-      const centerY = rect.height / 2;
+      const rx = ((y - rect.height / 2) / (rect.height / 2)) * -10;
+      const ry = ((x - rect.width / 2) / (rect.width / 2)) * 10;
 
-      const rotateX = ((y - centerY) / centerY) * -10;
-      const rotateY = ((x - centerX) / centerX) * 10;
-
-      card.style.setProperty('--rx', `${rotateX.toFixed(2)}deg`);
-      card.style.setProperty('--ry', `${rotateY.toFixed(2)}deg`);
+      card.style.setProperty('--rx', `${rx.toFixed(2)}deg`);
+      card.style.setProperty('--ry', `${ry.toFixed(2)}deg`);
       card.style.setProperty('--foil', '1');
     }, { passive: true });
 
     document.addEventListener('pointerout', (e) => {
       const card = e.target.closest('.player-card.rarity-Ouro, .player-card.rarity-Diamante');
-      if (!card) return;
-      if (!card.contains(e.relatedTarget)) {
-        card.style.setProperty('--rx', '0deg');
-        card.style.setProperty('--ry', '0deg');
-        card.style.setProperty('--foil', '0');
-      }
+      if (!card || card.contains(e.relatedTarget)) return;
+      card.style.setProperty('--rx', '0deg');
+      card.style.setProperty('--ry', '0deg');
+      card.style.setProperty('--foil', '0');
     }, { passive: true });
   }
 
   // =========================================================================
-  // 3. ELEMENTOS VISUAIS DO RELVADO 2D (SAFE DOM - SEM ERROS NULL)
+  // 4. CAMPO 2D: DUELOS SEGUROS, VAR VISUAL, CELEBRAÇÃO E HUD TÁTICO
   // =========================================================================
   function ensurePitchVisualFX() {
     const campo = document.getElementById('campo-2d');
@@ -15227,7 +15414,7 @@ window.app = app;
     if (!replayBadge) {
       replayBadge = document.createElement('div');
       replayBadge.className = 'replay-badge';
-      replayBadge.textContent = 'REPLAY';
+      replayBadge.textContent = 'LANCE CHAVE';
       campo.appendChild(replayBadge);
     }
 
@@ -15269,11 +15456,11 @@ window.app = app;
       varPanel.innerHTML = `
         <div class="var-scan"></div>
         <div class="var-box">
-          <div class="var-title">📺 REVISÃO DO VAR</div>
-          <div class="var-step">A analisar imagens do lance...</div>
+          <div class="var-title">📺 REVISÃO TÁTICA DO VAR</div>
+          <div class="var-step">A verificar linha de impedimento...</div>
           <div class="var-steps">
-            <div class="ok">✔ Sincronização do ponto de contacto</div>
-            <div class="pend" id="var-step-line">⏳ A traçar linhas de posição...</div>
+            <div class="ok">✔ Frame do passe sincronizado</div>
+            <div class="pend" id="var-step-line">⏳ A calcular projeção ótica...</div>
           </div>
           <div class="var-bar"><i id="var-bar-fill"></i></div>
           <div class="var-decision" id="var-decision-badge">DECISÃO</div>
@@ -15283,7 +15470,29 @@ window.app = app;
       campo.appendChild(varPanel);
     }
 
-    return { campo, replayBadge, celebraMini, dueloBox, varPanel };
+    let tacticalHud = campo.querySelector('.radio-replay');
+    if (!tacticalHud) {
+      tacticalHud = document.createElement('div');
+      tacticalHud.className = 'radio-replay';
+      tacticalHud.innerHTML = `
+        <span class="rr-freq">TÁTICA</span>
+        <span class="rr-text">Leitura de jogo em tempo real...</span>
+      `;
+      campo.appendChild(tacticalHud);
+    }
+
+    return { campo, replayBadge, celebraMini, dueloBox, varPanel, tacticalHud };
+  }
+
+  let hudTimer = null;
+  function showTacticalHud(text, duration = 2600) {
+    const { tacticalHud } = ensurePitchVisualFX();
+    if (!tacticalHud) return;
+    const txtEl = tacticalHud.querySelector('.rr-text');
+    if (txtEl) txtEl.textContent = text;
+    tacticalHud.classList.add('on');
+    clearTimeout(hudTimer);
+    hudTimer = setTimeout(() => tacticalHud.classList.remove('on'), duration);
   }
 
   let dueloTimer = null;
@@ -15317,13 +15526,12 @@ window.app = app;
     dueloBox.classList.add('on');
 
     clearTimeout(dueloTimer);
-    dueloTimer = setTimeout(() => {
-      dueloBox.classList.remove('on');
-    }, 1800);
+    dueloTimer = setTimeout(() => dueloBox.classList.remove('on'), 1750);
   }
 
-  function triggerGoalPitchFX(isRivalGoal) {
+  function triggerGoalPitchFX(isRivalGoal, text) {
     const { replayBadge, celebraMini, campo } = ensurePitchVisualFX();
+    StadiumSynth.whistle(false);
     if (celebraMini) {
       celebraMini.textContent = isRivalGoal ? '🥅 GOL DO RIVAL' : '⚽ GOOOOL!!';
       celebraMini.style.color = isRivalGoal ? '#f87171' : '#4ade80';
@@ -15345,6 +15553,7 @@ window.app = app;
       estadioBg.classList.add('celebra');
       setTimeout(() => estadioBg.classList.remove('celebra'), 2200);
     }
+    if (text) showTacticalHud(text, 3200);
   }
 
   let varActive = false;
@@ -15358,6 +15567,7 @@ window.app = app;
       return;
     }
 
+    StadiumSynth.whistle(false);
     const stepLine = varPanel.querySelector('#var-step-line');
     const barFill = varPanel.querySelector('#var-bar-fill');
     const decisionBadge = varPanel.querySelector('#var-decision-badge');
@@ -15365,9 +15575,9 @@ window.app = app;
 
     if (stepLine) {
       stepLine.className = 'pend';
-      stepLine.textContent = '⏳ A calibrar linhas de fora de jogo...';
+      stepLine.textContent = '⏳ A calibrar linhas de impedimento...';
     }
-    if (barFill) barFill.style.width = '25%';
+    if (barFill) barFill.style.width = '30%';
     if (decisionBadge) {
       decisionBadge.className = 'var-decision';
       decisionBadge.textContent = '';
@@ -15380,7 +15590,7 @@ window.app = app;
         stepLine.className = isGoalConfirmed ? 'ok' : 'bad';
         stepLine.textContent = isGoalConfirmed
           ? '✔ Posição legal confirmada'
-          : '✖ Infração / Posição irregular detetada';
+          : '✖ Posição irregular / infração detetada';
       }
       if (decisionBadge) {
         decisionBadge.textContent = isGoalConfirmed ? '⚽ GOL CONFIRMADO!' : '🚫 GOL ANULADO!';
@@ -15388,14 +15598,14 @@ window.app = app;
       }
       if (juizTxt) {
         juizTxt.className = 'var-juiz sig';
-        juizTxt.textContent = isGoalConfirmed ? 'Árbitro valida o lance!' : 'Árbitro invalida o lance!';
+        juizTxt.textContent = isGoalConfirmed ? 'Árbitro aponta para o centro!' : 'Árbitro invalida o lance!';
       }
-    }, 650);
+    }, 600);
 
     setTimeout(() => {
       varPanel.classList.remove('on');
       varActive = false;
-    }, 2000);
+    }, 1900);
   }
 
   function attachPitchFXObserver() {
@@ -15411,13 +15621,16 @@ window.app = app;
           const txt = (node.textContent || '').trim();
           const lower = txt.toLowerCase();
 
+          // Auto-scroll suave para o lance mais recente
+          feedEl.scrollTop = feedEl.scrollHeight;
+
           if (cls.includes('feed-var') || lower.includes('var') || lower.includes('anulado')) {
             const isAnulado = lower.includes('anul') || lower.includes('imped') || lower.includes('irregular');
             triggerVisualVar(!isAnulado);
           } else if (cls.includes('feed-goal-rival')) {
-            triggerGoalPitchFX(true);
+            triggerGoalPitchFX(true, txt);
           } else if (cls.includes('feed-goal')) {
-            triggerGoalPitchFX(false);
+            triggerGoalPitchFX(false, txt);
           } else if (cls.includes('feed-def') || cls.includes('feed-tackle')) {
             const words = txt.replace(/^\d+'\s*/, '').split(/\s+/);
             const player1 = words.slice(0, 2).join(' ') || 'Atacante';
@@ -15430,17 +15643,35 @@ window.app = app;
               isSave ? 'GK' : 'DEF',
               Math.floor(76 + Math.random() * 14)
             );
+            showTacticalHud(txt, 2200);
+          } else if (cls.includes('feed-card') || cls.includes('feed-corner')) {
+            showTacticalHud(txt, 2200);
           }
         }
       }
     });
     obs.observe(feedEl, { childList: true });
+
+    // Apito final quando o modal de resultado abre
+    const resultModal = document.getElementById('modal-match-result');
+    if (resultModal && !resultModal._whistleObserved) {
+      resultModal._whistleObserved = true;
+      let wasHidden = resultModal.classList.contains('hidden');
+      const resObs = new MutationObserver(() => {
+        const isHidden = resultModal.classList.contains('hidden');
+        if (wasHidden && !isHidden) {
+          StadiumSynth.whistle(true);
+        }
+        wasHidden = isHidden;
+      });
+      resObs.observe(resultModal, { attributes: true, attributeFilter: ['class'] });
+    }
   }
 
   // =========================================================================
-  // 4. ATALHOS DE TECLADO NA PARTIDA E INDICADORES (.decision-shortcut)
+  // 5. ATALHOS DE TECLADO + BOTÃO DE PARTILHAR SUMÁRIO PÓS-JOGO
   // =========================================================================
-  function setupKeyboardShortcuts() {
+  function setupKeyboardAndPostMatch() {
     const decisionBtnsContainer = document.getElementById('match-decision-btns');
     if (decisionBtnsContainer && !decisionBtnsContainer._shortcutObserved) {
       decisionBtnsContainer._shortcutObserved = true;
@@ -15478,6 +15709,7 @@ window.app = app;
         } else if (window.app && typeof window.app.setMatchSpeed === 'function') {
           const speeds = { '1': 1, '2': 2, '3': 4 };
           window.app.setMatchSpeed(speeds[e.key]);
+          showToast(`⏩ Velocidade ${speeds[e.key]}×`);
         }
       } else if (e.key.toLowerCase() === 's' && window.app?.abrirSubstituicao) {
         e.preventDefault();
@@ -15485,62 +15717,147 @@ window.app = app;
       } else if (e.key.toLowerCase() === 'c' && window.app?.abrirCartasTaticas) {
         e.preventDefault();
         window.app.abrirCartasTaticas();
+      } else if (e.key.toLowerCase() === 'p' && window.app?.setMatchSpeed) {
+        e.preventDefault();
+        window.app.setMatchSpeed(8);
+        showToast('⏭ A saltar para o final...');
       }
     });
+
+    // Adiciona botão de copiar resumo no modal de resultado (#modal-match-result)
+    const resultActions = document.querySelector('#modal-match-result .result-actions');
+    if (resultActions && !document.getElementById('btn-share-result')) {
+      const shareBtn = document.createElement('button');
+      shareBtn.id = 'btn-share-result';
+      shareBtn.type = 'button';
+      shareBtn.className = 'btn-secondary';
+      shareBtn.style.cssText = 'padding: 10px 12px; font-size: 0.78rem;';
+      shareBtn.textContent = '📋 COPIAR';
+      shareBtn.title = 'Copiar resumo do jogo';
+      shareBtn.addEventListener('click', () => {
+        const times = document.getElementById('modal-result-times')?.textContent || 'Partida AltFoot ELITE';
+        const score = document.getElementById('modal-result-score')?.textContent || '0 - 0';
+        const badge = document.getElementById('modal-result-badge')?.textContent || '';
+        const textToCopy = `⚽ AltFoot ELITE — ${badge}
+${times}: ${score}`;
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(textToCopy).then(() => showToast('📋 Resultado copiado!'));
+        } else {
+          showToast('📋 ' + textToCopy);
+        }
+      });
+      resultActions.insertBefore(shareBtn, resultActions.firstChild);
+    }
   }
 
   // =========================================================================
-  // 5. BARRA DE PESQUISA E ORDENAÇÃO RÁPIDA NO DECK (#subscreen-squad)
+  // 6. FERRAMENTAS AVANÇADAS DE DECK (#subscreen-squad) E LOJA (#subscreen-market)
   // =========================================================================
-  function injectSquadSearchAndSort() {
+  function injectSquadAndMarketTools() {
+    // 6.1 Ferramentas do Deck
     const filterBar = document.getElementById('ui-squad-filter-bar');
     const squadList = document.getElementById('squad-list');
-    if (!filterBar || !squadList || document.getElementById('squad-tools-bar')) return;
+    if (filterBar && squadList && !document.getElementById('squad-tools-bar')) {
+      const toolsBar = document.createElement('div');
+      toolsBar.id = 'squad-tools-bar';
+      toolsBar.className = 'squad-tools-bar';
+      toolsBar.innerHTML = `
+        <input type="search" id="squad-search-input" class="squad-search-input" placeholder="🔍 Procurar jogador no deck..." aria-label="Procurar jogador no deck">
+        <button type="button" class="deck-filter-btn" id="btn-sort-ovr" title="Ordenar por maior OVR">⬇️ OVR</button>
+        <button type="button" class="deck-filter-btn" id="btn-sort-cond" title="Ordenar por fôlego">🫁 Fôlego</button>
+        <button type="button" class="deck-filter-btn" id="btn-quick-auto-xi" style="border-color: var(--primary); color: var(--primary);" title="Escalar melhores titulares e salvar">⚡ Otimizar XI</button>
+      `;
+      filterBar.parentNode.insertBefore(toolsBar, filterBar.nextSibling);
 
-    const toolsBar = document.createElement('div');
-    toolsBar.id = 'squad-tools-bar';
-    toolsBar.className = 'squad-tools-bar';
-    toolsBar.innerHTML = `
-      <input type="search" id="squad-search-input" class="squad-search-input" placeholder="🔍 Procurar jogador no deck..." aria-label="Procurar jogador no deck">
-      <button type="button" class="deck-filter-btn" id="btn-sort-ovr" title="Ordenar por maior OVR">⬇️ OVR</button>
-      <button type="button" class="deck-filter-btn" id="btn-sort-cond" title="Ordenar por condição física">🫁 Fôlego</button>
-    `;
-
-    filterBar.parentNode.insertBefore(toolsBar, filterBar.nextSibling);
-
-    const searchInput = document.getElementById('squad-search-input');
-    searchInput.addEventListener('input', () => {
-      const query = searchInput.value.trim().toLowerCase();
-      const cards = squadList.querySelectorAll('.player-card');
-      cards.forEach((card) => {
-        const name = (card.querySelector('.card-name')?.textContent || '').toLowerCase();
-        card.style.display = !query || name.includes(query) ? '' : 'none';
+      const searchInput = document.getElementById('squad-search-input');
+      searchInput.addEventListener('input', () => {
+        const query = searchInput.value.trim().toLowerCase();
+        squadList.querySelectorAll('.player-card').forEach((card) => {
+          const name = (card.querySelector('.card-name')?.textContent || '').toLowerCase();
+          card.style.display = !query || name.includes(query) ? '' : 'none';
+        });
       });
-    });
 
-    document.getElementById('btn-sort-ovr').addEventListener('click', () => {
-      const cards = Array.from(squadList.querySelectorAll('.player-card'));
-      cards.sort((a, b) => {
-        const ovrA = parseInt(a.querySelector('.card-ovr')?.textContent || '0', 10);
-        const ovrB = parseInt(b.querySelector('.card-ovr')?.textContent || '0', 10);
-        return ovrB - ovrA;
+      document.getElementById('btn-sort-ovr').addEventListener('click', () => {
+        const cards = Array.from(squadList.querySelectorAll('.player-card'));
+        cards.sort((a, b) => {
+          const ovrA = parseInt(a.querySelector('.card-ovr')?.textContent || '0', 10);
+          const ovrB = parseInt(b.querySelector('.card-ovr')?.textContent || '0', 10);
+          return ovrB - ovrA;
+        });
+        cards.forEach((c) => squadList.appendChild(c));
+        showToast('⬇️ Ordenado por Maior OVR');
       });
-      cards.forEach((c) => squadList.appendChild(c));
-    });
 
-    document.getElementById('btn-sort-cond').addEventListener('click', () => {
-      const cards = Array.from(squadList.querySelectorAll('.player-card'));
-      cards.sort((a, b) => {
-        const condA = parseInt((a.querySelector('.card-condition')?.textContent || '100').replace(/\D/g, ''), 10) || 100;
-        const condB = parseInt((b.querySelector('.card-condition')?.textContent || '100').replace(/\D/g, ''), 10) || 100;
-        return condA - condB;
+      document.getElementById('btn-sort-cond').addEventListener('click', () => {
+        const cards = Array.from(squadList.querySelectorAll('.player-card'));
+        cards.sort((a, b) => {
+          const condA = parseInt((a.querySelector('.card-condition')?.textContent || '100').replace(/\D/g, ''), 10) || 100;
+          const condB = parseInt((b.querySelector('.card-condition')?.textContent || '100').replace(/\D/g, ''), 10) || 100;
+          return condA - condB;
+        });
+        cards.forEach((c) => squadList.appendChild(c));
+        showToast('🫁 Ordenado por Menor Fôlego');
       });
-      cards.forEach((c) => squadList.appendChild(c));
-    });
+
+      document.getElementById('btn-quick-auto-xi').addEventListener('click', () => {
+        if (window.app?.escalacaoAuto) window.app.escalacaoAuto();
+        if (window.app?.salvarEscalacao) window.app.salvarEscalacao();
+        showToast('⚡ Escalação titular otimizada e salva!');
+      });
+    }
+
+    // 6.2 Filtros do Mercado de Transferências (#subscreen-market)
+    const marketList = document.getElementById('market-list');
+    if (marketList && !document.getElementById('market-tools-bar')) {
+      const marketBar = document.createElement('div');
+      marketBar.id = 'market-tools-bar';
+      marketBar.className = 'deck-filter-bar';
+      marketBar.innerHTML = `
+        <button type="button" class="deck-filter-btn active" data-mfilter="ALL">TODOS</button>
+        <button type="button" class="deck-filter-btn" data-mfilter="AFFORD">💰 CABE NO BOLSO</button>
+        <button type="button" class="deck-filter-btn" data-mfilter="GK">🧤 GK</button>
+        <button type="button" class="deck-filter-btn" data-mfilter="DEF">🛡️ DEF</button>
+        <button type="button" class="deck-filter-btn" data-mfilter="MID">✨ MEI</button>
+        <button type="button" class="deck-filter-btn" data-mfilter="ATT">⚡ ATA</button>
+      `;
+      marketList.parentNode.insertBefore(marketBar, marketList);
+
+      marketBar.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-mfilter]');
+        if (!btn) return;
+        const filter = btn.getAttribute('data-mfilter');
+        marketBar.querySelectorAll('.deck-filter-btn').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        marketList.querySelectorAll('.player-card').forEach((card) => {
+          const pos = (card.querySelector('.card-pos')?.textContent || '').toUpperCase();
+          const unaffordable = !!card.querySelector('.card-price.sem-saldo');
+          let visible = true;
+          if (filter === 'AFFORD') visible = !unaffordable;
+          else if (filter !== 'ALL') visible = pos.includes(filter);
+          card.style.display = visible ? '' : 'none';
+        });
+      });
+    }
+
+    // 6.3 Legenda de Zonas na Tabela da Liga (#subscreen-league)
+    const leagueWrap = document.querySelector('#subscreen-league .league-table-wrap');
+    if (leagueWrap && !document.getElementById('league-zones-legend')) {
+      const legend = document.createElement('div');
+      legend.id = 'league-zones-legend';
+      legend.className = 'league-zones-legend';
+      legend.innerHTML = `
+        <span><i class="lz-dot" style="background:#f5c542;"></i> Seu Clube</span>
+        <span><i class="lz-dot" style="background:#22c55e;"></i> G4 (Acesso / Topo)</span>
+        <span><i class="lz-dot" style="background:#ef4444;"></i> Z4 (Zona de Queda)</span>
+      `;
+      leagueWrap.parentNode.insertBefore(legend, leagueWrap);
+    }
   }
 
   // =========================================================================
-  // 6. OPÇÃO DE MODO ESTÁDIO & CRT NAS CONFIGURAÇÕES (#modal-settings)
+  // 7. CONFIGURAÇÃO MODO ESTÁDIO RETRÔ CRT E REGISTO DO PWA
   // =========================================================================
   function injectRetroCrtSetting() {
     const settingsModal = document.querySelector('#modal-settings .modal-content');
@@ -15560,7 +15877,6 @@ window.app = app;
       <span>📺 Estádio & Filtro Retrô CRT</span>
       <button id="set-retro-crt" class="deck-filter-btn ${savedRetro ? 'active' : ''}">${savedRetro ? 'ON' : 'OFF'}</button>
     `;
-
     lastRow.parentNode.insertBefore(retroRow, lastRow.nextSibling);
 
     const btn = document.getElementById('set-retro-crt');
@@ -15572,33 +15888,47 @@ window.app = app;
     });
   }
 
-  // =========================================================================
-  // 7. PWA OFFLINE (SEM CACHE DE NARRAÇÕES)
-  // =========================================================================
+  function hookMatchStartWhistle() {
+    if (window.app && !window.app._whistleHooked && typeof window.app.confirmarPreparacao === 'function') {
+      window.app._whistleHooked = true;
+      const orig = window.app.confirmarPreparacao;
+      window.app.confirmarPreparacao = function (...args) {
+        const res = orig.apply(this, args);
+        setTimeout(() => {
+          ensurePitchVisualFX();
+          StadiumSynth.whistle(false);
+          showTacticalHud('⚽ Bola em jogo! Use [1] [2] [3] para velocidade ou decisões', 3200);
+        }, 160);
+        return res;
+      };
+    }
+  }
+
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('./sw.js').catch(() => {});
     });
   }
 
-  function initAllV3() {
+  function initUltimateUpgrade() {
     initHoloCards3D();
     ensurePitchVisualFX();
     attachPitchFXObserver();
-    setupKeyboardShortcuts();
-    injectSquadSearchAndSort();
+    setupKeyboardAndPostMatch();
+    injectSquadAndMarketTools();
     injectRetroCrtSetting();
+    hookMatchStartWhistle();
   }
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initAllV3);
+    document.addEventListener('DOMContentLoaded', initUltimateUpgrade);
   } else {
-    initAllV3();
+    initUltimateUpgrade();
   }
-  window.addEventListener('load', initAllV3);
+  window.addEventListener('load', initUltimateUpgrade);
 })();
 </script>
-<!-- === FIM DO PACOTE ALTFOOT ELITE V3 === -->
+<!-- === FIM DO ULTIMATE EDITION UPGRADE (V4) === -->
 
 </body>
 </html>
