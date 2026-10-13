@@ -1,4 +1,4 @@
-const CACHE_NAME = 'altfoot-elite-v4-clean';
+const CACHE_NAME = 'altfoot-elite-v5-arcade';
 const CORE_ASSETS = [
   './',
   './index.html',
