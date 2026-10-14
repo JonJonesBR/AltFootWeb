@@ -13723,10 +13723,15 @@ const app = {
     // ---- Draft 1-de-3 pós-vitória ----
     _gerarDraft() {
         const asc = (this.club && this.club.ascensaoNivel) || 0;
+        // B2: a recompensa do draft escala com a divisão. O bando plano
+        // 58-75 OVR acelerava demais a Série D (elenco D fica em 36-55):
+        // cada Série abaixa o piso em 4 — A 58-75, B 54-71, C 50-67, D 46-63.
+        const divisao = Math.max(1, Math.min(4, (this.league && this.league.divisaoUser) || 1));
+        const baseDraft = 58 - (divisao - 1) * 4;
         const opts = [];
         for (let i = 0; i < 2; i++) {
             const p = new Player();
-            p.overall = Math.min(99, 58 + Math.floor(Math.random() * 18) + asc * 2);
+            p.overall = Math.min(99, baseDraft + Math.floor(Math.random() * 18) + asc * 2);
             p.raridade = p.calcularRaridade(p.overall);
             p.stats = p.gerarStatsPorPosicao(p.posicao, p.overall);
             p.custoEnergia = p.calcularCustoEnergia(p.raridade);
