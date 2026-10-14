@@ -5886,6 +5886,7 @@ const MatchUI = {
         const campo = this._el('campo-2d');
         if (!campo) return;
         // Torcida acompanha a tensão do lance (sobe em chance/defesa, volta ao leito).
+        // O leito não é mais fixo: ele reflete momento, placar e relógio (§ atmosfera).
         try {
             if (tipo === 'chance' || tipo === 'chance-rival' || tipo === 'def') {
                 this._crowdBedLevel = 0.17;
@@ -5893,8 +5894,8 @@ const MatchUI = {
                 clearTimeout(this._crowdBedT);
                 this._crowdBedT = setTimeout(() => {
                     if (!this._replayAtivo) {
-                        this._crowdBedLevel = 0.11;
-                        this.startCrowdLoop(0.11);
+                        this._crowdBedLevel = this._nivelTorcida();
+                        this.startCrowdLoop(this._crowdBedLevel);
                     }
                 }, 1600);
             }
@@ -6071,9 +6072,10 @@ const MatchUI = {
         bola.classList.add('rastro');
         // Cancela o reset automático das fichas — o replay precisa dos protagonistas.
         clearTimeout(this._bolaT3);
-        // Torcida contínua + rádio 95.3
+        // Torcida contínua + rádio 95.3 (pico do replay sobre o leito da atmosfera)
         this._replayAtivo = true;
         this.startCrowdLoop(0.22);
+        this._crowdBedLevel = this._nivelTorcida();
         const atkNome = (play.ctx && play.ctx.atk && play.ctx.atk.nome) ? play.ctx.atk.nome.split(' ').slice(-1)[0] : 'o atacante';
         const defNome = (play.ctx && play.ctx.def && play.ctx.def.nome) ? play.ctx.def.nome.split(' ').slice(-1)[0] : 'a defesa';
         const ehGol = (play.tipo === 'goal' || play.tipo === 'goal-rival');
@@ -6344,6 +6346,35 @@ const MatchUI = {
         const voz = typeof ui !== 'undefined' && (ui._narTocando || (ui._narFila && ui._narFila.length));
         const alvo = voz ? Math.min(base,0.035) : base;
         return (typeof ui !== 'undefined' && ui && ui._synthVol) ? ui._synthVol(alvo) : alvo;
+    },
+    // Atmosfera do estádio: 0 = jogo morno, 1 = estádio em pé.
+    // Combina momento (pressão do MatchSim), equilíbrio do placar e relógio.
+    // Pura e determinística de propósito — dá para testar sem áudio.
+    _atmosfera(m) {
+        m = m || {};
+        const pressao = Number(m._pressao) || 0;
+        const g = m.gols || [0, 0];
+        const gols = [Number(g[0]) || 0, Number(g[1]) || 0];
+        // Momento: qualquer lado ameaçando levanta o estádio; o que esfria é o jogo decidido.
+        const momento = Math.abs(pressao) / 100;
+        const dif = Math.abs(gols[0] - gols[1]);
+        // 1 (empate/indefinido) → 0.22 (três gols de diferença).
+        const equilibrio = Math.max(0.22, 1 - 0.26 * dif);
+        const tempo = Number(m.minuto) || 0;
+        const reta = tempo >= 75 ? Math.min(1, (tempo - 75) / 15) : 0;
+        // Perto do fim, jogo de um gol de diferença é o cenário de maior tensão.
+        const decisao = reta * (dif <= 1 ? 1 : 0.25);
+        const bruto = 0.34 * momento + 0.30 * equilibrio + 0.36 * decisao;
+        return Math.max(0, Math.min(1, bruto));
+    },
+    // Converte a atmosfera na faixa de volume do leito de torcida.
+    // Teto 0.20: fica acima do leito antigo (0.11) mas abaixo do pico do replay
+    // (0.22) e do gol (0.26), preservando a hierarquia de picos.
+    _nivelTorcida() {
+        let m = null;
+        try { m = (typeof Engine !== 'undefined' && Engine && Engine.activeMatch) || null; } catch (_) { m = null; }
+        const a = this._atmosfera(m || {});
+        return Math.max(0.05, Math.min(0.20, 0.055 + a * 0.16));
     },
     startCrowdLoop(level = 0.18) {
         this._crowdErr = null;
@@ -8625,6 +8656,11 @@ class UI {
     }
     // C5: estática de sintonia de rádio ao trocar de tela (sutil, com cooldown).
     this.synthEstatica();
+    // Trilha da tela: fora da partida a música do menu precisa voltar. Sem isto a
+    // faixa 'match' (silenciosa de propósito) ficava presa como atual e o jogo
+    // seguia mudo pelo resto da sessão depois da primeira partida.
+    // playBGM é idempotente: trocar entre telas não reinicia a faixa.
+    if (screen && this._audioUnlocked) this.playBGM(screenId === 'screen-match' ? 'match' : 'menu');
     // Ao sair da partida: encerra torcida contínua / fita de rádio do replay.
     if (screenId !== 'screen-match') {
       ['modal-cartas', 'modal-substituicao'].forEach(id => {
@@ -11546,8 +11582,10 @@ const UIRenderer = {
 };
 const SaveRepository = {
     schema: 3, db: null, cache: new Map(), queue: Promise.resolve(), clock: 0,
-    checksum(data) {
-        const texto = JSON.stringify(data);
+    // Aceita o texto já serializado para não repetir JSON.stringify no envelope de
+    // gravação (a carreira inteira é grande; medido em 13-23 ms por gravação).
+    checksum(dataOuTexto) {
+        const texto = typeof dataOuTexto === 'string' ? dataOuTexto : JSON.stringify(dataOuTexto);
         let h = 2166136261;
         for (let i = 0; i < texto.length; i++) h = Math.imul(h ^ texto.charCodeAt(i), 16777619);
         return (h >>> 0).toString(16).padStart(8, '0');
@@ -11573,10 +11611,12 @@ const SaveRepository = {
     },
     envelope(data, slot) {
         // A cópia JSON congela a rodada: mutações posteriores não entram na transação.
-        const snapshot = this.parse(JSON.stringify(data));
+        // O texto é reaproveitado no checksum (mesma sequência de bytes que o parse lê).
+        const texto = JSON.stringify(data);
+        const snapshot = this.parse(texto);
         if (!this.validData(snapshot)) throw new Error('Estado da carreira inválido.');
         this.clock = Math.max(Date.now(), this.clock + 1);
-        return { app: 'AltFootELITE', schema: this.schema, slot, savedAt: this.clock, data: snapshot, checksum: this.checksum(snapshot) };
+        return { app: 'AltFootELITE', schema: this.schema, slot, savedAt: this.clock, data: snapshot, checksum: this.checksum(texto) };
     },
     verify(raw) {
         if (!raw || raw.app !== 'AltFootELITE' || raw.schema !== this.schema
@@ -14753,7 +14793,9 @@ const app = {
         }
 
         this.saveGame();
-        this.autosaveNow();
+        // Sem autosaveNow() aqui de propósito: ele grava no mesmo slot com os mesmos
+        // dados (trabalho dobrado) e sobrescreveria o snapshot de pré-partida com o
+        // estado pós-partida. O autosave é escrito no início da partida (playMatch).
 
         if (seasonComplete) {
             this._nextMatchQueued = false;
