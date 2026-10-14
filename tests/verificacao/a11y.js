@@ -65,6 +65,24 @@ rel.t('#ui-tutorial-card com overflow-y', /#ui-tutorial-card\s*\{[^}]*overflow-y
 rel.t('sem will-change:transform permanente nas cartas',
     !/rarity-(Ouro|Diamante)[\s\S]{0,120}will-change/.test(estilo));
 
+// --- B22: rodada de polimento de acessibilidade ---
+rel.t('B22: armadilha de foco (Tab) no modal aberto',
+    src.includes('_trapTabA11y') && /document\.addEventListener\('keydown',\s*\(event\)\s*=>\s*\{\s*if \(event\.key !== 'Tab'\) return;/.test(codigo));
+rel.t('B22: Tab não pula para fora quando o foco está no último focalizável',
+    /!event\.shiftKey && document\.activeElement === ultimo/.test(codigo));
+rel.t('B22: nav ativo marca aria-current="page"',
+    src.includes("navBtn.setAttribute('aria-current', 'page')"));
+rel.t('B22: nav inicial (Início) já vem com aria-current',
+    /id="nav-dashboard"[^>]*aria-current="page"/.test(src));
+rel.t('B22: barra do timer de decisão é progressbar',
+    src.includes('id="match-decision-timer-bar" role="progressbar"'));
+rel.t('B22: progressbar atualiza valor e texto (segundos)',
+    src.includes("bar.setAttribute('aria-valuenow', String(pct))") && src.includes("bar.setAttribute('aria-valuetext'"));
+rel.t('B22: toast de feedback é região viva (role="status")',
+    src.includes("feedback.setAttribute('role', 'status')") && src.includes('requestAnimationFrame(() => { feedback.innerText = text; })'));
+rel.t('B22: modais inline usam dvh (sem vh plano em modal-content)',
+    !/max-height:\s*\d+vh;\s*overflow-y:\s*auto/.test(src) && !src.includes('max-height:90vh'));
+
 // --- Guardas do projeto ---
 rel.t('nenhum backdrop-filter efetivo',
     (estilo.match(/backdrop-filter\s*:\s*([^;}]+)/g) || []).every(d => /:\s*none\s*$/.test(d.trim())));
