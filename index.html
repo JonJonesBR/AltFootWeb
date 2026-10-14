@@ -705,6 +705,12 @@ body {
     background: rgba(255, 255, 255, 0.06);
     border: 1px solid var(--border);
     color: var(--text-muted);
+    /* Piso de toque de 44px: são ~25 botões (filtros do Deck + 6 toggles das
+       configurações) e antes mediam ~28px. O visual (padding/raio) não muda. */
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     padding: 6px 12px;
     border-radius: 999px;
     font-size: 0.72rem;
@@ -773,7 +779,9 @@ body {
 .player-card.rarity-Ouro,
 .player-card.rarity-Diamante {
     transform-style: preserve-3d;
-    will-change: transform;
+    /* Sem will-change permanente: ele promovia TODA carta Ouro/Diamante (dezenas na
+       Loja e no elenco) a camada de GPU própria, viva durante toda a sessão. O tilt
+       já é composto a partir de transform, que a GPU acelera sem essa dica. */
     --rx: 0deg;
     --ry: 0deg;
     --foil: 0;
@@ -904,7 +912,7 @@ body {
 .ao-vivo { display: inline-flex; align-items: center; gap: 5px; font-size: 0.7rem; font-weight: 900; letter-spacing: 2.5px; color: #ff5c5c; text-transform: uppercase; }
 .ao-vivo-dot { width: 8px; height: 8px; border-radius: 50%; background: #ff3b3b; box-shadow: 0 0 10px rgba(255,59,59,0.95); animation: aoPulse 1.2s ease-in-out infinite; }
 @keyframes aoPulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.8); } }
-.how-to-play-btn { font-size: 0.72rem; font-weight: 800; color: var(--text-muted); background: none; border: 1px solid var(--border); border-radius: 999px; padding: 7px 12px; cursor: pointer; }
+.how-to-play-btn { font-size: 0.72rem; font-weight: 800; color: var(--text-muted); background: none; border: 1px solid var(--border); border-radius: 999px; padding: 7px 12px; cursor: pointer; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
 .score-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .team-tag { font-weight: 900; font-size: clamp(0.75rem, 2.6vw, 0.95rem); color: #fff; letter-spacing: 2px; flex: 1; text-align: center; text-transform: uppercase; text-shadow: 0 1px 0 rgba(0,0,0,0.6); }
 .score-big {
@@ -1510,6 +1518,12 @@ body {
     z-index: 3;
     pointer-events: auto;
     width: min(480px, 94vw);
+    /* Sem isto, em tela pequena (320×520) com fonte do sistema aumentada os botões
+       CONTINUAR/PULAR saíam da viewport e o card não rolava — sem saída a não ser o
+       ✕. O pointer-events continua como está (o overlay NÃO pode capturar cliques). */
+    max-height: calc(100dvh - 28px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
     background: linear-gradient(160deg, rgba(15, 23, 42, 0.97), rgba(2, 6, 23, 0.97));
     border: 1px solid var(--border);
     border-radius: 18px;
@@ -2455,6 +2469,11 @@ html, body, * {
 .tab-btn {
     flex: 1 1 auto;
     min-width: 90px;
+    /* Piso de toque de 44px (antes ~33px). */
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     padding: 8px 10px;
     border-radius: 10px;
     border: 1px solid var(--border);
@@ -2751,6 +2770,35 @@ html, body, * {
 .player-card.rarity-Ouro { background-image:linear-gradient(120deg,#775016,#e5bf5a 37%,#a17025 60%,#ead178 78%,#604019); }
 .player-card.rarity-Diamante { background-image:linear-gradient(135deg,#243249,#85b8b9 28%,#7483c4 45%,#d0b0c5 60%,#346676); }
 @media (prefers-reduced-motion:reduce) { .player-card,.fut-front,.fut-back { transition:none !important; } }
+/* Cobertura global de movimento reduzido. As três regras acima cobriam só cartas e
+   campo; ~10 animações infinitas seguiam rodando (rewardGlow, packShine, o emoji 👆
+   quicando sobre o alvo do tutorial, crtFlicker no menu, varScanPulse no campo cheio
+   etc.). O estado final de cada keyframe é preservado: nada desaparece, apenas para. */
+@media (prefers-reduced-motion:reduce) {
+    *, *::before, *::after {
+        animation-duration:.001ms !important;
+        animation-iteration-count:1 !important;
+        transition-duration:.001ms !important;
+        scroll-behavior:auto !important;
+    }
+}
+/* Acessibilidade: "Fonte Maior" e "Alto Contraste" das configurações alternavam
+   body.text-bigger / body.high-contrast sem nenhuma regra CSS — o botão dizia ON,
+   a preferência era gravada e nada mudava na tela. Aqui as duas passam a valer. */
+body.text-bigger { font-size:118%; }
+/* Pisos de leitura que não devem crescer junto (senão o HUD da partida estoura). */
+body.text-bigger .hm-label, body.text-bigger .hm-value { font-size:clamp(.7rem,2.4vw,.82rem); }
+body.text-bigger .feed-min, body.text-bigger .feed-text { font-size:clamp(.74rem,2.5vw,.86rem); }
+body.high-contrast {
+    --text-muted:#f0e6cf;
+    --text-dim:#d8c9a8;
+    --border:rgba(255,176,0,.5);
+    --bg-card:rgba(6,10,18,.98);
+    --bg-surface:#0a0f18;
+}
+body.high-contrast .glass-ui, body.high-contrast .modal-content { background:#0a0f18 !important; border-color:rgba(255,176,0,.5) !important; }
+body.high-contrast .feed-text, body.high-contrast .feed-min { color:#fff8e6 !important; }
+body.high-contrast .btn-end-turn { border:2px solid #ffd479 !important; }
 /* Preparação, painel e coleção: leitura rápida e controles ao alcance. */
 #modal-preparacao .prep-content { padding:0 !important; width:calc(100% - 24px) !important; max-width:560px !important; max-height:min(92dvh,860px); overflow:hidden; display:flex; flex-direction:column; text-align:center; }
 .prep-scroll { min-height:0; overflow-y:auto; padding:18px 18px 12px; overscroll-behavior:contain; }
@@ -2801,7 +2849,9 @@ html, body, * {
 .fut-back button { font-size:.72rem; }
 #market-list .player-card { min-height:220px; height:220px; }
 #market-list .card-portrait svg { max-height:110px; }
-button:focus-visible,summary:focus-visible { outline:3px solid #fff0bd; outline-offset:3px; }
+/* Fechar modal: alvo de toque de 44px sem inflar o glifo. */
+[data-close-x] { min-width:44px; min-height:44px; display:inline-flex; align-items:center; justify-content:center; }
+button:focus-visible,summary:focus-visible,[role="button"]:focus-visible,[tabindex]:focus-visible { outline:3px solid #fff0bd; outline-offset:3px; }
 @media(max-width:380px) { .prep-scroll { padding:14px 12px 10px; } .prep-footer { padding-left:12px; padding-right:12px; } #prep-modos .style-btn { padding:9px; font-size:.82rem; } #prep-modos small { font-size:.69rem; } .fut-back { inset:6px; } }
 @media(max-width:340px) { body { min-width:0; } #squad-list .player-card,#market-list .player-card { width:calc(50% - 5px); min-width:0; } #squad-list .player-card:has(.fut-front) { height:320px; min-height:320px; } .fut-back { font-size:.7rem; } }
 /* Transmissão: painéis legíveis e gramado restrito à representação da partida. */
@@ -3479,7 +3529,7 @@ button:focus-visible,summary:focus-visible { outline:3px solid #fff0bd; outline-
   <div class="modal-content" style="padding: 20px; width: 94%; max-width: 420px; text-align: center; max-height: 90vh; overflow-y: auto;">
     <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-bottom: 10px;">
       <h2 style="margin: 0; font-weight: 900; font-size: 1.15rem; color: var(--accent);">🃏 CARTAS TÁTICAS</h2>
-      <button onclick="app.fecharCartasTaticas()" style="background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; padding: 4px;">&times;</button>
+      <button onclick="app.fecharCartasTaticas()" data-close-x aria-label="Fechar cartas táticas" style="background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; padding: 4px;">&times;</button>
     </div>
     <div style="text-align: left; margin-bottom: 8px;">
       <div style="font-size: 0.68rem; font-weight: 900; letter-spacing: 1px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px;">FOCO DO TREINADOR</div>
@@ -3504,7 +3554,7 @@ button:focus-visible,summary:focus-visible { outline:3px solid #fff0bd; outline-
   <div class="modal-content" style="padding: 20px; width: 94%; max-width: 420px; text-align: center; max-height: 90vh; overflow-y: auto;">
     <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-bottom: 10px;">
       <h2 style="margin: 0; font-weight: 900; font-size: 1.15rem; color: var(--accent);">🎓 RELATO DO OLHEIRO</h2>
-      <button onclick="app.pularOlheiro()" style="background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; padding: 4px;">&times;</button>
+      <button onclick="app.pularOlheiro()" data-close-x aria-label="Fechar relatório do olheiro" style="background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; padding: 4px;">&times;</button>
     </div>
     <div id="olheiro-pistas" style="text-align: left; margin-bottom: 12px;"></div>
     <div id="olheiro-avaliado" class="prep-note" style="text-align: left; display: none; margin-bottom: 10px;"></div>
@@ -3521,7 +3571,7 @@ button:focus-visible,summary:focus-visible { outline:3px solid #fff0bd; outline-
   <div class="modal-content" style="padding: 20px; width: 94%; max-width: 440px; text-align: center; max-height: 90vh; overflow-y: auto;">
     <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-bottom: 10px;">
       <h2 style="margin: 0; font-weight: 900; font-size: 1.15rem; color: var(--accent);">💼 PATROCINADORES</h2>
-      <button onclick="app.fecharPatrocinio()" style="background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; padding: 4px;">&times;</button>
+      <button onclick="app.fecharPatrocinio()" data-close-x aria-label="Fechar patrocinadores" style="background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; padding: 4px;">&times;</button>
     </div>
     <div class="prep-note" style="text-align: left; margin-bottom: 10px;">
       Escolha um contrato para a temporada. <strong>Fixo</strong> cai toda rodada; <strong>arrojado</strong> paga menos por rodada, mas tem bônus gordo se a meta for cumprida (só 1×).
@@ -3535,7 +3585,7 @@ button:focus-visible,summary:focus-visible { outline:3px solid #fff0bd; outline-
   <div class="modal-content" style="padding: 20px; width: 94%; max-width: 420px; text-align: center; max-height: 90vh; overflow-y: auto;">
     <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-bottom: 10px;">
       <h2 style="margin: 0; font-weight: 900; font-size: 1.15rem; color: var(--accent);">⚤ SUBSTITUIÇÃO</h2>
-      <button onclick="app.cancelarSubstituicao()" style="background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; padding: 4px;">&times;</button>
+      <button onclick="app.cancelarSubstituicao()" data-close-x aria-label="Cancelar substituição" style="background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; padding: 4px;">&times;</button>
     </div>
     <div style="font-size: 0.66rem; font-weight: 900; letter-spacing: 1px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px; text-align: left;">SAI — MAIS CANSADOS PRIMEIRO</div>
     <div id="sub-sai-list" style="display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px;"></div>
@@ -3554,7 +3604,7 @@ button:focus-visible,summary:focus-visible { outline:3px solid #fff0bd; outline-
    <div class="modal-content" style="padding: 22px; width: 92%; max-width: 400px; text-align: center; max-height: 88vh; overflow-y: auto;">
      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid var(--border); padding-bottom: 8px;">
        <h2 id="modal-player-name" style="margin: 0; font-weight: 900; font-size: 1.2rem; color: var(--accent); display: flex; align-items: center; gap: 6px;">JOGADOR</h2>
-       <button onclick="ui.closeModal()" style="background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; padding: 4px;">&times;</button>
+       <button onclick="ui.closeModal()" data-close-x aria-label="Fechar ficha do jogador" style="background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; padding: 4px;">&times;</button>
      </div>
      <div id="modal-player-rarity" style="font-size: 0.78rem; font-weight: 800; color: var(--accent);">RARIDADE</div>
      <div id="modal-player-xp"></div>
@@ -3822,7 +3872,7 @@ button:focus-visible,summary:focus-visible { outline:3px solid #fff0bd; outline-
    <div class="modal-content" style="padding: 20px; width: 92%; max-width: 480px; text-align: center; max-height: 85vh; overflow-y: auto;">
      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
        <h2 style="margin: 0; font-size: 1.15rem; font-weight: 900; color: var(--accent); letter-spacing: 1px;">📖 CENTRAL DE AJUDA</h2>
-       <button onclick="app.closeHelpModal()" style="background: none; border: none; font-size: 1.3rem; color: #fff; cursor: pointer; padding: 4px;">✕</button>
+       <button onclick="app.closeHelpModal()" aria-label="Fechar guia" style="background: none; border: none; font-size: 1.3rem; color: #fff; cursor: pointer; padding: 4px;">✕</button>
      </div>
      
      <div style="display: flex; gap: 6px; overflow-x: auto; margin-bottom: 14px; padding-bottom: 4px;">
@@ -3884,7 +3934,7 @@ button:focus-visible,summary:focus-visible { outline:3px solid #fff0bd; outline-
  <div id="ui-tutorial-overlay" class="hidden">
    <div id="ui-tutorial-spotlight"></div>
    <div id="ui-tutorial-card">
-     <button id="ui-tut-close-btn" onclick="TutorialManager.finish()" title="Fechar Tutorial" style="position: absolute; top: 10px; right: 12px; background: none; border: none; color: rgba(255,255,255,0.8); font-size: 1.2rem; cursor: pointer; padding: 4px; line-height: 1; z-index: 3;">✕</button>
+     <button id="ui-tut-close-btn" onclick="TutorialManager.finish()" title="Fechar Tutorial" aria-label="Fechar tutorial" style="position: absolute; top: 10px; right: 12px; background: none; border: none; color: rgba(255,255,255,0.8); font-size: 1.2rem; cursor: pointer; padding: 4px; line-height: 1; z-index: 3;">✕</button>
      <span class="tut-badge" id="ui-tut-step-badge">TREINO TÁTICO</span>
      <div class="tut-progress-wrap"><div class="tut-progress-bar" id="ui-tut-progress"></div></div>
      <h3 class="tut-title" id="ui-tut-title">Bem-vindo à Arena</h3>
@@ -5434,7 +5484,7 @@ const FUTCards = {
         const texts=labels.map((l,i)=>{const [x,y]=point(i,52);return '<text x="'+x+'" y="'+y+'" text-anchor="middle" font-size="9" fill="currentColor">'+l+'</text>';}).join('');
         const hidden=p.scouting&&p.scouting.etapa<3;
         const radar=hidden?'<p>Relatório em andamento. Atributos ainda ocultos.</p>':'<svg viewBox="0 0 140 118" role="img" aria-label="Radar de atributos">'+rings+'<polygon points="'+poly+'" fill="#ffb00044" stroke="#ffb000"/>'+texts+'</svg>';
-        return '<div class="fut-back" aria-hidden="true"><strong>'+esc(p.nome)+'</strong>'+radar+'<div>'+Number(p.gols||0)+' gols · '+Number(p.partidas||0)+' jogos</div><div>Contrato: '+Number(p.contratoRodadas||0)+' rodadas</div><div>Salário: '+esc(app.fmtMoney(p.salario||0))+'</div><div>Direitos: '+Math.round((p.direitosClube??1)*100)+'% · Rescisão: '+esc(app.fmtMoney(p.clausulaRescisao||p.valor||0))+'</div><button class="btn-secondary" onclick="ui.openPlayerModal(\''+esc(p.id)+'\')">Ficha completa</button><button class="btn-secondary" onclick="FUTCards.flip(this)">Frente</button></div>';
+        return '<div class="fut-back"><strong>'+esc(p.nome)+'</strong>'+radar+'<div>'+Number(p.gols||0)+' gols · '+Number(p.partidas||0)+' jogos</div><div>Contrato: '+Number(p.contratoRodadas||0)+' rodadas</div><div>Salário: '+esc(app.fmtMoney(p.salario||0))+'</div><div>Direitos: '+Math.round((p.direitosClube??1)*100)+'% · Rescisão: '+esc(app.fmtMoney(p.clausulaRescisao||p.valor||0))+'</div><button class="btn-secondary" onclick="ui.openPlayerModal(\''+esc(p.id)+'\')">Ficha completa</button><button class="btn-secondary" onclick="FUTCards.flip(this)">Frente</button></div>';
     },
     flip(button) { const card=button.closest('.player-card');if(!card)return;const flipped=card.classList.toggle('is-flipped');card.querySelector('.fut-front').setAttribute('aria-hidden',String(flipped));card.querySelector('.fut-back').setAttribute('aria-hidden',String(!flipped));card.querySelector(flipped?'.fut-back button':'.fut-front button').focus(); },
     headline(club, rival, h, a, events=[]) {
@@ -8545,6 +8595,16 @@ class UI {
     this.squadFilter = 'ALL';
   }
 
+  // O usuário pediu menos movimento no sistema operacional? As transições de CSS já
+  // são neutralizadas por media query, mas as animações programáticas (partículas,
+  // tremor e flash de gol) não passam por CSS e precisam consultar aqui.
+  prefereMenosMovimento() {
+    try {
+      return typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+        && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    } catch (_) { return false; }
+  }
+
   init() {
     this.screens = {
       loading: document.getElementById('screen-loading'),
@@ -8661,6 +8721,8 @@ class UI {
     // seguia mudo pelo resto da sessão depois da primeira partida.
     // playBGM é idempotente: trocar entre telas não reinicia a faixa.
     if (screen && this._audioUnlocked) this.playBGM(screenId === 'screen-match' ? 'match' : 'menu');
+    // Modais criados depois do init (contrato, ofertas) também ganham semântica.
+    if (typeof app !== 'undefined' && app && typeof app._prepararAcessibilidade === 'function') app._prepararAcessibilidade();
     // Ao sair da partida: encerra torcida contínua / fita de rádio do replay.
     if (screenId !== 'screen-match') {
       ['modal-cartas', 'modal-substituicao'].forEach(id => {
@@ -10218,7 +10280,7 @@ class UI {
         const el = document.createElement('div');
         // C3: a borda/brilho segue o tier de coleção (sticky), não a faixa de OVR.
         el.className = `player-card rarity-${p.tier || p.raridade}`;
-        el.innerHTML = `<div class="fut-front">
+        el.innerHTML = `<div class="fut-front" aria-hidden="false">
             <div class="card-top-row">
               <div class="card-ovr">${typeof TransferMarket !== 'undefined' ? TransferMarket.ovrVisivel(p) : p.overall}</div>
               <div class="card-pos">${p.posicao || '—'}</div>
@@ -10630,6 +10692,7 @@ class UI {
   }
 
   fxShake() {
+    if (ui.prefereMenosMovimento()) return;
     document.querySelectorAll('#screen-match .match-board').forEach(b => {
       b.classList.remove('fx-shake');
       void b.offsetWidth;
@@ -10639,6 +10702,7 @@ class UI {
   }
 
   impactFlash() {
+    if (ui.prefereMenosMovimento()) return;
     let f = document.getElementById('fx-flash');
     if (!f) {
       f = document.createElement('div');
@@ -10652,6 +10716,7 @@ class UI {
   }
 
   burstParticles(x, y, count = 26, colors = ['#10b981', '#f59e0b', '#f8fafc']) {
+    if (ui.prefereMenosMovimento()) return;
     if (typeof app !== 'undefined' && app.settings && app.settings.particles === false) return;
     const canvas = document.getElementById('fx-particles-full');
     if (!canvas) return;
@@ -11785,11 +11850,49 @@ const app = {
     // Bônus de XP conforme dificuldade: fácil ganha menos, lenda ganha mais.
     diffXPMult() { return (this.difficulty && this.difficulty.multiplier) ? this.difficulty.multiplier : 1; },
 
+    // Semântica e foco dos modais: nenhum dos 19 modais declarava role="dialog"/
+    // aria-modal (só 2 tinham), o foco não ia para o modal ao abrir nem voltava ao
+    // fechar. Roda no init e de novo ao trocar de tela, porque há modais criados
+    // dinamicamente (contrato, etc.).
+    _prepararAcessibilidade() {
+        try {
+            document.querySelectorAll('.modal').forEach(m => {
+                if (m._a11yPronto) return;
+                m._a11yPronto = true;
+                if (!m.hasAttribute('role')) m.setAttribute('role', 'dialog');
+                if (!m.hasAttribute('aria-modal')) m.setAttribute('aria-modal', 'true');
+                if (!m.hasAttribute('aria-labelledby')) {
+                    const h = m.querySelector('h1, h2, h3');
+                    if (h) {
+                        if (!h.id) h.id = (m.id || 'modal') + '-titulo';
+                        m.setAttribute('aria-labelledby', h.id);
+                    }
+                }
+                // Ao abrir, leva o foco para dentro; ao fechar, devolve para quem abriu.
+                const obs = new MutationObserver(() => {
+                    if (!m.classList.contains('hidden')) {
+                        if (!m._a11yAnterior) m._a11yAnterior = document.activeElement;
+                        const alvo = m.querySelector('button:not([disabled]), [href], input:not([disabled]), select, textarea');
+                        if (alvo && typeof alvo.focus === 'function') { try { alvo.focus({ preventScroll: true }); } catch (_) { } }
+                    } else if (m._a11yAnterior) {
+                        const anterior = m._a11yAnterior;
+                        m._a11yAnterior = null;
+                        if (anterior && typeof anterior.focus === 'function' && document.contains(anterior)) {
+                            try { anterior.focus({ preventScroll: true }); } catch (_) { }
+                        }
+                    }
+                });
+                obs.observe(m, { attributes: true, attributeFilter: ['class'] });
+            });
+        } catch (_) { }
+    },
+
     async init() {
         console.log("AltFoot Elite Initializing...");
         try {
             this.initSettings();
             ui.init();
+            this._prepararAcessibilidade();
             await SaveRepository.init();
 
             // Slot ativo + migração de save legado (chaves sem sufixo -> slot 1).
