@@ -20,6 +20,8 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  # Necessário para o passo final apagar deployments antigos (política de um só).
+  deployments: write
 
 jobs:
   deploy:
@@ -47,3 +49,38 @@ jobs:
       - name: Publicar
         id: deployment
         uses: actions/deploy-pages@v4
+      # Política do projeto: só o deployment mais recente fica registrado. Roda DEPOIS
+      # da publicação, então uma falha aqui não afeta o site (que já está no ar).
+      # O "atual" é descoberto pela API (maior id) e não pela saída da action: o
+      # actions/deploy-pages@v4 só expõe page_url, não o id do deployment.
+      - name: Remover deployments antigos
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          API="https://api.github.com/repos/${GITHUB_REPOSITORY}/deployments"
+          cabecalhos=(-H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28")
+          ids=$(curl -fsS "${cabecalhos[@]}" "${API}?per_page=100" | jq -r '.[].id' | sort -n)
+          if [ -z "${ids}" ]; then
+            echo "nenhum deployment encontrado"; exit 0
+          fi
+          atual=$(echo "${ids}" | tail -n 1)
+          echo "deployment atual (preservado): ${atual}"
+          total_antes=$(echo "${ids}" | wc -l | tr -d ' ')
+          removidos=0
+          for id in ${ids}; do
+            if [ "${id}" = "${atual}" ]; then continue; fi
+            # Inativar antes de excluir: a API recusa remover deployment ativo.
+            curl -fsS -X POST "${cabecalhos[@]}" \
+              -d '{"state":"inactive"}' \
+              "${API}/${id}/statuses" > /dev/null
+            curl -fsS -X DELETE "${cabecalhos[@]}" "${API}/${id}" > /dev/null
+            echo "  removido deployment ${id}"
+            removidos=$((removidos + 1))
+          done
+          restantes=$(curl -fsS "${cabecalhos[@]}" "${API}?per_page=100" | jq -r '.[].id' | wc -l | tr -d ' ')
+          echo "deployments: ${total_antes} -> ${restantes} (removidos ${removidos})"
+          if [ "${restantes}" -gt 1 ]; then
+            echo "::error::sobrou mais de um deployment registrado"
+            exit 1
+          fi

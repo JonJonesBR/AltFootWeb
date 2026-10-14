@@ -4076,7 +4076,10 @@ const AudioSynthesizer = {
         return buffer;
     },
     // Partitura de 16 compassos: harmonia, baixo e respostas melódicas discretas.
-    compasso(ctx, out, track, bar, inicio) {
+    // `tom` é um passa-baixa opcional da faixa; quando existe, a harmonia passa por ele
+    // para que a tensão da partida possa abrir/fechar o brilho sem criar nó por compasso.
+    compasso(ctx, out, track, bar, inicio, tom) {
+        const destino = tom || out;
         const tenso = track === 'tension', beat = 60 / (tenso ? 84 : 96);
         const progressoes = tenso ? [[57,60,64],[53,57,60],[50,53,57],[52,56,59]] :
             [[57,60,64],[53,57,60],[48,52,55],[55,59,62],[50,53,57],[53,57,60],[52,56,59],[52,56,59],
@@ -4091,7 +4094,7 @@ const AudioSynthesizer = {
             g.gain.linearRampToValueAtTime(vol,t + Math.min(0.07,dur*beat*0.2));
             g.gain.setTargetAtTime(vol*0.62,t+0.1,0.13);
             g.gain.exponentialRampToValueAtTime(0.0001,fim);
-            o.connect(lp); lp.connect(g); g.connect(out); o.start(t); o.stop(fim+0.03);
+            o.connect(lp); lp.connect(g); g.connect(destino); o.start(t); o.stop(fim+0.03);
             o.onended = () => { o.disconnect(); lp.disconnect(); g.disconnect(); };
         };
         acorde.forEach((m,i) => nota(m+12,i*0.025,3.85,tenso?0.045:0.065,'triangle',tenso?1000:1500));
@@ -4145,21 +4148,39 @@ const AudioSynthesizer = {
         return bus.entrada;
     },
     faixa(owner, track) {
-        let volume = 0.12, nodes = null, timer = null, bar = 0;
+        let volume = 0.12, nodes = null, timer = null, bar = 0, nivel = 0, vozBaixa = false;
         const music = {
             paused:true,
             get volume() { return volume; },
             set volume(v) {
                 volume = Math.max(0,Math.min(1,Number(v)||0));
-                if (nodes) nodes.gain.gain.setTargetAtTime(volume * (track === 'menu' ? 0.18 : 0.1),nodes.ctx.currentTime,0.08);
+                if (nodes) nodes.gain.gain.setTargetAtTime(music._alvo(),nodes.ctx.currentTime,0.08);
+            },
+            // Volume da faixa considerando o ducking (o rádio/texto manda no mix).
+            _alvo(extra) {
+                return volume * (track === 'menu' ? 0.18 : 0.1) * (vozBaixa ? 0.28 : 1) * (extra || 1);
             },
             play() {
                 if (nodes) return Promise.resolve();
                 const ctx = AudioSynthesizer.contexto(owner);
                 if (!ctx) return Promise.resolve();
                 const gain=ctx.createGain(); gain.gain.value=0.0001;gain.connect(AudioSynthesizer.saida(ctx));
-                nodes={ctx,gain};this.paused=false;
-                gain.gain.setTargetAtTime(volume * (track==='menu'?0.18:0.1),ctx.currentTime,0.16);
+                // Tom da faixa: passa-baixa por onde passa a harmonia. Só existe onde faz
+                // sentido modular (tensão); nas outras faixas fica aberto para não abafar
+                // o timbre atual. Fica em `nodes` para pressao() modular o brilho.
+                let tom = null;
+                try {
+                    tom = ctx.createBiquadFilter();
+                    tom.type = 'lowpass';
+                    tom.frequency.value = 16000;
+                    tom.Q.value = 0.6;
+                    tom.connect(gain);
+                } catch (_) { tom = null; }
+                nodes={ctx,gain,filtro:tom};this.paused=false;
+                nivel = 0;   // a faixa começa em repouso; pressao() sobe a partir daqui
+                // Só a tensão tem tom modulável; o menu andaria abafado com o mesmo corte.
+                if (tom) tom.frequency.value = (track === 'tension') ? 1100 : 16000;
+                gain.gain.setTargetAtTime(music._alvo(),ctx.currentTime,0.16);
                 // Durante o jogo a torcida pertence ao MatchUI; música 'match' é silenciosa.
                 if (track !== 'match') {
                     let proximo=ctx.currentTime+0.035;
@@ -4168,7 +4189,7 @@ const AudioSynthesizer = {
                         // Após aba suspensa, salta compassos vencidos sem disparar uma rajada.
                         if (proximo < ctx.currentTime-0.1) proximo=ctx.currentTime+0.035;
                         while (proximo < ctx.currentTime+0.2) {
-                            proximo += AudioSynthesizer.compasso(ctx,gain,track,bar++,proximo);
+                            proximo += AudioSynthesizer.compasso(ctx,gain,track,bar++,proximo,tom);
                         }
                     };
                     tocar();timer=setInterval(tocar,100);
@@ -4184,8 +4205,19 @@ const AudioSynthesizer = {
                 setTimeout(()=>antigo.gain.disconnect(),160);
                 nodes=null;
             },
+            // O motor entrega o momentum (−100 a 100) a cada evento. Na faixa de tensão
+            // ele passa a significar algo: o leito sobe e o filtro abre conforme a
+            // pressão acumula, e volta ao repouso quando o jogo esfria. Nas outras
+            // faixas o método só registra o nível (a música de menu não deve reagir).
             pressao(v) {
-                // Interface mantida para o motor; a tensão não modula ruído/sirenes.
+                nivel = Math.max(-100, Math.min(100, Number(v) || 0));
+                if (track !== 'tension' || !nodes) return;
+                const ctx = nodes.ctx, agora = ctx.currentTime || 0;
+                const intensidade = Math.min(1, Math.abs(nivel) / 100);
+                try {
+                    if (nodes.gain) nodes.gain.gain.setTargetAtTime(music._alvo(1 + intensidade * 0.55), agora, 0.5);
+                    if (nodes.filtro) nodes.filtro.frequency.setTargetAtTime(1100 + intensidade * 2600, agora, 0.6);
+                } catch (_) { }
             }
         };
         return music;
@@ -7859,6 +7891,7 @@ class MatchSim {
         MatchUI.stats([this.posse, this.chutes[0], this.chutes[1], this.faltas[0], this.faltas[1], this.cartoes[0], this.cartoes[1], this.escanteios[0], this.escanteios[1], this._pressao || 0, this.xG[0], this.xG[1]]);
         try {
             if (typeof ui !== 'undefined' && ui.atualizarEfeitosCartas) ui.atualizarEfeitosCartas(this);
+            this._trilhaDaPartida();
             if (typeof ui !== 'undefined' && ui.currentBGM && ui.currentBGM.pressao) ui.currentBGM.pressao(this._pressao || 0);
         } catch (e) { /* painel tático é cosmético — não interrompe o lance */ }
         // Bordões/avisos sem protagonistas atualizam o feed, preservando o lance
@@ -7904,6 +7937,25 @@ class MatchSim {
                 log: log || '', tipo: tipo || 'info'
             });
         }
+    }
+
+    // Trilha da partida: a música 'match' é silenciosa de propósito (a torcida pertence ao
+    // MatchUI) e a faixa 'tension' já existe na partitura. Ela passa a entrar só quando o
+    // jogo fica de fato tenso — reta final com o placar decidido por um gol — e o
+    // pressao() que o motor já chamava modula o brilho dela em vez de não fazer nada.
+    // Um lugar só decide a troca, para não haver duas opiniões sobre a trilha.
+    _trilhaDaPartida() {
+        if (typeof ui === 'undefined' || !ui.playBGM) return;
+        if (this.modo === 'instantaneo' || this.speed >= 4) return;
+        const dif = Math.abs((this.scoreH || 0) - (this.scoreA || 0));
+        const reta = (this.minuto || 0) >= 80;
+        const quente = dif <= 1;
+        const alvo = (reta && quente) ? 'tension' : 'match';
+        if (alvo === this._trilhaAtual) return;
+        this._trilhaAtual = alvo;
+        // Antes do apito inicial não há trilha de jogo; o INTRO da preparação manda nela.
+        if ((this.minuto || 0) <= 0 || this.abortado) return;
+        try { ui.playBGM(alvo); } catch (_) { }
     }
 
     _mostrarDecisao(ev) {
@@ -8992,6 +9044,8 @@ class UI {
     // Abertura pertence à preparação; não descreve os lances com a bola rolando.
     try { MatchUI._radioFim = false; } catch (e) { }
     this.playBGM('match');
+    // Nova partida sempre começa fora da reta final; a trilha de tensão é reavaliada no jogo.
+    try { if (Engine.activeMatch) Engine.activeMatch._trilhaAtual = 'match'; } catch (e) { }
     this.playApito(false, 'longo'); // um único apito inicial
     this.duckBGM(0.45, 1400);
     // Leito de torcida: murmúrio contínuo durante a partida (sobe em gols/lances).
