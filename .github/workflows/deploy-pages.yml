@@ -1,6 +1,10 @@
 # Deploy do GitHub Pages — só o último deploy vence.
 # concurrency + cancel-in-progress: um push novo cancela o deploy que ainda
 # estiver rodando; fica de pé apenas a publicação do commit mais recente.
+#
+# O pacote publica SOMENTE os arquivos do jogo. Antes, o passo de empacotamento
+# mandava o repositório inteiro (path: '.'), e por isso a pasta tests/ e o
+# .gitignore ficavam acessíveis publicamente no site.
 name: Deploy Pages
 
 on:
@@ -28,10 +32,18 @@ jobs:
         uses: actions/checkout@v4
       - name: Configurar Pages
         uses: actions/configure-pages@v5
+      # Cópia explícita: só o que o jogador precisa baixar para jogar offline.
+      - name: Selecionar arquivos do jogo
+        run: |
+          mkdir -p _site
+          cp index.html README.md _site/
+          # Falha cedo se o jogo não entrar no pacote.
+          test -s _site/index.html
+          echo "Publicando:" && ls -la _site
       - name: Empacotar site
         uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: _site
       - name: Publicar
         id: deployment
         uses: actions/deploy-pages@v4

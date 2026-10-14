@@ -1,7 +1,12 @@
 # Docs locais do projeto — nunca versionar no remote
 AGENTS.md
+CLAUDE.md
+NÃO COMMITAR.md
+NAO COMMITAR.md
 PLANO_MELHORIAS.md
+PLANO_MELHORIAS_PROGRESSO.md
 CRIAÇÃO DOS BORDÕES.md
+CRIACAO DOS BORDOES.md
 instrucoes.md
 PESQUISA_REPAGINADA.md
 PROPOSTA_REPAGINADA.md
@@ -10,3 +15,23 @@ PROPOSTA_REPAGINADA.md
 .omp/
 .claude/
 .mimocode/
+
+# Pacote montado pelo workflow de Pages
+_site/
+
+# Cruft de trabalho que nunca deve entrar no remote
+*.bak
+*.backup
+index.html.pre-*
+index.html.backup
+*.tmp
+*.log
+node_modules/
+package.json
+package-lock.json
+pnpm-lock.yaml
+playwright.config.*
+test-results/
+playwright-report/
+screenshots/
+
