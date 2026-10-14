@@ -3704,15 +3704,6 @@ button:focus-visible,summary:focus-visible,[role="button"]:focus-visible,[tabind
        <span id="set-sfx-vol-val" style="width:38px; text-align:right; font-weight:800; font-size:0.72rem; color:var(--text-muted);">100%</span>
      </div>
      <div class="setting-row" style="display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border);">
-       <span>🎙️ Locução do Narrador</span>
-       <button id="set-narracao" class="deck-filter-btn" onclick="app.toggleSetting('narracao')">ON</button>
-     </div>
-     <div class="setting-row" style="display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 0; border-bottom: 1px solid var(--border);">
-       <span style="flex-shrink:0;">🎙️ Volume da Locução</span>
-       <input type="range" id="set-voz-vol" min="0" max="100" value="100" oninput="app.setVolume('vozVol', this.value)" style="flex:1; accent-color: var(--primary);">
-       <span id="set-voz-vol-val" style="width:38px; text-align:right; font-weight:800; font-size:0.72rem; color:var(--text-muted);">100%</span>
-     </div>
-     <div class="setting-row" style="display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border);">
        <span>🔠 Fonte Maior (Acessibilidade)</span>
        <button id="set-big" class="deck-filter-btn" onclick="app.toggleSetting('big')">OFF</button>
      </div>
@@ -4160,8 +4151,7 @@ const AudioSynthesizer = {
             get volume() { return volume; },
             set volume(v) {
                 volume = Math.max(0,Math.min(1,Number(v)||0));
-                const voz = owner._narTocando || (owner._narFila && owner._narFila.length);
-                if (nodes) nodes.gain.gain.setTargetAtTime(volume * (track === 'menu' ? 0.18 : 0.1) * (voz ? 0.28 : 1),nodes.ctx.currentTime,0.08);
+                if (nodes) nodes.gain.gain.setTargetAtTime(volume * (track === 'menu' ? 0.18 : 0.1),nodes.ctx.currentTime,0.08);
             },
             play() {
                 if (nodes) return Promise.resolve();
@@ -4169,8 +4159,7 @@ const AudioSynthesizer = {
                 if (!ctx) return Promise.resolve();
                 const gain=ctx.createGain(); gain.gain.value=0.0001;gain.connect(AudioSynthesizer.saida(ctx));
                 nodes={ctx,gain};this.paused=false;
-                const voz = owner._narTocando || (owner._narFila && owner._narFila.length);
-                gain.gain.setTargetAtTime(volume * (track==='menu'?0.18:0.1) * (voz?0.28:1),ctx.currentTime,0.16);
+                gain.gain.setTargetAtTime(volume * (track==='menu'?0.18:0.1),ctx.currentTime,0.16);
                 // Durante o jogo a torcida pertence ao MatchUI; música 'match' é silenciosa.
                 if (track !== 'match') {
                     let proximo=ctx.currentTime+0.035;
@@ -4260,29 +4249,6 @@ const AudioSynthesizer = {
 
 
 
-// Locução humana (opção 3 — caminho relativo, pronto para GitHub Pages).
-// Pasta commitada junto do index.html; encodeURI cuida de espaços/acentos na URL.
-const NARRACAO_DIR = 'SONS DA NARRAÇÃO DO GAME/';
-const NARRACAO_SOUNDS = {
-  intro: ['INTRO 1.mp3', 'INTRO 2.mp3', 'INTRO 3.mp3', 'INTRO 4.mp3', 'INTRO 5.mp3'],
-  introFinal: ['INTRO PARA JOGOS DE FINAIS.mp3'],
-  passe: ['PASSE 1.mp3', 'PASSE 2.mp3', 'PASSE 3.mp3', 'PASSE 4.mp3', 'PASSE 5.mp3'],
-  drible: ['DRIBLE 1.mp3', 'DRIBLE 2.mp3', 'DRIBLE 3.mp3', 'DRIBLE 4.mp3'],
-  cruzamento: ['CRUZAMENTO 1.mp3', 'CRUZAMENTO 2.mp3'],
-  contra: ['CONTRA ATAQUE 1.mp3', 'CONTRA ATAQUE 2.mp3'],
-  gol: ['curtas/gol-1.mp3', 'curtas/gol-3.mp3', 'curtas/gol-4.mp3'],
-  defesa: ['curtas/defesa-1.mp3'],
-  fora: [], // Locuções retiradas pelo usuário; aguardam nova gravação.
-  trave: [],
-  falta: [],
-  amarelo: [],
-  vermelho: [],
-  escanteio: [], // Sem trecho verbal confirmado; segue texto factual e efeitos.
-  substituicao: ['curtas/substituicao-1.mp3', 'curtas/substituicao-2.mp3'],
-  var: ['curtas/var-1.mp3', 'curtas/var-2.mp3'],
-  anulado: ['curtas/anulado-1.mp3'],
-  fim: ['curtas/fim-1.mp3']
-};
 
 // data.js
 const GAME_DATA = {
@@ -6444,9 +6410,7 @@ const MatchUI = {
     },
     _crowdVol(base) {
         if (typeof app !== 'undefined' && app.settings && !app.settings.sfx) return 0;
-        const voz = typeof ui !== 'undefined' && (ui._narTocando || (ui._narFila && ui._narFila.length));
-        const alvo = voz ? Math.min(base,0.035) : base;
-        return (typeof ui !== 'undefined' && ui && ui._synthVol) ? ui._synthVol(alvo) : alvo;
+        return (typeof ui !== 'undefined' && ui && ui._synthVol) ? ui._synthVol(base) : base;
     },
     // Atmosfera do estádio: 0 = jogo morno, 1 = estádio em pé.
     // Combina momento (pressão do MatchSim), equilíbrio do placar e relógio.
@@ -7585,12 +7549,6 @@ class MatchSim {
         }
         return Math.floor((this.startMinute > 0 ? 30000 : 52000) / this._fimSimulado / this.speed);
     }
-    _narrarEvento(categoria, permitirFim = false) {
-        if ((this.abortado && !permitirFim) || this.speed >= 4 || this.modo === 'instantaneo' || TempoPagina.pausado) return false;
-        if (typeof ui === 'undefined' || !ui.playNarracaoEvento) return false;
-        if (permitirFim) ui._narFim = false;
-        return ui.playNarracaoEvento(categoria);
-    }
     _tick() {
         if (this.abortado || this._segurandoFim) return;
         if (MatchUI._revisaoAtiva) {
@@ -7600,11 +7558,6 @@ class MatchSim {
         // O replay e o lance ao vivo não disputam a bola nem a narração do campo.
         if (MatchUI._replayAtivo) {
             MatchUI._aposReplay = () => { this._timer = setTimeout(() => this._tick(), 0); };
-            return;
-        }
-        // Mantém o campo no lance narrado até a frase terminar, sem fila atrasada.
-        if (typeof ui !== 'undefined' && ui._narTocando && !ui._narExclusive) {
-            ui._narAposCena = () => { this._timer = setTimeout(() => this._tick(), 0); };
             return;
         }
         if (this._idx >= this.roteiro.length) { this._finalizar(); return; }
@@ -7689,7 +7642,6 @@ class MatchSim {
         let log = '';
         let tipoFeed = 'info';
         let expulsoNome = null;
-        let vozEvento = null;
         // Campo 2D: lados reais (side 0 = casa) e protagonistas do lance.
         // setCtx escolhe OS JOGADORES uma única vez e devolve os objetos —
         // o texto da narração usa exatamente os mesmos nomes das fichas.
@@ -7714,25 +7666,13 @@ class MatchSim {
             if (log.indexOf('PERIGO') >= 0 || log.indexOf('Contra-ataque') >= 0) tipoFeed = 'warn';
             this._moverPressao(ev.side, ehChance ? 3.2 : 1.4);
             if (ehChance || tipoFeed === 'warn') this._registrarZona(ev.side === 0, 'chance');
-            // Locução por tipo de lance (opção 3)
-            if (typeof ui !== 'undefined' && ui.playNarracao && this.speed < 4 && this.modo !== 'instantaneo' &&
-                (this._narCenas || 0) < (this.tempoMin <= 45 ? 2 : 3) && this.minuto - (this._narUltMin ?? -25) >= 25) {
-                const categoria = /Contra-ataque/i.test(log) ? 'contra' : /cruza|cruzamento/i.test(log) ? 'cruzamento' :
-                    /drib|limpa|puxa/i.test(log) ? 'drible' : /passe|toca|troca|bola de pé em pé/i.test(log) ? 'passe' : null;
-                if (categoria && ui.playNarracao(categoria)) {
-                    this._narCenas = (this._narCenas || 0) + 1;
-                    this._narUltMin = this.minuto;
-                }
-            }
         } else if (t === 'falta') {
-            vozEvento = 'falta';
             const prot = setCtx('MID', 'DEF');
             log = this._fraseFalta(teamAtk, prot.nomeAtk);
             this.faltas[ev.side]++;
             tipoFeed = 'foul';
             this._moverPressao(ev.side, 1.6);
         } else if (t === 'cartao') {
-            vozEvento = 'amarelo';
             const prot = setCtx('DEF', 'ATT');
             log = this._fraseCartao(teamAtk, prot.nomeAtk);
             this.cartoes[ev.side]++;
@@ -7751,7 +7691,6 @@ class MatchSim {
                 const expulso = prot.nomeAtk || (ev.side === 0 ? this._nomeHome('DEF') : this._nomeAdv('DEF'));
                 log += " " + expulso + (direto ? " expulso! VAR confirmou agressão: vermelho direto." : " expulso! Segundo amarelo.");
                 expulsoNome = expulso;
-                vozEvento = 'vermelho';
                 this._expulsos[ev.side]++;
                 this._amarelosJogador[chaveCartao] = 2;
                 if (this._emCampo && atletaId) this._emCampo[ev.side] = this._emCampo[ev.side].filter(id => id !== atletaId);
@@ -7762,7 +7701,6 @@ class MatchSim {
             }
             tipoFeed = 'foul';
         } else if (t === 'escanteio') {
-            vozEvento = 'escanteio';
             const prot = setCtx('ATT', 'GK');
             log = "Escanteio para o " + (ev.side === 0 ? "time da casa" : "visitante") + "!";
             this.escanteios[ev.side]++;
@@ -7781,10 +7719,8 @@ class MatchSim {
                 const rec = this._marcar(isHome, autor);
                 log += rec;
                 tipoFeed = 'goal';
-                vozEvento = 'gol';
             }
         } else if (t === 'defesa') {
-            vozEvento = 'defesa';
             const prot = setCtx('ATT', 'GK');
             log = this._fraseDef(teamAtk, prot.nomeDef);
             this.chutes[ev.side ^ 1]++;
@@ -7792,7 +7728,6 @@ class MatchSim {
             this._moverPressao(ev.side, 3.0);
             this._registrarZona(ev.side === 0, 'defesa');
         } else if (t === 'autoGol') {
-            vozEvento = 'gol';
             const isHome = ev.side === 0;
             const autor = this._autorDoGol(isHome);
             const guardiao = this._pickXI(isHome ? 1 : 0, 'GK');
@@ -7805,7 +7740,6 @@ class MatchSim {
             log = this._fraseGol(isHome ? this.home : this.away, autor && autor.nome, guardiao && guardiao.nome) + rec;
             tipoFeed = 'goal';
         } else if (t === 'var') {
-            this._narrarEvento('var');
             const prot = setCtx('ATT', 'GK');
             log = this._fraseVar(teamAtk, prot.nomeAtk);
             this.chutes[ev.side]++;
@@ -7817,9 +7751,7 @@ class MatchSim {
                     motivo: (log.indexOf('toque de mão') >= 0 || log.indexOf('mao') >= 0) ? 'mao' : 'impedimento',
                     autor: this._pctx(prot.atk, prot.nomeAtk || (ev.side === 0 ? this._nomeHome('ATT') : this._nomeAdv('ATT'))),
                     min: this.minuto,
-                    narrarVeredito: this.modo !== 'instantaneo' && this.speed < 4 ? () => this._narrarEvento('anulado') : null
                 });
-                if (!mostrouRevisao) this._narrarEvento('anulado');
             } catch (e) { /* cosmético */ }
         } else if (t === 'acrescimo') {
             log = this._fraseAcrescimo();
@@ -7840,7 +7772,6 @@ class MatchSim {
             }
         }
         if (log) this._emit(log, tipoFeed);
-        if (vozEvento) this._narrarEvento(vozEvento);
         // Bordão contextual pós-evento (expulsão / goleada / virada / etc.)
         const ctx = this._bordaoAutomatico(expulsoNome);
         if (ctx) this._emit(ctx, expulsoNome ? 'foul' : 'info');
@@ -8077,7 +8008,6 @@ class MatchSim {
         this._usados[isHome ? 0 : 1][entra.id] = true;
         this._rebindCampo();
         this._emit('⚤ Substituição: sai ' + sai.nome + ' (fôlego ' + Math.round(saiF) + '%), entra ' + entra.nome + '.', 'info');
-        this._narrarEvento('substituicao');
         // Recalcula forças — efeito imediato nas próximas chances e decisões.
         const pH = this._poder(this.home, true);
         const pA = this._poder(this.away, false);
@@ -8114,7 +8044,6 @@ class MatchSim {
         this._usados[side][entraId] = true;
         this._rebindCampo();
         this._emit('⚤ Substituição: sai ' + sai.nome + ', entra ' + entra.nome + '.', 'info');
-        this._narrarEvento('substituicao');
         this._emit(this._feedbackTatico(leituraAntes), 'info');
         const pH = this._poder(this.home, true);
         const pA = this._poder(this.away, false);
@@ -8147,34 +8076,28 @@ class MatchSim {
             const gol = this._roll(p);
             const revisao = gol && this._roll(this.arbitro === 'Rigoroso' ? 0.15 : 0.08);
             if (revisao) {
-                this._narrarEvento('var');
                 const motivo = this._roll(0.65) ? 'impedimento' : 'mao';
                 this._fecharDecisao('var');
                 this._emit('📺 VAR: gol de ' + j + ' anulado por ' + (motivo === 'mao' ? 'toque de mão' : 'impedimento milimétrico') + '.', 'warn');
                 if (this.modo !== 'instantaneo') {
-                    const mostrouRevisao = MatchUI.varReview({ anulado:true, motivo, side:atkSide, autor:this._pctx(jp,j), min:this.minuto,
-                        narrarVeredito: this.speed < 4 ? () => this._narrarEvento('anulado') : null });
-                    if (!mostrouRevisao) this._narrarEvento('anulado');
+                    MatchUI.varReview({ anulado:true, motivo, side:atkSide, autor:this._pctx(jp,j), min:this.minuto });
                 }
             } else if (gol) {
                 const autor = jp || null;
                 const rec = this._marcar(isHome, autor);
                 this._fecharDecisao('gol');
                 this._emit((userScored ? "GOL! " + j + " converte a chance e explode a torcida!" : "GOL DO RIVAL! " + j + " não perdoa!") + rec, 'goal');
-                this._narrarEvento('gol');
             } else if (this._roll(0.30)) {
                 // Mesmo goleiro do card-battle / campo 2D
                 this._registrarZona(isHome, 'defesa');
                 this._fecharDecisao('defesa');
                 this._emit(this._fraseDef(isHome ? this.home : this.away, nomeGk), 'def');
-                this._narrarEvento('defesa');
             } else {
                 // Mesmo atacante do campo 2D
                 this._registrarZona(isHome, 'erro');
                 this._fecharDecisao('erro');
                 const resultado = this._fraseMiss(isHome ? this.home : this.away, j, true);
                 this._emit(resultado.texto, resultado.tipo === 'defesa' ? 'def' : 'info');
-                this._narrarEvento(resultado.tipo);
                 if (typeof ui !== 'undefined' && resultado.tipo === 'trave') ui.synthTrave();
             }
             MatchUI.clock(this.minuto);
@@ -8190,10 +8113,6 @@ class MatchSim {
 
     setSpeed(s) {
         this.speed = s;
-        if (s >= 4 && typeof ui !== 'undefined' && ui._narTocando && !ui._narExclusive) {
-            ui.pararNarracao();
-            ui._narFim = false;
-        }
         MatchUI.status(s >= 8 ? 'ENCERRANDO JOGO...' : 'BOLA ROLANDO...');
         document.querySelectorAll('.match-speed-btn').forEach(b => b.classList.toggle('active', String(b.dataset.speed) === String(s)));
     }
@@ -8222,7 +8141,6 @@ class MatchSim {
         MatchUI.status('FIM DE JOGO');
         if (typeof ui !== 'undefined') {
             ui.playApito(true, 'longo'); // um único apito final
-            if (ui.pararNarracao) ui.pararNarracao();
             ui.duckBGM(0.35, 1600);
         }
         try { MatchUI.encerrarTransmissao(); } catch (e) {
@@ -8252,13 +8170,8 @@ class MatchSim {
             }
             if (this.onFinish) this.onFinish(h, a);
         };
-        if (this._narrarEvento('fim', true) && ui._narTocando) {
-            ui._narAposCena = concluir;
-            ui._narFim = true;
-        } else {
-            if (typeof ui !== 'undefined') ui._narFim = true;
-            concluir();
-        }
+        // Sem locução humana: a partida é encerrada na hora.
+        concluir();
     }
 
     // Fase 4: disputa de pênaltis narrada, casa cobra primeiro.
@@ -8848,19 +8761,13 @@ class UI {
     const ctx = this.audioContext;
     if (suspender) {
       this._audioPaginaRetomar = !!(ctx && ctx.state === 'running');
-      this._narPaginaRetomar = !!(this._narAudio && !this._narAudio.paused);
-      if (this._narPaginaRetomar) this._narAudio.pause();
       if (ctx && ctx.state === 'running') ctx.suspend().then(() => {
         // Uma volta rápida pode chegar antes de suspend() concluir.
         if (!TempoPagina.pausado && this._audioUnlocked) ctx.resume().catch(() => {});
       }).catch(() => {});
     } else {
       if (this._audioPaginaRetomar && ctx && ctx.state === 'suspended') ctx.resume().catch(() => {});
-      if (this._narPaginaRetomar && this._narAudio && app.settings.narracao !== false) this._narAudio.play().catch(() => {});
-      this._audioPaginaRetomar = this._narPaginaRetomar = false;
-      // Um erro de mídia pode chegar com a página oculta; retoma também a
-      // próxima fala factual que ficou aguardando, sem deixar uma fila órfã.
-      if (!this._narTocando && this._narFila && this._narFila.length) this._processarFilaNarracao();
+      this._audioPaginaRetomar = false;
     }
   }
 
@@ -8939,8 +8846,7 @@ class UI {
   duckBGM(factor = 0.4, ms = 2000) {
     if (!this.currentBGM) return;
     const base = (typeof app !== 'undefined' && app.settings && typeof app.settings.bgmVol === 'number') ? app.settings.bgmVol : 0.12;
-    const voz = this._narTocando || (this._narFila && this._narFila.length);
-    try { this.currentBGM.volume = Math.max(0, base * (voz ? 1 : factor)); } catch (_) {}
+    try { this.currentBGM.volume = Math.max(0, base * factor); } catch (_) {}
     clearTimeout(this._duckBgmT);
     this._duckBgmT = setTimeout(() => {
       const atual = (typeof app !== 'undefined' && app.settings && typeof app.settings.bgmVol === 'number') ? app.settings.bgmVol : 0.12;
@@ -8977,165 +8883,18 @@ class UI {
     } catch (_) {}
   }
 
-  // Locução humana da pasta SONS DA NARRAÇÃO DO GAME/ (caminho relativo — GitHub Pages).
-  _atualizarMixNarracao() {
-    const base = (typeof app !== 'undefined' && app.settings && typeof app.settings.bgmVol === 'number') ? app.settings.bgmVol : 0.12;
-    if (this.currentBGM) this.currentBGM.volume = base;
-    try {
-      if (typeof MatchUI !== 'undefined' && MatchUI._crowdNodes) {
-        MatchUI.startCrowdLoop(MatchUI._crowdBedLevel || 0.11);
-      }
-    } catch (_) {}
-  }
-
+  // Sem locução humana desde 2026-10-14: sobra o leito de torcida, que segue
+  // dependendo de "Efeitos Sonoros".
   refreshAudioMix() {
     const cfg = (typeof app !== 'undefined' && app.settings) ? app.settings : {};
     const sfxLigado = cfg.sfx !== false;
-    const vozLigada = cfg.narracao !== false;
     const emPartida = this.currentScreen === 'screen-match' && typeof Engine !== 'undefined' && !!Engine.activeMatch;
-    // A voz depende só de settings.narracao; a torcida depende de settings.sfx.
-    if (!vozLigada) this.pararNarracao();
-    if (emPartida) this._narFim = false;
-    if (vozLigada && this._narAudio) this._narAudio.volume = this._synthVol(this._narVolume || 0.55);
     try {
-      if (emPartida && sfxLigado && !this._narFim) MatchUI.startCrowdLoop(MatchUI._crowdBedLevel || 0.11);
+      if (emPartida && sfxLigado) MatchUI.startCrowdLoop(MatchUI._crowdBedLevel || 0.11);
       else if (!sfxLigado) MatchUI.stopCrowdLoop(120);
     } catch (_) {}
-    this._atualizarMixNarracao();
   }
 
-  // categoria: intro | introFinal | passe | drible | cruzamento | contra
-  playNarracaoEvento(categoria) {
-    return this.playNarracao(categoria, 0.65, false, true);
-  }
-
-  playNarracao(categoria, volume = 0.55, exclusive = false, factual = false) {
-    if (TempoPagina.pausado) return false;
-    // A voz tem interruptor e volume próprios (settings.narracao/vozVol) — não depende
-    // do toggle de efeitos, que antes levava a locução e o estádio junto com ele.
-    if (app && app.settings && app.settings.narracao === false) return;
-    // Após o apito final não entra mais locução de partida (intro da preparação
-    // entra com exclusive e é liberado em startMatchRender).
-    if (this._narFim && !exclusive) return;
-    const pool = (typeof NARRACAO_SOUNDS !== 'undefined' && NARRACAO_SOUNDS[categoria]) || null;
-    if (!pool || !pool.length) return;
-    // Duração medida nos frames MP3 de cada arquivo (medida real, não estimativa):
-    // 10,37-16,33 s nos cinco que antes eram excluídos por nome. O corte de 10,5 s
-    // mantém a regra de "cenas completas de até ~10 s" sem descartar variedade: o
-    // clipe para no meio da frase se passar disso, e a fila segue para a próxima cena.
-    const CAP_SEG = categoria === 'intro' || categoria === 'introFinal' ? 0 : 10.5;
-    // Sem repetição imediata: com 3-5 variantes, repetir a mesma fala em dois lances
-    // seguidos é o que mais denuncia a locução gravada.
-    if (!this._narUltimo) this._narUltimo = {};
-    let candidatos = pool;
-    if (pool.length > 1 && this._narUltimo[categoria]) {
-      const semRepetir = pool.filter(f => f !== this._narUltimo[categoria]);
-      if (semRepetir.length) candidatos = semRepetir;
-    }
-    const file = candidatos[Math.floor(Math.random() * candidatos.length)];
-    this._narUltimo[categoria] = file;
-    const item = {
-      url: encodeURI((typeof NARRACAO_DIR !== 'undefined' ? NARRACAO_DIR : '') + file),
-      volume: volume,
-      exclusive: !!exclusive,
-      factual: !!factual,
-      capSeg: CAP_SEG
-    };
-    // Fila serial: um clip por vez — o próximo só no 'ended' do anterior.
-    if (!this._narFila) this._narFila = [];
-    if (item.exclusive) {
-      // Exclusivo (INTRO / INTRO DE FINAL): corta o que toca e zera a fila —
-      // roda por inteiro; o resto só volta depois do 'ended'.
-      this.pararNarracao();
-      this._narFim = false;
-      this._narFila = [item];
-    } else if (factual) {
-      // Eventos confirmados têm prioridade sobre cenas genéricas. O motor aguarda
-      // a fala: pendências aqui são do mesmo lance (escanteio + gol), nunca ticks atrasados.
-      if (this._narTocando && !this._narFactual) {
-        this.pararNarracao();
-        this._narFim = false;
-      }
-      this._narFila.push(item);
-    } else {
-      if (this._narTocando) return false;
-      this._narFila = [item];
-    }
-    this._processarFilaNarracao();
-    return true;
-  }
-
-  _processarFilaNarracao() {
-    if (TempoPagina.pausado) return;
-    if (this._narTocando) return;
-    if (typeof app !== 'undefined' && app.settings && app.settings.narracao === false) { this.pararNarracao(); return; }
-    if (!this._narFila || !this._narFila.length) { this._atualizarMixNarracao(); return; }
-    const item = this._narFila.shift();
-    try {
-      const sfxMaster = (typeof app !== 'undefined' && app.settings && typeof app.settings.sfxVol === 'number') ? app.settings.sfxVol : 1.0;
-      const vozMaster = (typeof app !== 'undefined' && app.settings && typeof app.settings.vozVol === 'number') ? app.settings.vozVol : 1.0;
-      const audio = new Audio(item.url);
-      audio.volume = Math.max(0, Math.min(1, (item.volume || 0.55) * sfxMaster * vozMaster));
-      this._narTocando = true;
-      this._narExclusive = item.exclusive;
-      this._narFactual = item.factual;
-      this._narAudio = audio;
-      this._narVolume = item.volume || 0.55;
-      clearTimeout(this._duckBgmT);
-      this._atualizarMixNarracao();
-      let finalizado = false;
-      const fim = () => {
-        if (finalizado || this._narAudio !== audio) return;
-        finalizado = true;
-        clearTimeout(this._narFalhaT);
-        clearTimeout(this._narCapT);
-        this._narTocando = false;
-        this._narAudio = null;
-        const continuar = this._narAposCena;
-        this._narAposCena = null;
-        if (continuar) continuar();
-        this._processarFilaNarracao();
-      };
-      audio.addEventListener('ended', fim, { once: true });
-      audio.addEventListener('error', fim, { once: true });
-      // Rede/decoder travado nunca prende o motor indefinidamente. O prazo também pausa fora da página.
-      this._narFalhaT = setTimeout(() => { try { audio.pause(); } catch (_) {} fim(); }, item.exclusive ? 120000 : 30000);
-      // Teto de duração da cena: pausa e libera a fila em vez de deixar um clipe longo
-      // segurar a transmissão (era o motivo do filtro por nome que existia antes).
-      clearTimeout(this._narCapT);
-      if (item.capSeg > 0) {
-        this._narCapT = setTimeout(() => { try { audio.pause(); } catch (_) {} fim(); }, item.capSeg * 1000);
-      }
-      const p = audio.play();
-      if (p && p.catch) p.catch(fim);
-    } catch (_) {
-      this._narTocando = false;
-      this._narAudio = null;
-      const continuar = this._narAposCena;
-      this._narAposCena = null;
-      if (continuar) continuar();
-      this._processarFilaNarracao();
-    }
-  }
-
-  // Para a locução e limpa a fila (fim/aborto de partida, troca de tela).
-  pararNarracao() {
-    clearTimeout(this._narFalhaT);
-    const continuar = this._narAposCena;
-    this._narAposCena = null;
-    this._narFila = [];
-    if (this._narAudio) {
-      try { this._narAudio.pause(); this._narAudio.currentTime = 0; } catch (_) {}
-      this._narAudio = null;
-    }
-    this._narTocando = false;
-    this._narExclusive = false;
-    this._narFactual = false;
-    this._narFim = true;
-    clearTimeout(this._duckBgmT);
-    this._atualizarMixNarracao();
-    if (continuar) continuar();
-  }
 
   playGoalSound(isPlayerGoal = true) {
     this.playGolMoment(!!isPlayerGoal);
@@ -9231,9 +8990,6 @@ class UI {
     UIRenderer.measureFrames();
     this.initAudio();
     // Abertura pertence à preparação; não descreve os lances com a bola rolando.
-    this.pararNarracao();
-    // Libera locução/rádio da partida (o apito final anterior bloqueava novos clips).
-    this._narFim = false;
     try { MatchUI._radioFim = false; } catch (e) { }
     this.playBGM('match');
     this.playApito(false, 'longo'); // um único apito inicial
@@ -12018,9 +11774,7 @@ const app = {
 
     // ---- CONFIGURAÇÕES / ACESSIBILIDADE ----
     initSettings() {
-        // narracao/vozVol ficam FORA de sfx: a locução humana é informação do jogo,
-        // não efeito. Antes, desligar "Efeitos" emudecia o narrador e o estádio.
-        const defaults = { music: true, sfx: true, narracao: true, big: false, hc: false, particles: true, vibrate: true, bgmVol: 0.12, sfxVol: 1, vozVol: 1 };
+        const defaults = { music: true, sfx: true, big: false, hc: false, particles: true, vibrate: true, bgmVol: 0.12, sfxVol: 1 };
         try {
             const s = JSON.parse(localStorage.getItem(this.STORAGE_KEYS.SETTINGS) || '{}');
             this.settings = Object.assign({}, defaults, s);
@@ -12035,7 +11789,7 @@ const app = {
         this.syncSettingsUI();
     },
     syncSettingsUI() {
-        const map = { music: 'set-music', sfx: 'set-sfx', narracao: 'set-narracao', big: 'set-big', hc: 'set-hc', particles: 'set-particles', vibrate: 'set-vibrate' };
+        const map = { music: 'set-music', sfx: 'set-sfx', big: 'set-big', hc: 'set-hc', particles: 'set-particles', vibrate: 'set-vibrate' };
         Object.keys(map).forEach(k => {
             const b = document.getElementById(map[k]);
             if (!b) return;
@@ -12052,21 +11806,15 @@ const app = {
         if (sfx) sfx.value = sfxPct;
         const sfxVal = document.getElementById('set-sfx-vol-val');
         if (sfxVal) sfxVal.innerText = sfxPct + '%';
-        const voz = document.getElementById('set-voz-vol');
-        const vozPct = Math.round((this.settings.vozVol == null ? 1 : this.settings.vozVol) * 100);
-        if (voz) voz.value = vozPct;
-        const vozVal = document.getElementById('set-voz-vol-val');
-        if (vozVal) vozVal.innerText = vozPct + '%';
     },
 
     setVolume(key, value) {
-        if (key !== 'bgmVol' && key !== 'sfxVol' && key !== 'vozVol') return;
+        if (key !== 'bgmVol' && key !== 'sfxVol') return;
         this.settings[key] = Math.max(0, Math.min(1, parseFloat(value) / 100));
         try { localStorage.setItem(this.STORAGE_KEYS.SETTINGS, JSON.stringify(this.settings)); } catch (e) {}
         this.syncSettingsUI();
         if (key === 'bgmVol' && typeof ui !== 'undefined') ui.refreshBGM();
         if (key === 'sfxVol' && typeof ui !== 'undefined') { ui.refreshAudioMix(); ui.playSFX('sfx_click', 0.4); }
-        if (key === 'vozVol' && typeof ui !== 'undefined') ui._atualizarMixNarracao();
     },
     openSettings() {
         const m = document.getElementById('modal-settings');
@@ -12096,7 +11844,6 @@ const app = {
         this.applySettings();
         if (key === 'music' && typeof ui !== 'undefined') ui.refreshBGM();
         if (key === 'sfx' && typeof ui !== 'undefined') { ui.refreshAudioMix(); ui.playSFX('sfx_click', 0.4); }
-        if (key === 'narracao' && typeof ui !== 'undefined') ui.refreshAudioMix();
     },
 
     createNewClub(nome) {
@@ -14173,7 +13920,6 @@ const app = {
         this.recuperarFadiga();
         this.autosaveNow();
         this._registrarSessao();
-        this._introPrepTocado = false;
         // C1: carreira nova sem contrato ainda — oferta de patrocínio ANTES da preparação
         // (um modal por vez: escolher/fechar o patrocínio libera a preparação).
         if (this.club && this.club.patrocinio == null) {
@@ -14442,17 +14188,9 @@ const app = {
             txt += ' Escolha o estilo de jogo e um craque emprestado (1 por dia) para reforçar o time só nesta partida.';
             obs.innerText = txt;
         }
-        // Apresentação do jogo (estádio / formação / camisa / tempo) + locução INTRO.
+        // Apresentação do jogo (estádio / formação / camisa / tempo).
         this._renderPrepEscolhas();
         this._renderApresentacao(adv);
-        const ehFinal = this._ehPartidaFinal();
-        // INTRO só na primeira abertura da preparação (voltar da escalação não repete).
-        if (!this._introPrepTocado && typeof ui !== 'undefined' && ui.playNarracao) {
-            this._introPrepTocado = true;
-            // Final: só o INTRO PARA JOGOS DE FINAIS, por inteiro e exclusivo.
-            // Outras partidas: um INTRO aleatório, exclusivo neste menu (sem repetir na partida).
-            ui.playNarracao(ehFinal ? 'introFinal' : 'intro', 0.55, true);
-        }
         if (!this._retomarEscolhasPrep) {
             this._estiloPartida = 'equilibrado';
             this._craquePartida = null;
