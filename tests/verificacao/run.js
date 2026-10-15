@@ -14,7 +14,7 @@ const { spawnSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
-const HARNESSES = ['audio', 'a11y', 'atmosfera', 'save', 'workflow'];
+const HARNESSES = ['audio', 'a11y', 'atmosfera', 'save', 'temporada', 'workflow'];
 
 const args = process.argv.slice(2);
 let indexCustom = null;

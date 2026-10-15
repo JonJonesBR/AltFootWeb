@@ -4999,6 +4999,46 @@ class Club {
     }
   }
 
+  // B29: reposição de elenco dos clubes da IA na virada de temporada. Sem ela o
+  // envelhecimento (aposentadoria aos 36+) esvaziava o rival: medido com o motor real,
+  // 69 dos 79 clubes chegavam à 12ª temporada sem 11 jogadores (mínimo de 4) e o jogo
+  // entrava em campo com 4 contra 11. A fornada acompanha a força do próprio elenco,
+  // então o clube se mantém na altura em que está — não infla nem desaparece.
+  reporElencoBase() {
+    if (this.isUser) return 0;
+    const minimo = { GK: 2, DEF: 5, MID: 5, ATT: 3 };
+    const elenco = this.elenco || (this.elenco = []);
+    const referencia = elenco.length
+      ? elenco.reduce((s, p) => s + (p.overall || 50), 0) / elenco.length
+      : (this.fraca ? 46 : 56);
+    let repostos = 0;
+    Object.keys(minimo).forEach(pos => {
+      const faltam = minimo[pos] - elenco.filter(p => (p.posicao || 'MID') === pos).length;
+      for (let i = 0; i < faltam; i++) {
+        const p = new Player(pos);
+        p.idade = 17 + Math.floor(Math.random() * 4);
+        p.folego = 100;
+        p.folegoMax = 100;
+        // Cria da base: mesma marcação que o usuário usa na química de elenco.
+        p.origem = 'base';
+        p.overall = Math.max(30, Math.min(99, Math.round(referencia) - 4 + Math.floor(Math.random() * 9)));
+        p.potencial = Math.min(99, p.overall + 4 + Math.floor(Math.random() * 10));
+        p.potencialRevelado = true; // a IA não passa pelo fluxo do olheiro
+        p.machucado = false;
+        p.rodadasRecuperacao = 0;
+        p.raridade = p.calcularRaridade(p.overall);
+        p.custoEnergia = p.calcularCustoEnergia(p.raridade);
+        p.stats = p.gerarStatsPorPosicao(p.posicao, p.overall);
+        p.valor = p.overall * p.overall * 100;
+        p.salario = Math.floor(p.valor / 100);
+        p.contratoRodadas = 40 + Math.floor(Math.random() * 40);
+        elenco.push(p);
+        repostos++;
+      }
+    });
+    return repostos;
+  }
+
   checkMissoes(tipo, valor = 1) {
     if (!this.isUser || !Array.isArray(this.missoes)) return;
     this.missoes.forEach(m => {
@@ -6586,6 +6626,24 @@ function escalarTitularesXI(elenco, formacao) {
     return xi;
 }
 
+// B28: uma rodada de recuperação de lesões de um elenco. A rotina vivia solta no
+// pós-rodada e só tratava quem JÁ tinha prazo — mas a lesão de partida gravava
+// `machucado` sem `rodadasRecuperacao`, então nunca era curada e o atleta saía do XI
+// para sempre (medido: 10% das partidas geram lesão, ~3,8 perdas por temporada).
+// Aqui quem está lesionado sem prazo — inclusive save antigo já corrompido — ganha
+// prazo e volta a curar normalmente.
+function recuperarLesoesRodada(elenco) {
+    (elenco || []).forEach(p => {
+        if (!p) return;
+        if (p.rodadasRecuperacao > 0) {
+            p.rodadasRecuperacao--;
+            if (p.rodadasRecuperacao === 0) p.machucado = false;
+        } else if (p.machucado) {
+            p.rodadasRecuperacao = 1;
+        }
+    });
+}
+
 // G4: química de elenco — bônus por sinergia entre quem está em campo.
 // Função pura (modelo escalarTitularesXI). Cap de +3 por linha; nunca supera o Craque (+6 atk).
 // Retorna { atk, mid, def, chips:[{label, valor, linha}] }.
@@ -7796,8 +7854,27 @@ class MatchSim {
         } else if (t === 'lesao') {
             const prot = setCtx('MID', 'DEF');
             const lesionado = ev.atleta || prot.atk;
-            if (lesionado) { lesionado.machucado = Math.max(1,lesionado.machucado || 0); lesionado.folego = Math.max(5,(lesionado.folego ?? 100)-8); }
+            let foraRodadas = 0;
+            if (lesionado) {
+                // B28: a lesão precisa de PRAZO. O pós-rodada só cura quem tem
+                // `rodadasRecuperacao > 0` e ninguém gravava o campo aqui — o atleta
+                // saía do XI para sempre (medido: 10% das partidas geram lesão,
+                // ~3,8 perdas por temporada). 2 a 3 rodadas; o departamento médico
+                // encurta em uma.
+                const temMedico = typeof ClubEcosystem !== 'undefined' && ClubEcosystem.nivel(teamAtk, 'medico') > 0;
+                // +1 porque a recuperação da PRÓPRIA rodada roda logo depois do apito
+                // (app.js): sem ele, uma lesão "de 2 rodadas" tirava o atleta de uma só.
+                const duracao = Math.max(1, (this._roll(0.5) ? 3 : 2) - (temMedico ? 1 : 0)) + 1;
+                lesionado.machucado = Math.max(1, lesionado.machucado || 0);
+                lesionado.rodadasRecuperacao = Math.max(1, Number(lesionado.rodadasRecuperacao) || 0, duracao);
+                foraRodadas = Math.max(1, lesionado.rodadasRecuperacao - 1);
+                lesionado.folego = Math.max(5,(lesionado.folego ?? 100)-8);
+            }
             log = this._fraseLesao(teamAtk, lesionado ? lesionado.nome : prot.nomeAtk);
+            // Segue em campo nesta partida (não existe substituição automática), mas
+            // fica fora das próximas: o Rádio anuncia o prazo em vez de deixar o
+            // jogador descobrir sozinho na escalação da rodada seguinte.
+            if (foraRodadas) log += ' 🏥 Fora por ' + foraRodadas + (foraRodadas > 1 ? ' rodadas.' : ' rodada.');
             tipoFeed = 'warn';
         }
         // Trave: bordão no lugar da frase curta de erro (mantém o protagonista no texto)
@@ -12681,6 +12758,12 @@ const app = {
     }
     league.divisaoUser = Math.max(1, Math.min(4, Number(league.divisaoUser) || 1));
     CompetitionSystem.ensure(league);
+    // B29 — reparo de carreira já afetada: os clubes da IA nunca repunham elenco e
+    // chegaram a entrar em campo com 4 jogadores. Só repõe quem está abaixo do mínimo
+    // por linha, então é idempotente e não toca em save saudável.
+    CompetitionSystem.all(league).forEach(cl => {
+        if (cl && !cl.isUser && typeof cl.reporElencoBase === 'function') cl.reporElencoBase();
+    });
 
         // Importante: o clube do jogador deve ser a MESMA instância usada na
         // liga, senão os resultados não aparecem na tabela nem o oponente é encontrado.
@@ -14741,13 +14824,18 @@ const app = {
         // Folha salarial da rodada
         if (this.club && typeof this.club.pagarSalarios === 'function') this.club.pagarSalarios();
 
-        // Recuperação de lesões ao passar a rodada
-        this.club.elenco.forEach(p => {
-            if (p.rodadasRecuperacao > 0) {
-                p.rodadasRecuperacao--;
-                if (p.rodadasRecuperacao === 0) p.machucado = false;
-            }
-        });
+        // Recuperação de lesões ao passar a rodada (função pura testável — o B28
+        // vivia exatamente aqui, num laço que nunca curava ninguém).
+        recuperarLesoesRodada(this.club.elenco);
+        // A rodada passa para todos. Sem isto, o atleta do rival que se lesionou
+        // contra o usuário ficava fora do XI dele PARA SEMPRE (o mesmo B28, do outro
+        // lado) — e como a reposição de base conta lesionados no mínimo de elenco, o
+        // B29 vazaria por aqui.
+        if (this.league && typeof CompetitionSystem !== 'undefined') {
+            CompetitionSystem.all(this.league).forEach(cl => {
+                if (cl && cl !== this.club) recuperarLesoesRodada(cl.elenco);
+            });
+        }
 
         // Categorias de base podem revelar um jovem (C2: fluxo do olheiro)
         this.tentarOlheiro();
@@ -15092,9 +15180,13 @@ const app = {
             }
         }
         // Cada atleta envelhece uma vez, inclusive usuário em divisões inferiores.
+        // B29: e cada clube da IA repõe na base o que o envelhecimento levou. Sem isso
+        // os rivais definhavam ano após ano até entrarem em campo com 4 jogadores
+        // (medido: 69 dos 79 clubes sem XI na 12ª temporada).
         CompetitionSystem.all(this.league).filter(c => c !== this.club).forEach(cl => {
             cl.elenco.forEach(p => { if (typeof p.envelhecer === 'function') p.envelhecer(); });
             cl.elenco = cl.elenco.filter(p => p.idade <= 36);
+            if (typeof cl.reporElencoBase === 'function') cl.reporElencoBase();
         });
 
         // Nova temporada: missões rotacionam — gera um conjunto novo (também atende o "CONTINUAR CARREIRA" com save antigo sem o campo).

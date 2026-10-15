@@ -376,6 +376,89 @@ teste('ClubEcosystem.afterRound cobra a parcela uma única vez por rodada', () =
         + posPrimeira + ' → ' + clube.orcamento);
 });
 
+// ---------------------------------------------------------------- B28: lesão com prazo
+console.log('-- B28: lesão de partida tem prazo e cura (2026-10-15)');
+teste('nenhum atleta sai lesionado de partida sem prazo de recuperação', () => {
+    let lesoes = 0;
+    for (let i = 0; i < 80; i++) {
+        const r = runMatch({ seed: 9100 + i });
+        r.home.elenco.concat(r.away.elenco).forEach(p => {
+            if (!p.machucado) return;
+            lesoes++;
+            ok(p.rodadasRecuperacao > 0, p.nome + ' lesionado sem prazo (o bug do B28): '
+                + 'machucado=' + p.machucado + ' rodadasRecuperacao=' + p.rodadasRecuperacao);
+        });
+    }
+    ok(lesoes > 0, 'nenhuma lesão em 80 partidas — a bancada não exercitou o caminho');
+});
+teste('o prazo cai uma rodada por vez e o atleta é liberado no fim', () => {
+    const s = novoSandbox();
+    const elenco = [makePlayer('prazo', 'MID', 70)];
+    elenco[0].machucado = 1;
+    elenco[0].rodadasRecuperacao = 3;
+    for (const restante of [2, 1]) {
+        s.recuperarLesoesRodada(elenco);
+        ok(elenco[0].rodadasRecuperacao === restante && elenco[0].machucado,
+            'com prazo 3 esperava ' + restante + ' e ainda lesionado, veio ' + elenco[0].rodadasRecuperacao);
+    }
+    s.recuperarLesoesRodada(elenco);
+    ok(elenco[0].machucado === false && elenco[0].rodadasRecuperacao === 0, 'não curou no fim do prazo');
+});
+teste('lesionado sem prazo (save afetado pelo B28) volta a curar', () => {
+    const s = novoSandbox();
+    const elenco = [makePlayer('legado', 'DEF', 70)];
+    elenco[0].machucado = true;
+    elenco[0].rodadasRecuperacao = 0;
+    s.recuperarLesoesRodada(elenco);
+    ok(elenco[0].rodadasRecuperacao > 0, 'save antigo continuaria lesionado para sempre');
+    s.recuperarLesoesRodada(elenco);
+    ok(elenco[0].machucado === false, 'save antigo não curou');
+});
+
+// -------------------------------------------------------- B29: liga viva em 10 temporadas
+console.log('-- B29: a liga não se dissolve em 10 temporadas (2026-10-15)');
+teste('nenhum clube da IA chega sem 11 jogadores', () => {
+    const liga = new League();
+    liga.inicializar();
+    for (let t = 2; t <= 10; t++) {
+        // Mesma virada de temporada do app (startNewSeason): envelhece, aposenta e repõe.
+        CompetitionSystem.all(liga).filter(c => c && !c.isUser).forEach(cl => {
+            cl.elenco.forEach(p => { if (typeof p.envelhecer === 'function') p.envelhecer(); });
+            cl.elenco = cl.elenco.filter(p => p.idade <= 36);
+            cl.reporElencoBase();
+        });
+        liga.temporada = t;
+    }
+    const semXI = CompetitionSystem.all(liga).filter(c => c && !c.isUser && (c.elenco || []).length < 11);
+    ok(semXI.length === 0, semXI.length + ' clubes sem XI na 10ª temporada: '
+        + semXI.slice(0, 3).map(c => c.nome + ' (' + c.elenco.length + ')').join(', '));
+});
+teste('a reposição cobre as linhas, é idempotente e não toca no clube do jogador', () => {
+    const clube = new Club(null);
+    const repostos = clube.reporElencoBase();
+    const linha = pos => clube.elenco.filter(p => p.posicao === pos).length;
+    ok(repostos > 0 && repostos === clube.elenco.length, 'elenco vazio não foi reposto');
+    ok(linha('GK') >= 2 && linha('DEF') >= 5 && linha('MID') >= 5 && linha('ATT') >= 3,
+        'linhas incompletas: ' + ['GK', 'DEF', 'MID', 'ATT'].map(p => p + '=' + linha(p)).join(' '));
+    const antes = clube.elenco.length;
+    ok(clube.reporElencoBase() === 0 && clube.elenco.length === antes, 'reposição não é idempotente');
+    const user = new Club(null, true);
+    ok(user.reporElencoBase() === 0 && user.elenco.length === 0, 'a reposição de IA mexeu no clube do usuário');
+});
+teste('a força da fornada acompanha o próprio elenco (não infla nem some)', () => {
+    const fornada = ref => {
+        const cl = new Club(null);
+        for (let i = 0; i < 11; i++) { const p = new Player('MID'); p.overall = ref; cl.elenco.push(p); }
+        cl.reporElencoBase();
+        const novos = cl.elenco.slice(11);
+        ok(novos.length > 0, 'nenhum atleta reposto com referência ' + ref);
+        return novos.reduce((s, p) => s + p.overall, 0) / novos.length;
+    };
+    const fraco = fornada(40), forte = fornada(80);
+    ok(forte > fraco + 15, 'fornada não acompanha o elenco: ' + fraco.toFixed(1) + ' × ' + forte.toFixed(1));
+    ok(forte < 92 && fraco > 28, 'fornada fora da faixa: ' + fraco.toFixed(1) + ' / ' + forte.toFixed(1));
+});
+
 console.log('');
 console.log('=== ' + (total - falhas) + '/' + total + ' verificações passaram' + (falhas ? ' — ' + falhas + ' FALHAS' : '') + ' ===');
 process.exit(falhas ? 1 : 0);

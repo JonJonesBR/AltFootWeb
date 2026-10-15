@@ -79,6 +79,7 @@ function novoSandbox(opts = {}) {
         'ui', 'app',
         corpo + '\n;return { MatchSim, Engine, escalarTitularesXI, bonusQuimica, CONDICOES_JOGO, mulberry32, hashStr'
         + ', calcularXPParticipacao: (typeof calcularXPParticipacao === "function" ? calcularXPParticipacao : null)'
+        + ', recuperarLesoesRodada: (typeof recuperarLesoesRodada === "function" ? recuperarLesoesRodada : null)'
         + ', fecharPartidaElenco: (typeof fecharPartidaElenco === "function" ? fecharPartidaElenco : null)'
         + ', Player, Club, League, TransferMarket, LockerRoom, ClubEcosystem, CompetitionSystem, GAME_DATA, TaticaCard };'
     );
