@@ -3916,9 +3916,9 @@ button:focus-visible,summary:focus-visible,[role="button"]:focus-visible,[tabind
       </ul>
       <p style="margin:0 0 4px;"><strong>Estilo</strong> (escolhido na preparação):</p>
       <ul style="margin:0 0 8px; padding-left: 18px;">
-        <li><strong>Ofensivo:</strong> +4 ataque, +1 meio, −2 defesa; criação de chances ×1,25 e a do rival ×1,12. Mais desgaste e exposição.</li>
-        <li><strong>Equilibrado:</strong> neutro; a diferença de elenco decide.</li>
-        <li><strong>Retranca:</strong> +3.5 defesa, −2.5 ataque; criação de chances ×0,85 e a do rival ×0,60. O meio-campo se desgasta mais.</li>
+        <li><strong>Ofensivo:</strong> +3 ataque, +0.8 meio, −3 defesa; criação de chances ×1,22 e a do rival ×1,20. Mais desgaste e exposição.</li>
+        <li><strong>Equilibrado:</strong> neutro; a força real do elenco e a tática decidem.</li>
+        <li><strong>Retranca:</strong> +2.5 defesa, +0.3 meio, −2.5 ataque; criação própria ×0,85 e a do rival ×0,85. O meio-campo se desgasta mais.</li>
       </ul>
       <p style="margin:0;"><strong>Fatores de partida:</strong> mando de casa +1 (no clássico +0.5, torcida dividida), Craque da Rodada +6 de ataque (em qualquer mando), moral do clube ≥ 85 dá +1 e &lt; 30 tira −3. Cada rival da IA tem formação e mentalidade próprias — leia o adversário no pré-jogo.</p>
     </div>
@@ -7088,11 +7088,17 @@ class MatchSim {
         const folego = linha.length ? linha.reduce((s,j) => s + (j.folego ?? 100), 0) / linha.length : 100;
         const momentum = Math.max(0.75, Math.min(1.25, 1 + (side === 0 ? 1 : -1) * this._pressao / 400));
         const buffs = side === this._userSide() ? this._buffsAtivos() : [];
+        const buffsRival = side !== this._userSide() ? this._buffsAtivos() : [];
         const pressao = buffs.some(b => b.id === 't_pressao') ? 1.2 : 1;
         const cruzar = buffs.some(b => b.id === 't_chuveirinho');
+        const tikiAtk = buffs.some(b => b.id === 't_tiki') ? 1.2 : 1;
+        const tikiDef = buffsRival.some(b => b.id === 't_tiki') ? 0.75 : 1;
+        const muralhaRival = buffsRival.some(b => b.id === 't_muralha') ? 0.65 : 1;
+        const contra = buffs.some(b => b.id === 't_contra') ? 1.3 : 1;
+        const impedimentoRival = buffsRival.some(b => b.id === 't_impedimento') ? 0.8 : 1;
         const atacantes = linha.filter(j => j.posicao === 'ATT');
         const melhor = atacantes.reduce((m,j) => Math.max(m,j.overall || 50),50);
-        const ceraRival = side !== this._userSide() && this._buffsAtivos().some(b => b.id === 't_cera');
+        const ceraRival = buffsRival.some(b => b.id === 't_cera');
         // Retranca do usuário corta a criação rival, mas não em 40% (era 0,6 —
         // mediação de 2026-10-06: junto com o volumeEstilo abaixo, a retranca rendia
         // +45% de saldo de gols e virava escolha dominante). 0,75 mantém o fechamento
@@ -7117,10 +7123,12 @@ class MatchSim {
         // agora usa 1-(1-criacao)^4, igual à geração de lances do _eventoMinuto.
         const criacao = Math.max(0.015, Math.min(0.14, 0.033 * Math.exp((p.mid - d.mid) / 70)))
             * (0.65 + folego / 285) * this._contratatica(side) * momentum * pressao * retrancaRival * volumeEstilo
+            * tikiAtk * tikiDef * muralhaRival * impedimentoRival
             * (side === 0 ? casaMul : 1);
         const qualidade = Math.max(0.04, Math.min(0.48, 0.135 * Math.exp((p.atk - d.def) / 55) * clima
             * (side === 0 ? casaQ : 1)
-            * (cruzar ? 0.8 + melhor / 160 : 1)));
+            * (cruzar ? 0.8 + melhor / 160 : 1)
+            * contra));
         return { criacao: ceraRival ? 0 : criacao * (cruzar ? 1.25 : 1), qualidade };
     }
 
@@ -7502,12 +7510,14 @@ class MatchSim {
             id: t.id, nome: t.nome, desc: t.desc, raridade: t.raridade || 'Bronze',
             custo: t.custo || 1, efeito: t.efeito || {}
         }));
-        // Embaralha e pega 3 (mão efêmera — não grava em save).
+        // Embaralha o baralho completo com o RNG determinístico da partida.
         for (let i = baralho.length - 1; i > 0; i--) {
             const j = Math.floor(this.rng() * (i + 1));
             const tmp = baralho[i]; baralho[i] = baralho[j]; baralho[j] = tmp;
         }
-        this._mao = baralho.filter(c => ['t_pressao', 't_cera', 't_chuveirinho'].includes(c.id));
+        // Compra mão inicial de 4 cartas variadas; o restante fica no deck de reserva da partida.
+        this._mao = baralho.slice(0, 4);
+        this._baralhoRestante = baralho.slice(4);
         if (typeof ui !== 'undefined' && ui.atualizarMaoCartas) ui.atualizarMaoCartas(this);
     }
 
@@ -7589,7 +7599,33 @@ class MatchSim {
     }
 
     focoCustoCarta(card) {
-        return ({ t_pressao: 35, t_cera: 25, t_chuveirinho: 30 }[(card || {}).id]) || ((card && card.custo) || 1) * 25;
+        const mapa = {
+            t_pressao: 35,
+            t_cera: 25,
+            t_chuveirinho: 30,
+            t_impedimento: 25,
+            t_grito: 30,
+            t_muralha: 35,
+            t_contra: 45,
+            t_tiki: 40
+        };
+        return (card && mapa[card.id]) || ((card && card.custo) || 1) * 20;
+    }
+
+    comprarCarta() {
+        if (this.abortado) return { ok: false, msg: 'A partida já terminou.' };
+        if (!this._baralhoRestante || this._baralhoRestante.length === 0) {
+            return { ok: false, msg: 'Baralho de táticas da partida esgotado.' };
+        }
+        if ((this._foco || 0) < 20) {
+            return { ok: false, msg: 'Foco insuficiente (requer 20 de Foco).' };
+        }
+        this._foco = Math.max(0, this._foco - 20);
+        const nova = this._baralhoRestante.shift();
+        this._mao.push(nova);
+        this._emit('🎴 Nova tática acionada do banco: ' + nova.nome + '!', 'info');
+        if (typeof ui !== 'undefined' && ui.atualizarMaoCartas) ui.atualizarMaoCartas(this);
+        return { ok: true, carta: nova, foco: this._foco };
     }
 
     // Jogar carta da mão: drena Foco, aplica buff por durMin e recalcula forças.
@@ -7622,6 +7658,21 @@ class MatchSim {
         }
         if (card.id === 't_cera' && this._roll(this.arbitro === 'Rigoroso' ? 0.6 : 0.35)) {
             this._aplicar({ min: this.minuto, tipo: 'cartao', side: this._userSide() });
+        }
+        if (card.id === 't_grito') {
+            const team = this._userSide() === 0 ? this.home : this.away;
+            const ids = this._emCampo[this._userSide()] || [];
+            team.elenco.filter(p => ids.includes(p.id)).forEach(p => { p.folego = Math.min(100, (p.folego ?? 100) + 6); });
+            this._pressao = Math.max(-100, Math.min(100, (this._pressao || 0) + (this._userSide() === 0 ? 35 : -35)));
+        }
+        if (card.id === 't_contra') {
+            this._pressao = Math.max(-100, Math.min(100, (this._pressao || 0) + (this._userSide() === 0 ? 45 : -45)));
+        }
+        if (card.id === 't_muralha') {
+            this._pressao = Math.max(-100, Math.min(100, (this._pressao || 0) + (this._userSide() === 0 ? -30 : 30)));
+        }
+        if (card.id === 't_tiki') {
+            this._pressao = Math.max(-100, Math.min(100, (this._pressao || 0) + (this._userSide() === 0 ? 25 : -25)));
         }
         this._buffs.push({
             id: card.id, nome: card.nome,
@@ -8220,12 +8271,31 @@ class MatchSim {
                 const autor = jp || null;
                 const rec = this._marcar(isHome, autor);
                 this._fecharDecisao('gol');
-                this._emit((userScored ? "GOL! " + j + " converte a chance e explode a torcida!" : "GOL DO RIVAL! " + j + " não perdoa!") + rec, 'goal');
+                let textoGol = '';
+                const diferenca = Math.abs(this.scoreH - this.scoreA);
+                if (this.minuto >= 90) {
+                    textoGol = userScored
+                        ? "🔥 GOL NOS ACRÉSCIMOS! " + j + " manda para o fundo das redes no apagar das luzes e incendeia o estádio!"
+                        : "⚡ GOL DRAMÁTICO DO RIVAL! " + j + " castiga nos acréscimos!";
+                } else if (this._viradaPendente) {
+                    textoGol = userScored
+                        ? "⚡ GOLAÇO DA VIRADA! " + j + " solta a bomba no ângulo e consuma a virada épica!"
+                        : "GOL DO RIVAL! " + j + " vira o placar!";
+                } else {
+                    textoGol = userScored
+                        ? (diferenca <= 1 ? "GOL! " + j + " converte a chance e explode a torcida!" : "GOLAÇO! " + j + " amplia a vantagem com categoria!")
+                        : "GOL DO RIVAL! " + j + " não perdoa!";
+                }
+                this._emit(textoGol + rec, 'goal');
             } else if (this._roll(0.30)) {
                 // Mesmo goleiro do card-battle / campo 2D
                 this._registrarZona(isHome, 'defesa');
                 this._fecharDecisao('defesa');
-                this._emit(this._fraseDef(isHome ? this.home : this.away, nomeGk), 'def');
+                if (this.minuto >= 85 && Math.abs(this.scoreH - this.scoreA) <= 1) {
+                    this._emit("🧤 MILAGRE DE " + (nomeGk || "Goleiro") + "! Defesa espetacular no puro reflexo que salva o time!", 'def');
+                } else {
+                    this._emit(this._fraseDef(isHome ? this.home : this.away, nomeGk), 'def');
+                }
             } else {
                 // Mesmo atacante do campo 2D
                 this._registrarZona(isHome, 'erro');
@@ -9297,6 +9367,32 @@ class UI {
       };
       box.appendChild(btn);
     });
+    if (sim._baralhoRestante && sim._baralhoRestante.length > 0) {
+      const podeComprar = (sim._foco || 0) >= 20 && !sim.abortado;
+      const btnComprar = document.createElement('button');
+      btnComprar.className = 'carta-mao-btn' + (podeComprar ? '' : ' disabled');
+      btnComprar.style.cssText = 'border:1px dashed #e2e8f0; opacity:0.88; margin-top:6px; background:rgba(30,41,59,0.7);';
+      const spNome = document.createElement('span');
+      spNome.className = 'carta-nome';
+      spNome.textContent = '🎴 Buscar Nova Tática (' + sim._baralhoRestante.length + ' restantes)';
+      const spCusto = document.createElement('span');
+      spCusto.className = 'carta-custo';
+      spCusto.textContent = '⚡20';
+      const spDesc = document.createElement('span');
+      spDesc.className = 'carta-desc';
+      spDesc.textContent = 'Consome 20 Foco para sacar mais uma opção tática do banco';
+      btnComprar.appendChild(spNome);
+      btnComprar.appendChild(spCusto);
+      btnComprar.appendChild(spDesc);
+      btnComprar.onclick = () => {
+        if (!podeComprar) {
+          if (typeof app !== 'undefined') ui.showActionFeedback('Foco insuficiente (requer 20 Foco).', 'warning');
+          return;
+        }
+        if (typeof app !== 'undefined') app.comprarCartaPartida();
+      };
+      box.appendChild(btnComprar);
+    }
   }
 
 
@@ -10497,6 +10593,15 @@ class UI {
         el.className = `player-card rarity-${p.tier || p.raridade}`;
         const preco = TransferMarket.contrato(p).preco;
         const semSaldo = preco > saldo;
+        let badgeHtml = '';
+        if (p.tagMercado === 'promessa') {
+            badgeHtml = `<div style="font-size:0.6rem;font-weight:900;color:#38bdf8;background:rgba(56,189,248,0.2);padding:1px 4px;border-radius:4px;margin-top:2px;" title="Potencial estimado: ${p.potencial || 80}">💎 PROMESSA</div>`;
+        } else if (p.tagMercado === 'barganha') {
+            badgeHtml = `<div style="font-size:0.6rem;font-weight:900;color:#34d399;background:rgba(52,211,153,0.2);padding:1px 4px;border-radius:4px;margin-top:2px;">🏷️ -30% OFF</div>`;
+        } else if (p.tagMercado === 'veterano') {
+            badgeHtml = `<div style="font-size:0.6rem;font-weight:900;color:#fbbf24;background:rgba(251,191,36,0.2);padding:1px 4px;border-radius:4px;margin-top:2px;">🌟 VETERANO</div>`;
+        }
+        const vitrineTxt = p.rodadasNoMercado ? `<span style="font-size:0.6rem;opacity:0.75;" title="Permanece mais ${p.rodadasNoMercado} rodadas no mercado">⏳ ${p.rodadasNoMercado} rod.</span>` : '';
         el.innerHTML = `
             <div class="card-top-row">
               <div class="card-ovr">${p.overall}</div>
@@ -10504,7 +10609,8 @@ class UI {
             </div>
             ${FUTCards.portrait(p)}
             <div class="card-name"></div>
-            <div class="card-price ${semSaldo ? 'sem-saldo' : ''}">${app.fmtMoneyShort(preco)}</div>
+            ${badgeHtml}
+            <div class="card-price ${semSaldo ? 'sem-saldo' : ''}">${app.fmtMoneyShort(preco)} ${vitrineTxt}</div>
         `;
         el.querySelector('.card-name').textContent = p.nome;
         el.querySelector('.card-name').title = p.nome;
@@ -12452,7 +12558,23 @@ const app = {
             ui.atualizarMaoCartas(sim);
             ui.atualizarFocoUI(sim);
         }
-        if (sim._mao && sim._mao.length === 0) this.fecharCartasTaticas();
+        if (sim._mao && sim._mao.length === 0 && (!sim._baralhoRestante || sim._baralhoRestante.length === 0)) this.fecharCartasTaticas();
+    },
+
+    comprarCartaPartida() {
+        const sim = (typeof Engine !== 'undefined') ? Engine.activeMatch : null;
+        if (!sim) return;
+        const r = sim.comprarCarta();
+        if (!r.ok) {
+            if (typeof ui !== 'undefined') ui.showActionFeedback(r.msg || 'Não foi possível buscar a carta.', 'warning');
+            return;
+        }
+        if (typeof ui !== 'undefined') {
+            ui.showActionFeedback('Nova tática sacada! Foco: ' + Math.round(r.foco || sim._foco) + '%', 'success');
+            ui.atualizarMaoCartas(sim);
+            ui.atualizarFocoUI(sim);
+            if (ui.playSFX) ui.playSFX('sfx_click', 0.4);
+        }
     },
 
     // ---- C1: patrocínios com metas ----
@@ -12849,17 +12971,42 @@ const app = {
     },
 
     refreshMarket(force = false) {
-        if (force || this.marketPlayers.length === 0) {
-            this.marketPlayers = Array.from({length: 6}, () => new Player(null, true));
-            // Semente da temporada desloca a safra do mercado (±5 OVR): anos bons e ruins.
-            if (this.league && this.league.seed != null) {
-                const shift = (this.league.seed % 11) - 5;
-                this.marketPlayers.forEach(p => {
-                    p.overall = Math.max(40, Math.min(99, (p.overall || 55) + shift));
-                    p.raridade = p.calcularRaridade(p.overall);
-                    p.valor = p.overall * p.overall * 100;
-                    p.salario = Math.floor(p.valor / 100);
-                });
+        if (!Array.isArray(this.marketPlayers)) this.marketPlayers = [];
+        if (force && this.marketPlayers.length > 0) {
+            // Rotatividade dinâmica: decrementa rodadas no mercado e preserva os ativos
+            this.marketPlayers.forEach(p => {
+                p.rodadasNoMercado = (p.rodadasNoMercado != null ? p.rodadasNoMercado : 3) - 1;
+            });
+            this.marketPlayers = this.marketPlayers.filter(p => p.rodadasNoMercado > 0);
+        }
+
+        const faltam = Math.max(0, 6 - this.marketPlayers.length);
+        if (faltam > 0) {
+            const shift = (this.league && this.league.seed != null) ? ((this.league.seed % 11) - 5) : 0;
+            for (let i = 0; i < faltam; i++) {
+                const p = new Player(null, true);
+                p.overall = Math.max(40, Math.min(99, (p.overall || 55) + shift));
+                p.rodadasNoMercado = Math.floor(Math.random() * 3) + 2; // 2 a 4 rodadas na vitrine
+                const roll = Math.random();
+                if (roll < 0.25) {
+                    // 💎 Promessa: jovem sub-21 com teto alto de desenvolvimento
+                    p.idade = Math.floor(Math.random() * 4) + 17;
+                    p.potencial = Math.min(96, (p.overall || 55) + Math.floor(Math.random() * 12) + 8);
+                    p.tagMercado = 'promessa';
+                } else if (roll < 0.45) {
+                    // 🏷️ Barganha: 30% de desconto no passe para aliviar o caixa
+                    p.tagMercado = 'barganha';
+                    p.valor = Math.round((p.overall * p.overall * 100) * 0.70);
+                } else if (roll < 0.60) {
+                    // 🌟 Veterano: 30-34 anos com moral alta e liderança
+                    p.idade = Math.floor(Math.random() * 5) + 30;
+                    p.tagMercado = 'veterano';
+                    p.moral = 85;
+                }
+                if (!p.valor) p.valor = p.overall * p.overall * 100;
+                p.raridade = p.calcularRaridade(p.overall);
+                p.salario = Math.floor(p.valor / 100);
+                this.marketPlayers.push(p);
             }
         }
         ui.renderMarket();
@@ -14202,9 +14349,9 @@ const app = {
         if (resumo) resumo.textContent = ((this.club && this.club.formacao) || '4-4-2') + ' · ' + nomes[estilo] + ' · ' + (this._modoPartida === 'instantaneo' ? 'Brasfoot' : 'Rádio');
         const ajuda = document.getElementById('prep-estilo-resumo');
         if (ajuda) ajuda.textContent = {
-            equilibrado: 'Equilibrado: distribui a força entre ataque e defesa.',
-            ofensivo: 'Ofensivo: criação de chances +25%; a do rival +12%. Ataque reforçado, defesa exposta e mais desgaste.',
-            retranca: 'Retranca: criação própria −15%; a do rival −40%. Defesa reforçada, mas o meio-campo se desgasta mais.'
+            equilibrado: 'Equilibrado: distribui a força entre ataque e defesa conforme a força do elenco.',
+            ofensivo: 'Ofensivo: criação de chances +22%; a do rival +20%. Ataque reforçado (+3), defesa exposta (−3) e mais desgaste.',
+            retranca: 'Retranca: criação própria −15%; a do rival −15%. Defesa reforçada (+2.5), mas o meio-campo se desgasta mais.'
         }[estilo];
         document.querySelectorAll('#modal-preparacao .style-btn').forEach(b => b.setAttribute('aria-pressed', String(b.classList.contains('active'))));
     },
