@@ -54,7 +54,8 @@ function novoSandbox(opts = {}) {
         _replayAtivo: false,
         promptCalls: [],
         prompt(desc, opts, cb, ms, def) {
-            this.promptCalls.push({ desc, opts: (opts || []).map(o => o.label), ms, def });
+            // B51: `hints` entra no registro para provar que a tela não entrega o gabarito.
+            this.promptCalls.push({ desc, opts: (opts || []).map(o => o.label), hints: (opts || []).map(o => o.hint || ''), ms, def });
             const politica = MatchUI._politicaDecisao;
             const i = typeof politica === 'function' ? politica({ desc, opts, def }) : (Number.isInteger(politica) ? politica : (Number.isInteger(def) ? def : 1));
             cb(i, true);
@@ -65,7 +66,8 @@ function novoSandbox(opts = {}) {
         encerrarTransmissao() {}, stopCrowdLoop() {}, radioHide() {}, corCamisa() { return '#fff'; },
         corRivalContraste() { return '#000'; }
     };
-    const documentStub = {
+    // B66: permite um DOM falso específico (ex.: modal de cartas aberto) sem mexer no resto.
+    const documentStub = opts.document || {
         getElementById: () => null,
         querySelectorAll: () => [],
         createElement: () => ({ style: {}, classList: { add() {}, remove() {}, toggle() {}, contains: () => false }, setAttribute() {}, appendChild() {} })
@@ -84,7 +86,9 @@ function novoSandbox(opts = {}) {
         + ', calcularXPParticipacao: (typeof calcularXPParticipacao === "function" ? calcularXPParticipacao : null)'
         + ', recuperarLesoesRodada: (typeof recuperarLesoesRodada === "function" ? recuperarLesoesRodada : null)'
         + ', fecharPartidaElenco: (typeof fecharPartidaElenco === "function" ? fecharPartidaElenco : null)'
-        + ', Player, Club, League, TransferMarket, LockerRoom, ClubEcosystem, CompetitionSystem, GAME_DATA, TaticaCard, TutorialManager };'
+        + ', Player, Club, League, TransferMarket, LockerRoom, ClubEcosystem, CompetitionSystem, GAME_DATA, TaticaCard, TutorialManager'
+        + ', rivalHistorico: (typeof rivalHistorico === "function" ? rivalHistorico : null)'
+        + ', mancheteDaGazeta: (typeof mancheteDaGazeta === "function" ? mancheteDaGazeta : null) };'
     );
     const appStub = opts.app || {};
     const api = fabrica(
@@ -189,7 +193,8 @@ function runMatch(cfg = {}) {
         condicao: cfg.condicao || 'normal',
         startMinute: cfg.startMinute || 0,
         startScore: cfg.startScore || null,
-        startRedUser: cfg.startRedUser || 0
+        startRedUser: cfg.startRedUser || 0,
+        derbi: !!cfg.derbi
     });
     if (cfg.preSim) cfg.preSim(sim);
     sim.start();

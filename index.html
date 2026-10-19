@@ -5655,6 +5655,15 @@ const CompetitionSystem = {
         Engine.activeMatch.start();
     }
 };
+// B63 (2026-10-19): rival fixo da carreira, derivado do nome do clube (nada novo no save):
+// o mesmo adversário em todos os anos, dois confrontos por temporada. Função pura e testável.
+function rivalHistorico(club, league) {
+    if (!club || !league || typeof CompetitionSystem === 'undefined') return null;
+    const lista = CompetitionSystem.clubs(league, league.divisaoUser || 1).filter(c => c && c !== club);
+    if (!lista.length) return null;
+    const h = (typeof TransferMarket !== 'undefined') ? TransferMarket.hash(club.nome + '|rival') : 0;
+    return lista[h % lista.length];
+}
 // fut-cards.js — radar vetorial leve e inspeção no verso da carta.
 const FUTCards = {
     // Identidade vetorial determinística, sem mídia extra nem campo de save.
@@ -5708,17 +5717,52 @@ const FUTCards = {
         const radar=hidden?'<p>Relatório em andamento. Atributos ainda ocultos.</p>':'<svg viewBox="0 0 140 118" role="img" aria-label="Radar de atributos">'+rings+'<polygon points="'+poly+'" fill="#ffb00044" stroke="#ffb000"/>'+texts+'</svg>';
         return '<div class="fut-back"><strong>'+esc(p.nome)+'</strong>'+radar+'<div>'+Number(p.gols||0)+' gols · '+Number(p.partidas||0)+' jogos</div><div>Contrato: '+Number(p.contratoRodadas||0)+' rodadas</div><div>Salário: '+esc(app.fmtMoney(p.salario||0))+'</div><div>Direitos: '+Math.round((p.direitosClube??1)*100)+'% · Rescisão: '+esc(app.fmtMoney(p.clausulaRescisao||p.valor||0))+'</div><button class="btn-secondary" onclick="ui.openPlayerModal(\''+esc(p.id)+'\')">Ficha completa</button><button class="btn-secondary" onclick="FUTCards.flip(this)">Frente</button></div>';
     },
-    flip(button) { const card=button.closest('.player-card');if(!card)return;const flipped=card.classList.toggle('is-flipped');card.querySelector('.fut-front').setAttribute('aria-hidden',String(flipped));card.querySelector('.fut-back').setAttribute('aria-hidden',String(!flipped));card.querySelector(flipped?'.fut-back button':'.fut-front button').focus(); },
-    headline(club, rival, h, a, events=[]) {
-        const late=events.some(e=>(e.tipo==='gol'||e.tipo==='goal')&&Number(e.min??e.minuto)>=90);
-        const controversy=events.some(e=>/var|vermelho|expuls/i.test(e.tipo||e.texto||''));
-        if(late) return 'NO ÚLTIMO SUSPIRO! '+club+' E '+rival+' VIVEM FINAL ELETRIZANTE';
-        if(controversy) return 'NOITE DE POLÊMICA! '+club+' ENCARA '+rival+' SOB O OLHAR DO VAR';
-        if(Math.abs(h-a)>=3) return (h>a?club:rival)+' ATROPELA: GOLEADA DE '+Math.max(h,a)+' A '+Math.min(h,a)+' ABALA O ESTÁDIO';
-        if(h===a) return 'NINGUÉM CEDE! '+club+' E '+rival+' DIVIDEM O DRAMA EM '+h+' A '+a;
-        return (h>a?club:rival)+' LEVA A MELHOR POR '+Math.max(h,a)+' A '+Math.min(h,a)+' EM NOITE DE RÁDIO';
-    }
+    flip(button) { const card=button.closest('.player-card');if(!card)return;const flipped=card.classList.toggle('is-flipped');card.querySelector('.fut-front').setAttribute('aria-hidden',String(flipped));card.querySelector('.fut-back').setAttribute('aria-hidden',String(!flipped));card.querySelector(flipped?'.fut-back button':'.fut-front button').focus(); }
 };
+// B62 (2026-10-19): manchete da Gazeta derivada do jogo. Função pura e testável: o mesmo
+// resultado na mesma edição gera a mesma manchete, mesmo depois de recarregar o save.
+// A escolha entre os ângulos aplicáveis usa o hash do resultado (não sorteia na leitura).
+function mancheteDaGazeta(clube, adv, h, a, eventos, userHome, edicao, rivalNome) {
+    const evs = Array.isArray(eventos) ? eventos.slice() : [];
+    const casa = userHome !== false;
+    let saldo = 0, atras = false, golLate = false;
+    evs.slice().sort((x, y) => (Number(x.min) || 0) - (Number(y.min) || 0)).forEach(e => {
+        if (e.tipo !== 'gol' && e.tipo !== 'gol-rival') return;
+        const doUsuario = (e.tipo === 'gol') === casa;
+        saldo += doUsuario ? 1 : -1;
+        if (saldo < 0) atras = true;
+        if ((Number(e.min) || 0) >= 90) golLate = true;
+    });
+    const placarH = Number(h) || 0, placarA = Number(a) || 0;
+    const margem = placarH - placarA;
+    const expulsao = evs.some(e => e.tipo === 'expulsao');
+    const angulos = [];
+    if (margem > 0 && atras) angulos.push({ k: 'VIRADA', h: 'DO INFERNO AO CÉU: ' + clube + ' vira e vence o ' + adv, s: 'O time esteve atrás no placar e buscou o resultado na raça.' });
+    if (margem >= 3) angulos.push({ k: 'GOLEADA', h: 'ATROPELO: ' + clube + ' passa por cima do ' + adv, s: 'Uma exibição de autoridade, com o adversário sem resposta.' });
+    if (margem !== 0 && golLate) angulos.push({ k: 'ACRÉSCIMOS', h: 'NO APAGAR DAS LUZES: ' + clube + ' decide nos acréscimos', s: 'O estádio já se preparava para outro desfecho quando a bola entrou.' });
+    if (margem === 1) angulos.push({ k: 'APERTO', h: 'SUOR ATÉ O FIM: ' + clube + ' vence por um gol', s: 'Vitória construída no detalhe, com o rival vivo até o apito.' });
+    if (margem === 0) angulos.push({ k: placarH === 0 && placarA === 0 ? 'ZERO A ZERO' : 'EMPATE', h: placarH === 0 && placarA === 0 ? 'SEM GOLS: ' + clube + ' e ' + adv + ' não saem do zero' : 'TUDO IGUAL: ' + clube + ' e ' + adv + ' dividem os pontos', s: placarH === 0 && placarA === 0 ? 'Jogo travado, poucas chances e um ponto para cada lado.' : 'Um ponto para cada lado e a sensação de resultado incompleto.' });
+    if (margem < 0 && margem >= -1) angulos.push({ k: 'DERROTA', h: 'POR UM GOL: ' + clube + ' cai diante do ' + adv, s: 'Faltou pouco, mas o rival soube segurar o resultado.' });
+    if (margem <= -3) angulos.push({ k: 'CRISE', h: 'NOITE PARA ESQUECER: ' + clube + ' é goleado pelo ' + adv, s: 'A diretoria já fala em cobrança e o vestiário precisa de resposta.' });
+    if (expulsao) angulos.push({ k: 'EXPULSÃO', h: 'COM UM A MENOS: ' + clube + ' segura o jogo após expulsão', s: 'O árbitro não teve dúvidas e o time precisou se reinventar.' });
+    angulos.push({ k: 'RESULTADO', h: (margem > 0 ? 'VITÓRIA DO ' : (margem < 0 ? 'DERROTA DO ' : 'EMPATE DO ')) + clube + ' CONTRA O ' + adv, s: 'A rodada segue e a tabela começa a desenhar o campeonato.' });
+    const hash = (typeof TransferMarket !== 'undefined') ? TransferMarket.hash(clube + '|' + adv + '|' + placarH + '|' + placarA + '|' + (edicao || 1)) : 7;
+    const escolhido = angulos[hash % angulos.length];
+    const derbi = !!(rivalNome && rivalNome === adv);
+    const autores = ['Marina Prado', 'Otávio Lins', 'Célia Bastos', 'Rui Amaral', 'Dora Vasques'];
+    const reacoesBoa = ['O grupo acreditou até o fim. Fizemos por merecer.', 'Entramos para ganhar e o time respondeu no campo.', 'A torcida empurrou e a gente devolveu em campo.'];
+    const reacoesRui = ['Faltou cabeça nos momentos decisivos.', 'O resultado não condiz com o que treinamos.', 'Vamos corrigir e voltar mais fortes na próxima.'];
+    const reacoesEmp = ['Um ponto é pouco pelo que jogamos.', 'Faltou o último passe para sair com a vitória.'];
+    const pool = margem > 0 ? reacoesBoa : (margem < 0 ? reacoesRui : reacoesEmp);
+    return {
+        k: (derbi ? 'DÉRBI · ' : '') + escolhido.k,
+        h: escolhido.h, s: escolhido.s,
+        autor: autores[(hash >>> 3) % autores.length],
+        reacao: pool[(hash >>> 5) % pool.length],
+        candidatos: angulos.map(x => x.k),
+        derbi
+    };
+}
 // historical-scenarios.js — sessões independentes; a carreira não é sobrescrita.
 const HistoricalScenarios = {
     key() { return 'altfoot_scenarios_s'+(app.slot||1); },
@@ -5892,7 +5936,8 @@ const MatchUI = {
         const el = this._el('match-status');
         if (el) el.innerText = txt;
     },
-    // Decisão do técnico: opções + timer que escala com a velocidade (8s a 1×, 2s a 4×, piso 1,2s; default = opção central)
+    // Decisão do técnico: opções + timer que escala com a velocidade (8s a 1×, 2s a 4×, piso 2s; default
+    // = opção central). O chamador passa o prazo já dividido pela velocidade (B66).
     prompt(desc, opts, onPick, timeoutMs, defaultIndex = 1) {
         this.clearPrompt();
         const box = this._el('match-decision');
@@ -6931,6 +6976,10 @@ class MatchSim {
         this.speed = 1;
         // B53: força extra do rival que enfrenta o usuário, calculada pela campanha.
         this._forcaRivalCampanha = Number(opts && opts.forcaRivalCampanha) || 0;
+        // B63: dérbi é tom de transmissão (abertura e três notas no jogo), não bônus de força.
+        this.derbi = !!(opts && opts.derbi);
+        this._derbiMarcos = this.derbi ? [25, 55, 80] : [];
+        this._derbiEmitidos = 0;
         this.abortado = false;
         this._timer = null;
         this._idx = 0;
@@ -7323,7 +7372,8 @@ class MatchSim {
                 // Cenários já iniciados usam uma única janela no tempo restante.
                 const inicio = this.startMinute || 0;
                 const duracao = Math.max(1, this.tempoMin - inicio);
-                const totalJanelas = inicio > 0 ? 1 : 3;
+                // B51: quatro janelas por partida (era três), uma por quarto de jogo.
+                const totalJanelas = inicio > 0 ? 1 : 4;
                 const janela = Math.min(totalJanelas - 1, Math.max(0, Math.floor((this.minuto - inicio - 1) * totalJanelas / duracao)));
                 const limiar = inicio + Math.floor(janela * duracao / totalJanelas) + Math.max(1, Math.round(duracao / totalJanelas * 0.25));
                 const usadas = this._decisoesJanelas || [];
@@ -7762,6 +7812,19 @@ class MatchSim {
         ]), ctx);
     }
 
+    // B63: o rival de todas as temporadas tem voz própria em três momentos do jogo.
+    _fraseDerbi() {
+        const ctx = this._ctxTexto(this.home);
+        return this._fmt(this._pickSaco('derbi', [
+            "Dérbi é dérbi: {time} e {adv} se enfrentam de novo, e o histórico pesa em cada dividida.",
+            "O setor visitante está lotado: a torcida do {adv} veio em peso e canta mais alto que o estádio.",
+            "Não existe jogo amistoso entre {time} e {adv} — o retrospecto é equilibrado e a cidade para.",
+            "O técnico avisou que dérbi não se joga, se disputa. E o time entrou ligado.",
+            "Cada falta aqui vale como três. O árbitro já chamou os capitães para conversar.",
+            "Quem vencer hoje leva a bragging rights da temporada inteira — e o vestiário sabe disso."
+        ]), ctx);
+    }
+
     // ---- Bordões contextuais (Rádio do Estádio 95.3) — só texto no feed ----
     // Usa time da casa / time de fora (sem nome do clube do jogador).
     // Uma linha por contexto por partida (_ctxUsados), chamado após eventos relevantes.
@@ -7914,7 +7977,7 @@ class MatchSim {
         this._t0 = TempoPagina.agora();
         // Abertura só em texto no feed — a locução INTRO roda no menu de preparação
         // (ou INTRO PARA JOGOS DE FINAIS exclusivo na final; ver _abrirPreparacao).
-        const ehGrande = this.regra === 'classico' || this.regra === 'torneio';
+        const ehGrande = this.regra === 'classico' || this.regra === 'torneio' || this.derbi;
         const ab = this._fraseContexto(ehGrande ? 'aberturaClassico' : 'abertura');
         if (ab) this._emit(ab, 'info');
         // G2: o rádio anuncia a condição do campo ao menos 1× por partida.
@@ -8190,8 +8253,23 @@ class MatchSim {
         this._pausaBeat = 0;
         return this._gap() + extra;
     }
+    // B66: com um modal aberto (cartas/SUB) o relógio não anda. Antes a decisão nascia
+    // atrás do modal e o timer de 8 s escolhia sozinho a opção do meio.
+    _modalAberto() {
+        if (typeof document === 'undefined') return false;
+        const ids = ['modal-cartas', 'modal-substituicao'];
+        for (let i = 0; i < ids.length; i++) {
+            const el = document.getElementById(ids[i]);
+            if (el && !el.classList.contains('hidden')) return true;
+        }
+        return false;
+    }
     _tick() {
         if (this.abortado || this._segurandoFim) return;
+        if (this._modalAberto()) {
+            this._timer = setTimeout(() => this._tick(), 250);
+            return;
+        }
         if (MatchUI._revisaoAtiva) {
             MatchUI._aposVar = () => { this._timer = setTimeout(() => this._tick(), 0); };
             return;
@@ -8209,6 +8287,12 @@ class MatchSim {
         if (typeof ui !== 'undefined' && ui.atualizarFocoUI) ui.atualizarFocoUI(this);
         // G3: fôlego cai durante a partida — só quem está em campo (reserva fica intacto).
         this._drenarFolego();
+        // B63: o dérbi ganha notas próprias ao longo do jogo (rival de todas as temporadas).
+        if (this._derbiMarcos && this._derbiMarcos.length && this.minuto >= this._derbiMarcos[0]) {
+            this._derbiMarcos.shift();
+            this._derbiEmitidos++;
+            this._emit(this._fraseDerbi(), 'info');
+        }
         // Fase 7: IA mexe no time uma vez no 2º tempo (com reservas).
         if (this._emCampo && this.minuto >= 46 && !this._subIA) {
             this._subIA = true;
@@ -8271,7 +8355,8 @@ class MatchSim {
             }
         };
         if (this.modo === 'instantaneo') responder(0);
-        else MatchUI.prompt('Adversário caído na área, sem falta marcada. Como agir?',escolhas,responder,8000,0);
+        // B66: o prazo da decisão escala com a velocidade também no fair play.
+        else MatchUI.prompt('Adversário caído na área, sem falta marcada. Como agir?',escolhas,responder,Math.max(2000, Math.round(8000 / Math.max(1, this.speed))),0);
     }
 
     _aplicar(ev) {
@@ -8633,10 +8718,15 @@ class MatchSim {
         const rawBase = Number(this._chanceXG == null ? this._modeloXG(ev.side).qualidade : this._chanceXG);
         const pBase = Number.isFinite(rawBase) ? rawBase : 0.16;
         const labels = isUserAttack ? ['🎯 Colocado', '💥 Forte', '➡️ Cruzado'] : ['🧱 Fechar', '⚖️ Manter', '🔥 Pressionar'];
+        // B51 (2026-10-19): a decisão imprimia a probabilidade exata de cada opção — a
+        // escolha certa era o maior/menor número da tela (o gabarito valia ~0,03 xG).
+        // Agora a dica descreve o TRADE-OFF e o jogador lê o lance para decidir.
+        const dicas = isUserAttack
+            ? ['precisão; menos potência', 'potência; gasta fôlego e erra mais', 'procura o companheiro na área']
+            : ['protege a linha do chute', 'postura equilibrada', 'sobe a marcação; gasta fôlego e deixa espaço'];
         const opts = labels.map((label, i) => {
-            // Quantiza a 1%: o percentual mostrado é exatamente o usado na resolução.
             const chance = Math.round(Math.max(0.04, Math.min(0.72, pBase + contexto.ajuste[i] + talento[i])) * 100) / 100;
-            return { label, hint: (isUserAttack ? 'Chance de gol: ' : 'Risco de sofrer gol: ') + Math.round(chance * 100) + '%', eff: { p: chance } };
+            return { label, hint: dicas[i], eff: { p: chance } };
         });
         // Melhor leitura do contexto (feedback pós-decisão): no ataque a alternativa
         // que mais aproveita o espaço; na defesa a que menos expõe o gol.
@@ -8645,11 +8735,18 @@ class MatchSim {
             const b = contexto.ajuste[melhorIdx];
             if (isUserAttack ? v > b : v < b) melhorIdx = i;
         });
-        const desc = contexto.texto + ' ' + (isUserAttack ? 'Como orientar a finalização?' : 'Qual postura defensiva?') + ' Percentuais antes da revisão do VAR.';
+        const desc = contexto.texto + ' ' + (isUserAttack ? 'Como orientar a finalização?' : 'Qual postura defensiva?');
         MatchUI.prompt(desc, opts, (i, automatico) => {
             i = [0, 1, 2].includes(i) ? i : 1;
             const p = opts[i].eff.p;
             this.xG[ev.side] += p - pBase;
+            // B51: a opção agressiva (Forte no ataque, Pressionar na defesa) custa fôlego do
+            // protagonista — é o preço de comprar risco.
+            const custoFolego = isUserAttack ? (i === 1 ? 5 : 0) : (i === 2 ? 5 : 0);
+            if (custoFolego) {
+                const alvo = isUserAttack ? jp : orientado;
+                if (alvo) alvo.folego = Math.max(5, (alvo.folego == null ? 100 : alvo.folego) - custoFolego);
+            }
             // G1: decisão respondida antes do timer recarrega Foco (opção central = assistente, menos).
             this._atualizarFoco(i === 1 ? 4 : 8);
             if (typeof ui !== 'undefined' && ui.atualizarFocoUI) ui.atualizarFocoUI(this);
@@ -8669,7 +8766,7 @@ class MatchSim {
             // Substituição saiu das decisões (2026-09-22): botão dedicado "⚤ SUB"
             // no rodapé da partida — a chance pendente aqui sempre é resolvida.
             this._resolverChance(isHome, p);
-        }, 8000);
+        }, Math.max(2000, Math.round(8000 / Math.max(1, this.speed))));
     }
 
     _processarSubstituicao(isHome) {
@@ -8973,6 +9070,8 @@ const Engine = {
         const craque = (typeof app !== 'undefined' && app._craquePartida) ? app._craquePartida : null;
         const regra = (typeof app !== 'undefined' && app._regraPartida) ? app._regraPartida : null;
         const seed = (league.seed || 1) * 31 + (league.rodada || 1) * 7919;
+        // B63: o dérbi é só tom (abertura e Gazeta), não altera a força dos times.
+        const derbi = !!(typeof app !== 'undefined' && app.rivalDoAno && app.rivalDoAno() === adv);
         // B53: a força do rival acompanha a campanha (top-4 pega rival mais duro; lanterna
         // pega um pouco mais leve). Sem tabela disponível, fica neutro.
         let forcaRivalCampanha = 0;
@@ -9027,7 +9126,7 @@ const Engine = {
             } catch (e) { Engine._ultimaPartida = null; }
             this.activeMatch = null;
             onFinish(ug, ag, xpBase, matchScorers);
-        }, { estilo, craque, regra, seed, forcaRivalCampanha, condicao: (typeof app !== 'undefined' && app._condicaoJogo) ? app._condicaoJogo : 'normal', minDurMs: (typeof app !== 'undefined' && app._partidaMinDurMs) ? app._partidaMinDurMs() : 0, tempoMin: (typeof app !== 'undefined' && app._tempoPartida) ? app._tempoPartida : 90, ritmo: (typeof app !== 'undefined' && app._climaPartida) ? app._climaPartida.ritmo : 'normal', tom: (typeof app !== 'undefined' && app._climaPartida) ? app._climaPartida.tom : 'normal', tema: (typeof app !== 'undefined' && app._climaPartida) ? app._climaPartida.tema : 'brasileirao' });
+        }, { estilo, craque, regra, seed, forcaRivalCampanha, derbi, condicao: (typeof app !== 'undefined' && app._condicaoJogo) ? app._condicaoJogo : 'normal', minDurMs: (typeof app !== 'undefined' && app._partidaMinDurMs) ? app._partidaMinDurMs() : 0, tempoMin: (typeof app !== 'undefined' && app._tempoPartida) ? app._tempoPartida : 90, ritmo: (typeof app !== 'undefined' && app._climaPartida) ? app._climaPartida.ritmo : 'normal', tom: (typeof app !== 'undefined' && app._climaPartida) ? app._climaPartida.tom : 'normal', tema: (typeof app !== 'undefined' && app._climaPartida) ? app._climaPartida.tema : 'brasileirao' });
         this.activeMatch.start();
     },
 
@@ -10722,9 +10821,10 @@ class UI {
         const perfilTxt = (adv && adv.perfilJogo)
             ? ' · ' + ({ posse: 'posse', contra_ataque: 'contra-ataque', retranca_copeira: 'retranca' }[adv.perfilJogo] || adv.perfilJogo)
             : '';
+        const derbiDash = (typeof app !== 'undefined' && app.ehDerbi) ? app.ehDerbi(adv) : false;
         advFormEl.innerText = adv && adv.formacao
-        ? adv.formacao + (adv.mentalidade && adv.mentalidade !== 'equilibrada' ? ' · ' + adv.mentalidade : '') + perfilTxt
-        : '';
+        ? (derbiDash ? '🔥 DÉRBI · ' : '') + adv.formacao + (adv.mentalidade && adv.mentalidade !== 'equilibrada' ? ' · ' + adv.mentalidade : '') + perfilTxt
+        : (derbiDash ? '🔥 DÉRBI' : '');
     }
 
     // Rodada do Dia: card visível apenas se ainda não foi disputada hoje.
@@ -12770,6 +12870,17 @@ const app = {
         if (!this.league || !this.club) return null;
         if (this._isDaily) return this._dailyChallengeRival();
         return this.league.getUserOpponent(this.club);
+    },
+
+    // B63 (2026-10-19): rival fixo da carreira, DERIVADO do nome do clube (nada novo no
+    // save): o mesmo adversário em todos os anos, dois confrontos por temporada.
+    // A derivação é pura (rivalHistorico, competitions.js) e coberta por tests/run.js.
+    rivalDoAno() {
+        return rivalHistorico(this.club, this.league);
+    },
+    ehDerbi(adv) {
+        const r = this.rivalDoAno();
+        return !!(adv && r && adv === r);
     },
 
     setFormacao(form) {
@@ -14952,6 +15063,7 @@ const app = {
         const cinfo = this._condicaoInfo();
         if (this._condicaoJogo) txt += '  ·  🌡️ ' + cinfo.rotulo;
         if (ehFinal) txt += '  ·  🏆 FINAL — introdução de estreia';
+        if (this.ehDerbi(adv)) txt += '  ·  🔥 DÉRBI';
         el.innerText = txt;
         this._renderResumoPreparacao();
     },
@@ -15468,6 +15580,20 @@ const app = {
         setTimeout(() => this._abrirJornal(), 350);
     },
 
+    // B62 (2026-10-19): a Gazeta tinha 5 manchetes e 3 subtítulos fixos — não havia
+    // ângulo, jornalista nem reação. A manchete agora nasce do que aconteceu no jogo
+    // (virada, goleada, gol nos acréscimos, expulsão, aperto, derrota) e é estável.
+    // A lógica pura vive em mancheteDaGazeta (fut-cards.js), coberta por tests/run.js.
+    _mancheteJornal(j, r, edicao) {
+        const clube = this.club ? this.club.nome : 'MEU CLUBE';
+        const rival = (typeof this.rivalDoAno === 'function') ? this.rivalDoAno() : null;
+        return mancheteDaGazeta(
+            clube, j.adv || 'Adversário', j.h || 0, j.a || 0,
+            (r && r.eventos) || [], !(r && r.userHome === false), edicao,
+            rival ? rival.nome : null
+        );
+    },
+
     _abrirJornal() {
         const modal = document.getElementById('modal-jornal');
         const body = document.getElementById('jornal-body');
@@ -15497,11 +15623,13 @@ const app = {
         } else {
             const j = jg || { h: 0, a: 0, adv: 'Adversário' };
             const adv = esc(j.adv || 'O ADVERSÁRIO').toUpperCase();
-            const head = esc(FUTCards.headline(club,j.adv||'Adversário',j.h,j.a,r.eventos||[])).toUpperCase();
-            const sub = j.h > j.a ? 'Mais uma vitória para a torcida, em noite de gala.' : (j.h === j.a ? 'Ponto conquistado com suor e resistência.' : 'Dias de reconstrução no vestiário.');
+            const manchete = this._mancheteJornal(j, r, edicao);
+            const head = esc(manchete.h).toUpperCase();
+            const sub = esc(manchete.s);
             const lances = (r.destaques && r.destaques.length) ? r.destaques.map(esc) : ['Partida truncada, sem lances marcantes.'];
             html += '<div class="jrn-dateline"><span>RODADA ' + edicao + '</span><span>' + (j.h > j.a ? 'VITÓRIA' : (j.h === j.a ? 'EMPATE' : 'DERROTA')) + '</span><span>ESTÁDIO DO RÁDIO</span></div>';
-            html += '<div class="jrn-cabeca"><div class="jrn-kicker">RESULTADO</div><h1 class="jrn-headline">' + head + '</h1><div class="jrn-sub">' + sub + '</div></div>';
+            html += '<div class="jrn-cabeca"><div class="jrn-kicker">' + manchete.k + '</div><h1 class="jrn-headline">' + head + '</h1><div class="jrn-sub">' + sub + '</div><div style="font-size:.7rem;letter-spacing:1px;color:var(--text-muted);margin-top:6px;">POR ' + esc(manchete.autor.toUpperCase()) + '</div></div>';
+            html += '<p class="jrn-lances" style="font-style:italic;margin:6px 0 10px;">“' + esc(manchete.reacao) + '” — técnico do ' + esc(club) + '</p>';
             html += '<div class="jrn-cols"><div class="jrn-sec"><h2 class="jrn-sec-tit">Melhores lances</h2><ul class="jrn-lances">' + lances.map(t => '<li>' + t + '</li>').join('') + '</ul></div><div class="jrn-sec"><h2 class="jrn-sec-tit">Ficha técnica</h2><table class="jrn-ficha">' + fichaRow('Bilheteria', '<b>' + fmt(r.gate || 0) + '</b>') + fichaRow('Saldo da rodada', '<b>' + fmt(r.net || 0) + '</b>') + fichaRow('XP ganho', '<b>+' + Math.round(r.xpTotal || 0) + '</b>') + fichaRow('Fôlego crítico', '<b>' + (r.critico || 0) + '</b>') + fichaRow('Lesionados', '<b>' + (r.lesionados || 0) + '</b>') + '</table></div></div>';
         }
         html += rodape;

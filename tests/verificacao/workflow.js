@@ -86,11 +86,17 @@ rel.t('usa a variável GITHUB_REPOSITORY (não owner/repo fixo)',
     if (bash) {
         const tmp = path.join(require('os').tmpdir(), 'altfoot-wf-' + process.pid + '.sh');
         fs.writeFileSync(tmp, script, 'utf8');
-        let ok = true, saida = '';
+        let ok = true, saida = '', infra = '';
         try { execFileSync(bash, ['-n', tmp], { stdio: 'pipe' }); }
-        catch (e) { ok = false; saida = String(e.stderr || e.message).split('\n')[0]; }
+        catch (e) {
+            // Sandbox do harness bloqueia pipes (EPERM): NÃO é erro de sintaxe do script.
+            const code = e && e.code;
+            if (code === 'EPERM' || code === 'EACCES' || code === 'ENOENT') infra = code;
+            else { ok = false; saida = String(e.stderr || e.message).split('\n')[0]; }
+        }
         try { fs.unlinkSync(tmp); } catch (_) { }
-        rel.t('o script embutido é bash válido', ok, saida);
+        if (infra) rel.nota('bash existe, mas o sandbox bloqueou a execução (' + infra + '); validar `bash -n` fora do sandbox');
+        else rel.t('o script embutido é bash válido', ok, saida);
     } else {
         rel.nota('sem bash no host: `bash -n` não pôde ser executado (no runner do GitHub é bash)');
     }

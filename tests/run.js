@@ -25,7 +25,7 @@ function perto(a, b, tolerancia, msg) {
 }
 const sb = novoSandbox();
 const { calcularXPParticipacao, fecharPartidaElenco, LockerRoom, ClubEcosystem, Club, League,
-    TransferMarket, Player, Engine, CompetitionSystem } = sb;
+    TransferMarket, Player, Engine, CompetitionSystem, rivalHistorico, mancheteDaGazeta } = sb;
 
 console.log('=== AltFoot ELITE · regressões (tests/run.js) ===');
 
@@ -302,7 +302,9 @@ teste('fôlego dentro de [5,100] e moral dentro de [0,100] ao fim da partida', (
     const todos = r.home.elenco.concat(r.away.elenco);
     ok(todos.every(p => p.folego >= 5 && p.folego <= 100), 'fôlego fora do intervalo');
     ok(todos.every(p => p.moral == null || (p.moral >= 0 && p.moral <= 100)), 'moral fora do intervalo');
-    ok(r.sim._decisoes.length <= 3, 'mais de 3 decisões numa partida: ' + r.sim._decisoes.length);
+    // B51 (2026-10-19): a partida passou a ter 4 janelas de decisão (era 3), uma por quarto.
+    ok(r.sim._decisoes.length <= 4, 'mais de 4 decisões numa partida: ' + r.sim._decisoes.length);
+    ok(r.sim._decisoes.length >= 3, 'menos de 3 decisões numa partida: ' + r.sim._decisoes.length);
     ok(r.h >= 0 && r.a >= 0, 'placar negativo');
 });
 teste('expulsão do usuário desde o início reduz o aproveitamento', () => {
@@ -623,6 +625,114 @@ teste('a mão sai da coleção de táticas do clube', () => {
     sim._montarMao();
     ok(sim._mao.length === 4, 'mão com ' + sim._mao.length + ' cartas');
     ok(sim._mao.every(c => casa.taticas.some(t => t.id === c.id)), 'carta fora da coleção na mão');
+});
+
+// -------------------------------------------------- B51/B66: decisão e ritmo (2026-10-19)
+console.log('-- B51/B66: decisão sem gabarito e relógio que respeita o modal (2026-10-19)');
+teste('a decisão do técnico descreve o trade-off e nunca imprime a chance', () => {
+    const r = runMatch({ seed: 909 });
+    // O fair play também abre prompt, mas com 2 opções e sem dicas — o alvo aqui é a decisão de 3.
+    const calls = r.sb.MatchUI.promptCalls.filter(c => c.opts.length === 3);
+    ok(calls.length >= 3, 'decisões de menos: ' + calls.length);
+    calls.forEach((c, i) => {
+        ok(c.hints.length === 3, 'decisão ' + i + ' sem 3 dicas');
+        c.hints.forEach(h => {
+            ok(h && h.length >= 8, 'dica vazia/curta: "' + h + '"');
+            ok(!/%|chance de gol|risco de sofrer/i.test(h), 'a dica entrega o gabarito: ' + h);
+        });
+        ok(!/Percentuais/i.test(c.desc), 'a descrição ainda fala em percentuais');
+    });
+});
+teste('a partida tem até 4 janelas de decisão, uma por quarto', () => {
+    let viuQuatro = 0, duplicou = 0;
+    for (let seed = 1; seed <= 30; seed++) {
+        const r = runMatch({ seed });
+        const quartos = r.sim._decisoes.map(d => Math.min(3, Math.floor((d.min - 1) * 4 / 90)));
+        if (quartos.length === 4) viuQuatro++;
+        if (new Set(quartos).size !== quartos.length) duplicou++;
+        ok(quartos.length <= 4, 'mais de 4 decisões (seed ' + seed + ')');
+    }
+    ok(viuQuatro > 0, 'nenhuma partida teve as 4 janelas');
+    ok(duplicou === 0, duplicou + ' partidas com duas decisões no mesmo quarto');
+});
+teste('o timer da decisão cai com a velocidade (B66)', () => {
+    const normal = runMatch({ seed: 313 });
+    const rapido = runMatch({ seed: 313, preSim: sim => sim.setSpeed(4) });
+    ok(normal.sb.MatchUI.promptCalls.length > 0, 'sem decisões a 1×');
+    ok(normal.sb.MatchUI.promptCalls.every(c => c.ms === 8000), '1× não usa 8 s: ' + normal.sb.MatchUI.promptCalls.map(c => c.ms).join(','));
+    ok(rapido.sb.MatchUI.promptCalls.length > 0, 'sem decisões a 4×');
+    ok(rapido.sb.MatchUI.promptCalls.every(c => c.ms === 2000), '4× não usa 2 s: ' + rapido.sb.MatchUI.promptCalls.map(c => c.ms).join(','));
+});
+teste('o relógio da partida para enquanto o modal de cartas está aberto (B66)', () => {
+    const modal = { classList: { contains: c => c !== 'hidden' } };
+    const s = novoSandbox({
+        document: {
+            getElementById: id => (id === 'modal-cartas' ? modal : null),
+            querySelectorAll: () => [],
+            createElement: () => ({ style: {}, classList: { add() {}, remove() {}, toggle() {}, contains: () => false }, setAttribute() {}, appendChild() {} })
+        }
+    });
+    const casa = makeTeam('Casa', 70, { isUser: true }), fora = makeTeam('Fora', 70);
+    const sim = new s.MatchSim(casa, fora, null, null, { seed: 5, modo: 'detalhado', tempoMin: 90, minDurMs: 0 });
+    sim.roteiro = [{ min: 10, tipo: 'lance', side: 0 }];
+    ok(sim._modalAberto() === true, 'modal aberto não foi detectado');
+    sim._tick();
+    ok(sim._idx === 0, 'o relógio avançou com modal aberto: idx=' + sim._idx);
+    const fechado = novoSandbox();
+    const sim2 = new fechado.MatchSim(casa, fora, null, null, { seed: 5, modo: 'detalhado', tempoMin: 90, minDurMs: 0 });
+    ok(sim2._modalAberto() === false, 'modal fechado foi tratado como aberto');
+});
+
+// -------------------------------------------------- B62/B63: Gazeta e rival fixo (2026-10-19)
+console.log('-- B62/B63: Gazeta com ângulo e rival de todas as temporadas (2026-10-19)');
+teste('a manchete da Gazeta nasce do jogo e é determinística (B62)', () => {
+    const gols = (mins, tipo) => mins.map(min => ({ min, tipo }));
+    const virada = mancheteDaGazeta('Foguete FC', 'Rival EC', 2, 1,
+        [...gols([12], 'gol-rival'), ...gols([55, 80], 'gol')], true, 7);
+    ok(virada.candidatos.includes('VIRADA'), 'não detectou a virada: ' + virada.candidatos.join(','));
+    const acrescimos = mancheteDaGazeta('Foguete FC', 'Rival EC', 2, 1,
+        [...gols([20, 90], 'gol'), ...gols([40], 'gol-rival')], true, 7);
+    ok(acrescimos.candidatos.includes('ACRÉSCIMOS'), 'não detectou o gol nos acréscimos');
+    const expulsao = mancheteDaGazeta('Foguete FC', 'Rival EC', 1, 0, [{ min: 30, tipo: 'expulsao' }], true, 7);
+    ok(expulsao.candidatos.includes('EXPULSÃO'), 'não detectou a expulsão');
+    const outra = mancheteDaGazeta('Foguete FC', 'Rival EC', 2, 1,
+        [...gols([12], 'gol-rival'), ...gols([55, 80], 'gol')], true, 7);
+    ok(JSON.stringify(virada) === JSON.stringify(outra), 'a mesma edição gerou manchete diferente');
+    ok(virada.h.includes('Foguete FC') && virada.h.includes('Rival EC'), 'manchete sem os clubes: ' + virada.h);
+    ok(virada.autor && virada.reacao, 'manchete sem assinatura ou reação');
+    const derbi = mancheteDaGazeta('Foguete FC', 'Rival EC', 1, 0, [], true, 3, 'Rival EC');
+    ok(derbi.k.indexOf('DÉRBI') === 0, 'dérbi não marcado na manchete: ' + derbi.k);
+    // Usuário fora de casa: o evento 'gol' é do adversário e o 'gol-rival' é dele.
+    const fora = mancheteDaGazeta('Foguete FC', 'Rival EC', 2, 1,
+        [...gols([12], 'gol'), ...gols([55, 80], 'gol-rival')], false, 4);
+    ok(fora.candidatos.includes('VIRADA'), 'não detectou virada do visitante');
+});
+teste('o rival do ano é fixo, não é o próprio clube e acompanha a divisão (B63)', () => {
+    const s = novoSandbox();
+    const liga = new League();
+    liga.inicializar();
+    liga.divisaoUser = 1;
+    const clubes = CompetitionSystem.clubs(liga, 1);
+    const clube = clubes[0];
+    const r1 = rivalHistorico(clube, liga), r2 = rivalHistorico(clube, liga);
+    ok(r1 && r1 === r2, 'rival não é estável entre chamadas');
+    ok(r1 !== clube, 'o clube virou rival de si mesmo');
+    ok(clubes.includes(r1), 'rival fora da divisão do usuário');
+    liga.divisaoUser = 2;
+    ok(CompetitionSystem.clubs(liga, 2).includes(rivalHistorico(clube, liga)), 'rival não acompanhou a divisão');
+    // A abertura usa o tom de clássico quando o jogo é dérbi (B63 é tom, não bônus de força).
+    const com = runMatch({ seed: 8, derbi: true });
+    const sem = runMatch({ seed: 8, derbi: false });
+    ok(com.sim._ctxUsados && com.sim._ctxUsados.aberturaClassico === 1, 'dérbi não abriu como clássico');
+    ok(sem.sim._ctxUsados && sem.sim._ctxUsados.abertura === 1, 'jogo comum não abriu com a abertura padrão');
+    ok(com.sim._derbiEmitidos === 3, 'dérbi não teve as 3 notas no jogo: ' + com.sim._derbiEmitidos);
+    ok(sem.sim._derbiEmitidos === 0, 'jogo comum ganhou nota de dérbi');
+    // B63 é TOM, não bônus: a força do rival não muda no dérbi (medida antes do apito).
+    const a = novoSandbox(), b = novoSandbox();
+    const casa = makeTeam('Casa', 70, { isUser: true }), fora = makeTeam('Fora', 70);
+    const comDerbi = new a.MatchSim(casa, fora, null, null, { seed: 8, derbi: true, tempoMin: 90 });
+    const semDerbi = new b.MatchSim(casa, fora, null, null, { seed: 8, derbi: false, tempoMin: 90 });
+    ok(comDerbi._poder(fora, false).atk === semDerbi._poder(fora, false).atk, 'dérbi mexeu na força do rival');
 });
 
 console.log('');
