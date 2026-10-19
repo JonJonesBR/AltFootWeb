@@ -100,4 +100,23 @@ rel.t('`reporElencoBase` é definida exatamente uma vez',
         typeof clube.reporElencoBase === 'function' && clube.reporElencoBase() > 0);
 }
 
+// ------------------------------------------------ B74/B75: fim de temporada e salvar (2026-10-19)
+{
+    const pm = metodo('playMatch');
+    rel.t('playMatch bloqueia a última rodada depois do fim da temporada',
+        pm.includes('_temporadaEncerrada()') && pm.includes('_reabrirFimDeTemporada()'));
+    const helper = metodo('_temporadaEncerrada');
+    rel.t('o sinal do fim de temporada é o resumoTemporada persistido',
+        helper.includes('resumoTemporada') && helper.includes('temporada === this.league.temporada'));
+    rel.t('init e loadGame reabrem o fim de temporada',
+        ocorrencias('_reabrirFimDeTemporada()') >= 3, ocorrencias('_reabrirFimDeTemporada()') + ' chamadas');
+    rel.t('a nova temporada libera a trava',
+        metodo('startNewSeason').includes('resumoTemporada = null'));
+    const sf = metodo('salvarEFechar');
+    rel.t('SALVAR & FECHAR chama saveGame antes de fechar',
+        sf.includes('saveGame()') && sf.includes('closeSettings()'));
+    rel.t('o botão do modal aponta para salvarEFechar',
+        String(lerIndex()).includes('app.salvarEFechar()'));
+}
+
 encerrar(rel);

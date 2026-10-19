@@ -3724,7 +3724,7 @@ button:focus-visible,summary:focus-visible,[role="button"]:focus-visible,[tabind
        <button onclick="app.importSave()" class="btn-secondary" style="flex:1; font-size:0.72rem; padding:9px 6px;">⬆ IMPORTAR SAVE</button>
      </div>
      <input type="file" id="import-save-input" accept="application/json,.json" style="display:none;" onchange="app._handleImportFile(this.files && this.files[0]); this.value='';">
-     <button onclick="app.closeSettings()" class="btn-end-turn" style="width: 100%; margin-top: 18px; font-size: 0.85rem; padding: 10px;">
+     <button onclick="app.salvarEFechar()" class="btn-end-turn" style="width: 100%; margin-top: 18px; font-size: 0.85rem; padding: 10px;">
        SALVAR & FECHAR
      </button>
      <button onclick="app.voltarAoMenu()" class="btn-secondary" style="width:100%;margin-top:10px;padding:12px">SALVAR E VOLTAR AO MENU</button>
@@ -7226,12 +7226,14 @@ class MatchSim {
         };
     }
 
+    // Forma preposicional: os textos usam "{comp}" já com a preposição embutida
+    // ("Vitória na liga", "empate na final").
     _rotuloCompeticao() {
-        if (this.regra === 'torneio') return 'o torneio';
-        if (this.regra === 'classico') return 'o clássico';
-        if (this.tom === 'final') return 'a final';
-        if (this.tom === 'amistoso') return 'o amistoso';
-        return 'a liga';
+        if (this.regra === 'torneio') return 'no torneio';
+        if (this.regra === 'classico') return 'no clássico';
+        if (this.tom === 'final') return 'na final';
+        if (this.tom === 'amistoso') return 'no amistoso';
+        return 'na liga';
     }
 
     _fmt(texto, ctx) {
@@ -7410,21 +7412,137 @@ class MatchSim {
         ]), ctx);
     }
 
-    _fraseGol(team, nomeJ, nomeG) {
+    // B50 (2026-10-19): o gol deixou de ser 6 frases fixas inline. A situação é lida
+    // ANTES do gol (empate, virada, goleada, acréscimo) e escolhe um pool próprio,
+    // com o placar, o rival e o minuto no texto. Os pools antigos `fimVitoria`/
+    // `fimDerrota` estavam mortos; o desfecho agora tem `_fraseFim` com contexto.
+    _situacaoGol(isHome) {
+        const pro = isHome ? this.scoreH : this.scoreA;
+        const contra = isHome ? this.scoreA : this.scoreH;
+        const depois = (pro + 1) - contra;
+        // Virada exige memória: marcar um gol nunca transforma desvantagem em vantagem
+        // por si só. _esteveAtras é preenchido em _marcar a cada gol.
+        const esteveAtras = !!((this._esteveAtras && this._esteveAtras[isHome ? 0 : 1]) || pro < contra);
+        if (this.minuto >= 90) return 'acrescimos';
+        if (depois === 0) return 'empate';
+        if (depois > 0 && esteveAtras) return 'virada';
+        if (depois >= 3) return 'goleada';
+        if (depois >= 2) return 'amplia';
+        if (pro === 0 && contra === 0) return 'abertura';
+        return 'normal';
+    }
+
+    _fraseGol(team, nomeJ, nomeG, situacao) {
         const isHome = team === this.home;
         const j = nomeJ || (isHome ? this._nomeHome('ATT') : this._nomeAdv('ATT'));
         const g = nomeG || (isHome ? this._nomeAdv('GK') : this._nomeHome('GK'));
         const ctx = this._ctxTexto(team); ctx.j = j; ctx.g = g;
-        return this._fmt(this._pickSaco('gol', [
-            "GOOOOL! {j} não perdoa e balança as redes!",
-            "GOL! {j} aparece livre e manda pra dentro, sem chances para {g}!",
-            "GOLAÇO! {j} acerta um chute indefensável no ângulo!",
-            "É GOL DO {time}! {j} aparece no segundo pau e completa!",
-            "GOL! {j} antecipa o goleiro {g} e empurra para o fundo!",
-            "GOOOOL! {j} pega de primeira e a bola entra cheia de efeito!",
-            "GOLAÇO de {j} aos {min}! O {adv} fica parado olhando!",
-            "GOL! {j} dribla o goleiro e só empurra: {placar}."
-        ]), ctx);
+        const pools = {
+            acrescimos: [
+                "🔥 GOL NOS ACRÉSCIMOS! {j} aparece no segundo pau e incendeia o estádio!",
+                "⚡ NO APAGAR DAS LUZES! {j} acerta um chute indefensável e o {adv} cai de joelhos!",
+                "GOL NO ÚLTIMO SUSPIRO! {j} empurra para as redes e a torcida do {time} vai ao delírio!",
+                "QUE FINAL! {j} marca aos {min} e muda a história do jogo!",
+                "GOL NOS ACRÉSCIMOS! O {adv} já comemorava e {j} calou o estádio inteiro!",
+                "⚡ {j} marca no apagar das luzes e o {time} sai do nada para o tudo!"
+            ],
+            virada: [
+                "⚡ VIROU! {j} completa a virada e o {time} busca o resultado no peito e na raça!",
+                "GOL DA VIRADA! {j} solta a bomba no ângulo e consuma a reação do {time}!",
+                "VIRADA ÉPICA! {j} marca e o {adv} vê o resultado escapar entre os dedos!",
+                "DO INFERNO AO CÉU! {j} vira o placar para o {time} e o banco inteiro levanta!",
+                "VIROU! {j} aproveita o rebote e escreve mais um capítulo para o {time}!",
+                "VIRADA! {j} marca aos {min} e o {adv} não sabe o que aconteceu!"
+            ],
+            empate: [
+                "EMPATE! {j} deixa tudo igual no placar e o jogo recomeça do zero!",
+                "GOL DE EMPATE! {j} aparece livre e faz {placar}!",
+                "TUDO IGUAL! {j} empurra para dentro e a torcida do {time} respira!",
+                "EMPATOU! {j} acerta o canto e o {adv} lamenta a chance perdida!",
+                "GOL! {j} marca o empate aos {min} e o estádio volta a ferver!"
+            ],
+            goleada: [
+                "É CHOCOLATE! {j} faz mais um e o {adv} só assiste!",
+                "GOL! {j} amplia a goleada e o {time} joga em ritmo de treino!",
+                "MAIS UM! {j} marca e a defesa do {adv} já não sabe para onde correr!",
+                "GOLEADA! {j} completa o placar em {placar} e a torcida faz a festa!",
+                "GOL! {j} não perdoa o erro do {adv} e aumenta a conta!"
+            ],
+            amplia: [
+                "GOL! {j} amplia a vantagem do {time} com categoria!",
+                "MAIS UM! {j} aparece na hora certa e faz {placar}!",
+                "GOL! {j} aproveita o espaço e coloca o {time} em vantagem confortável!",
+                "GOLAÇO! {j} acerta o ângulo e amplia para o {time}!",
+                "GOL! {j} completa o lance e o {time} abre dois de diferença!"
+            ],
+            abertura: [
+                "GOL! {j} abre o placar e explode a torcida do {time}!",
+                "PRIMEIRO GOL DO JOGO! {j} aparece livre e manda para o fundo!",
+                "GOL! {j} quebra o zero no placar e o {adv} precisa reagir!",
+                "ABRIU O PLACAR! {j} converte a chance e faz {placar}!",
+                "GOL! {j} acerta um chute indefensável e o {time} sai na frente!"
+            ],
+            normal: [
+                "GOOOOL! {j} não perdoa e balança as redes!",
+                "GOL! {j} aparece livre e manda pra dentro, sem chances para {g}!",
+                "GOLAÇO! {j} acerta um chute indefensável no ângulo!",
+                "É GOL DO {time}! {j} aparece no segundo pau e completa!",
+                "GOL! {j} antecipa o goleiro {g} e empurra para o fundo!",
+                "GOOOOL! {j} pega de primeira e a bola entra cheia de efeito!",
+                "GOLAÇO de {j} aos {min}! O {adv} fica parado olhando!",
+                "GOL! {j} dribla o goleiro e só empurra: {placar}."
+            ]
+        };
+        const chave = pools[situacao] ? situacao : 'normal';
+        return this._fmt(this._pickSaco('gol_' + chave, pools[chave]), ctx);
+    }
+
+    // Desfecho narrado (B50): substitui a linha factual "Fim de jogo! X vence por…".
+    _fraseFim(h, a) {
+        const vencedor = h > a ? this.home : this.away;
+        const perdedor = h > a ? this.away : this.home;
+        const margem = Math.abs(h - a);
+        const c = {
+            time: (vencedor && vencedor.nome) || 'o mandante',
+            adv: (perdedor && perdedor.nome) || 'o visitante',
+            placar: h + ' a ' + a,
+            min: ((this._fimSimulado || this.tempoMin || 90) + "'"),
+            comp: this._rotuloCompeticao()
+        };
+        if (h === a) {
+            return this._fmt(this._pickSaco('fim_empate', [
+                "Fim de jogo: {placar}. Empate que não resolve a vida de ninguém {comp}!",
+                "Apita o árbitro: {placar}. {time} e {adv} dividem os pontos.",
+                "Acabou! {placar} e a sensação de que os dois times deixaram algo em campo.",
+                "Fim: {placar}. Um ponto para cada lado e muita coisa para corrigir na semana.",
+                "Termina empatado em {placar}. {time} e {adv} saem com gosto de quê?"
+            ]), c);
+        }
+        const chave = margem >= 3 ? 'fim_goleada' : margem === 1 ? 'fim_apertado' : 'fim_normal';
+        const pools = {
+            fim_goleada: [
+                "Fim de jogo: {placar}! {time} atropela o {adv} e a torcida faz a festa!",
+                "Acabou: {placar}. Goleada do {time}, que joga em ritmo de treino no fim.",
+                "Fim: {placar}! O {adv} não viu a cor da bola e sai de cabeça baixa.",
+                "Placar final: {placar}. {time} passeia em campo e a conta podia ser maior.",
+                "Apita o juiz: {placar}. Vitória com autoridade do {time} {comp}."
+            ],
+            fim_apertado: [
+                "Fim de jogo: {placar}! {time} sofre, segura e vence por um gol de diferença!",
+                "Acabou: {placar}. Vitória suada do {time}, que segurou o {adv} até o apito final.",
+                "Fim: {placar}! O {adv} pressionou no fim, mas o {time} segurou o resultado.",
+                "Placar final: {placar}. Decidido no detalhe, como manda o futebol.",
+                "Apita o juiz: {placar}! O {time} respira aliviado com a vitória."
+            ],
+            fim_normal: [
+                "Fim de jogo: {placar}. {time} vence com mérito {comp}.",
+                "Acabou: {placar}. O {time} controla o jogo e garante os três pontos.",
+                "Fim: {placar}. Vitória do {time}, que soube administrar a vantagem.",
+                "Placar final: {placar}. {time} bate o {adv} sem sustos.",
+                "Apita o juiz: {placar}. O {time} faz o dever de casa e vence."
+            ]
+        };
+        return this._fmt(this._pickSaco(chave, pools[chave]), c);
     }
 
     _fraseVar(team, nomeJ) {
@@ -7997,14 +8115,17 @@ class MatchSim {
         const teamAtk = ev.side === 0 ? this.home : this.away;
         if (t === 'lance') {
             // Escolhe o tipo de frase PRIMEIRO e alinha a posição do protagonista.
-            const ehChance = !this._roll(0.55);
+            // B70 (2026-10-19): a finalização narrada agora ENTRA em chutes. Antes eram
+            // ~15 lances por jogo narrados como chute que não apareciam na estatística —
+            // o feed mostrava ~48 finalizações e o painel do resultado, ~26. Também caiu de
+            // 45% para 25% dos lances: "PERIGO!" a cada dois minutos banalizava o aviso.
+            const ehChance = !this._roll(0.75);
             const prot = setCtx(ehChance ? 'ATT' : 'MID', this._roll(0.4) ? 'GK' : 'DEF');
             log = ehChance ? this._fraseChance(teamAtk, prot.nomeAtk) : this._fraseLan(teamAtk, prot.nomeAtk);
-            // B48: o destaque do feed não depende mais de a frase começar com "PERIGO" —
-            // o tipo do lance é conhecido aqui e todas as 12 frases de chance merecem destaque.
-            if (ehChance) tipoFeed = 'warn';
+            // B48: o destaque do feed não depende mais de a frase começar com "PERIGO".
+            if (ehChance) { tipoFeed = 'warn'; this.chutes[ev.side]++; }
             this._moverPressao(ev.side, ehChance ? 3.2 : 1.4);
-            if (ehChance || tipoFeed === 'warn') this._registrarZona(ev.side === 0, 'chance');
+            if (ehChance) this._registrarZona(ev.side === 0, 'chance');
         } else if (t === 'falta') {
             const prot = setCtx('MID', 'DEF');
             log = this._fraseFalta(teamAtk, prot.nomeAtk);
@@ -8146,6 +8267,10 @@ class MatchSim {
 
     _marcar(isHome, autor) {
         this._beat(1400);
+        // B50: guarda quem já esteve atrás no placar (para o texto de virada).
+        if (!this._esteveAtras) this._esteveAtras = [false, false];
+        if (this.scoreH < this.scoreA) this._esteveAtras[0] = true;
+        if (this.scoreA < this.scoreH) this._esteveAtras[1] = true;
         if (isHome) this.scoreH++; else this.scoreA++;
         if (autor && autor.id) this.matchScorers[autor.id] = (this.matchScorers[autor.id] || 0) + 1;
         if (autor) autor.gols = (autor.gols || 0) + 1;
@@ -8465,24 +8590,12 @@ class MatchSim {
                 }
             } else if (gol) {
                 const autor = jp || null;
+                // B50: a situação é lida ANTES do gol (empate/virada/goleada/acréscimo) e o
+                // texto sai do pool do contexto, citando placar, rival e minuto.
+                const situacao = this._situacaoGol(isHome);
                 const rec = this._marcar(isHome, autor);
                 this._fecharDecisao('gol');
-                let textoGol = '';
-                const diferenca = Math.abs(this.scoreH - this.scoreA);
-                if (this.minuto >= 90) {
-                    textoGol = userScored
-                        ? "🔥 GOL NOS ACRÉSCIMOS! " + j + " manda para o fundo das redes no apagar das luzes e incendeia o estádio!"
-                        : "⚡ GOL DRAMÁTICO DO RIVAL! " + j + " castiga nos acréscimos!";
-                } else if (this._viradaPendente) {
-                    textoGol = userScored
-                        ? "⚡ GOLAÇO DA VIRADA! " + j + " solta a bomba no ângulo e consuma a virada épica!"
-                        : "GOL DO RIVAL! " + j + " vira o placar!";
-                } else {
-                    textoGol = userScored
-                        ? (diferenca <= 1 ? "GOL! " + j + " converte a chance e explode a torcida!" : "GOLAÇO! " + j + " amplia a vantagem com categoria!")
-                        : "GOL DO RIVAL! " + j + " não perdoa!";
-                }
-                this._emit(textoGol + rec, 'goal');
+                this._emit(this._fraseGol(isHome ? this.home : this.away, j, nomeGk, situacao) + rec, 'goal');
             } else if (this._roll(0.30)) {
                 // Mesmo goleiro do card-battle / campo 2D
                 this._registrarZona(isHome, 'defesa');
@@ -8549,14 +8662,9 @@ class MatchSim {
             try { MatchUI.stopCrowdLoop(800); MatchUI.radioHide(); } catch (e2) { }
         }
         const h = this.scoreH, a = this.scoreA;
-        // Encerramento factual: vale também para amistosos e partidas de mata-mata.
-        const vencedor = h > a ? this.home.nome : this.away.nome;
-        const margem = Math.abs(h - a);
-        const fimTxt = h === a
-            ? 'Fim de jogo! ' + this.home.nome + ' e ' + this.away.nome + ' empatam em ' + h + ' a ' + a + '.'
-            : 'Fim de jogo! ' + vencedor + ' vence por ' + Math.max(h, a) + ' a ' + Math.min(h, a) +
-                (margem === 1 ? ', pela diferença mínima.' : margem >= 3 ? ', com ampla vantagem no placar.' : '.');
-        if (fimTxt) this._emit(fimTxt, 'info');
+        // B50: o apito final ganha narração de desfecho (placar, vencedor e competição)
+        // no lugar da linha factual que existia.
+        this._emit(this._fraseFim(h, a), 'info');
         const registrado = typeof Engine !== 'undefined' && Engine.activeMatch === this;
         const concluir = () => {
             // Sair/cancelar durante a fala de encerramento não ressuscita a partida.
@@ -11388,6 +11496,21 @@ const TutorialManager = {
         }
     ],
 
+    // B73 (2026-10-19): o tutorial usava o objeto REAL do clube e rodava uma partida
+    // nele — XP, fôlego e lesões do treino iam para o save (o "restore" do finish()
+    // reatribuía a mesma referência de elenco, um no-op). Agora recebe cópia profunda.
+    _clonarClube(origem) {
+        if (!origem) return new Club('Treino FC');
+        let bruto;
+        try { bruto = JSON.parse(JSON.stringify(origem)); } catch (e) { return new Club('Treino FC'); }
+        const cl = Object.assign(new Club(), bruto);
+        if (!cl.formacao) cl.formacao = '4-4-2';
+        cl.isUser = true;
+        cl.elenco = (Array.isArray(cl.elenco) ? cl.elenco : []).map(p => Object.assign(new Player(), p));
+        cl.taticas = (Array.isArray(cl.taticas) ? cl.taticas : []).map(t => Object.assign(new TaticaCard({}), t));
+        return cl;
+    },
+
     start() {
         if (this.isActive || this._finishing) return; // anti duplo clique / reentrância
         this.isActive = true;
@@ -11416,7 +11539,8 @@ const TutorialManager = {
 
         // Liga de treino isolada: o fluxo usa o próprio modal de preparação,
         // mas o ENTRAR EM CAMPO é desviado para a partida de treino.
-        const userClub = app.club ? app.club : new Club('Treino FC');
+        // B73 (2026-10-19): o treino roda num CLONE do clube real (ver _clonarClube).
+        const userClub = app.club ? this._clonarClube(app.club) : new Club('Treino FC');
         // Monta uma liga de treino com 2 clubes para o round-robin funcionar
         tutLeague.clubes = [userClub, rivalClub];
         tutLeague.gerarCalendario();
@@ -11483,6 +11607,11 @@ const TutorialManager = {
     _confirmarPreparacaoTutorial() {
         const modal = document.getElementById('modal-preparacao');
         if (modal) modal.classList.add('hidden');
+        // B73: o jogador pode trocar a formação no modal; o clone acompanha antes do apito.
+        if (typeof app !== 'undefined' && app.club && this._tutUserClub) {
+            this._tutUserClub.formacao = app.club.formacao || this._tutUserClub.formacao;
+            this._tutUserClub.camisaNome = app.club.camisaNome || this._tutUserClub.camisaNome;
+        }
         if (typeof ui !== 'undefined') {
             ui.startMatchRender();
             Engine.simulateRound(this._tutLeague, this._tutUserClub, (data) => ui.updateMatchData(data), (sh, sa) => {
@@ -12229,6 +12358,7 @@ const app = {
                 this.saveGame();
                 ui.showScreen('screen-game');
                 ui.showSubscreen('dashboard');
+                this._reabrirFimDeTemporada();
             } else {
                 ui.showScreen('screen-menu');
                 this.renderMenuSlots();
@@ -12294,6 +12424,12 @@ const app = {
         m.classList.remove('hidden');
         if (typeof ui !== 'undefined') ui.playSFX('sfx_click', 0.4);
     },
+    // B75 (2026-10-19): o botão dizia SALVAR & FECHAR e só fechava o modal.
+    salvarEFechar() {
+        try { this.saveGame(); } catch (e) { console.error('[AltFoot] falha ao salvar pelo menu:', e); }
+        this.closeSettings();
+    },
+
     closeSettings() {
         const m = document.getElementById('modal-settings');
         if (m) m.classList.add('hidden');
@@ -12924,6 +13060,21 @@ const app = {
         if (typeof ui !== 'undefined') ui.showActionFeedback('Olheiro: candidato deixado para depois (não contratado).', 'info');
     },
 
+    // B74 (2026-10-19): o fim de temporada precisa sobreviver ao reload. O resumo é
+    // gravado em league.resumoTemporada (já persistido), então ele é o sinal: se existe
+    // para a temporada atual, o campeonato acabou.
+    _temporadaEncerrada() {
+        return !!(this.league && this.league.resumoTemporada &&
+            this.league.resumoTemporada.temporada === this.league.temporada);
+    },
+    _reabrirFimDeTemporada() {
+        if (!this._temporadaEncerrada()) return false;
+        try {
+            ui.showSeasonEndModal(this.league.resumoTemporada);
+        } catch (e) { console.error('[AltFoot] falha ao reabrir o fim de temporada:', e); }
+        return true;
+    },
+
     loadGame() {
         const saved = this.loadSavedData();
         if (saved) {
@@ -12932,6 +13083,7 @@ const app = {
             this.marketPlayers = saved.marketPlayers;
             ui.showScreen('screen-game');
             ui.showSubscreen('dashboard');
+            this._reabrirFimDeTemporada();
             ui.showActionFeedback("Jogo carregado!", "success");
         } else {
             ui.showActionFeedback("Nenhum save encontrado.", "error");
@@ -14435,6 +14587,14 @@ const app = {
 
     playMatch() {
         if (!this.club || !this.league) return;
+        // B74 (2026-10-19): a temporada encerrada não pode reexecutar a última rodada.
+        // Sem esta guarda, recarregar na R38 e apertar ENTRAR EM CAMPO jogava a rodada
+        // de novo e o simulateAIMatches duplicava pontos/gols de TODOS os clubes.
+        if (this._temporadaEncerrada()) {
+            this._reabrirFimDeTemporada();
+            if (typeof ui !== 'undefined') ui.showActionFeedback('A temporada terminou — comece a nova temporada.', 'warning');
+            return;
+        }
         if (this.club.demitido || this.club.falencia) {
             ui.showActionFeedback(this.club.demitido ? 'Fim de carreira: você foi demitido. Crie uma nova carreira no menu.' : 'Clube em falência: consulte a proposta de SAF na tela Clube.', 'error');
             ui.showSubscreen('clube'); return;

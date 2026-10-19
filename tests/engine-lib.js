@@ -22,7 +22,10 @@ function extrairFonte() {
     return dominio
         + recorte('function mulberry32(seed)', '// --- Renderer da tela de partida')
         + recorte('function escalarTitularesXI(elenco, formacao)', '// --- Facade: orquestração')
-        + recorte('const Engine = {', '// ui.js');
+        + recorte('const Engine = {', '// ui.js')
+        // B73: o bloco do TutorialManager entra só para testar o clone de clube.
+        // Ele apenas declara o objeto — nenhum método roda na extração.
+        + recorte('const TutorialManager = {', '// game-state.js');
 }
 
 function novoSandbox(opts = {}) {
@@ -81,7 +84,7 @@ function novoSandbox(opts = {}) {
         + ', calcularXPParticipacao: (typeof calcularXPParticipacao === "function" ? calcularXPParticipacao : null)'
         + ', recuperarLesoesRodada: (typeof recuperarLesoesRodada === "function" ? recuperarLesoesRodada : null)'
         + ', fecharPartidaElenco: (typeof fecharPartidaElenco === "function" ? fecharPartidaElenco : null)'
-        + ', Player, Club, League, TransferMarket, LockerRoom, ClubEcosystem, CompetitionSystem, GAME_DATA, TaticaCard };'
+        + ', Player, Club, League, TransferMarket, LockerRoom, ClubEcosystem, CompetitionSystem, GAME_DATA, TaticaCard, TutorialManager };'
     );
     const appStub = opts.app || {};
     const api = fabrica(

@@ -306,14 +306,20 @@ teste('fôlego dentro de [5,100] e moral dentro de [0,100] ao fim da partida', (
     ok(r.h >= 0 && r.a >= 0, 'placar negativo');
 });
 teste('expulsão do usuário desde o início reduz o aproveitamento', () => {
-    const n = 120, sem = { H: 0 }, com = { H: 0 };
+    // Contar só vitórias era frágil: com 120 amostras a diferença real (1 jogador a
+    // menos vale ~-3,5 de ataque) pode cair no ruído. Aproveitamento = pontos, e o
+    // saldo de gols separa com folga (medido: 171→163 pontos e +19→−8 de saldo).
+    const n = 120;
+    let ptsSem = 0, ptsCom = 0, saldoSem = 0, saldoCom = 0;
     for (let i = 0; i < n; i++) {
         const a = runMatch({ seed: 400 + i });
-        if (a.h > a.a) sem.H++;
         const b = runMatch({ seed: 400 + i, startRedUser: 1 });
-        if (b.h > b.a) com.H++;
+        const pts = r => r.h > r.a ? 3 : (r.h === r.a ? 1 : 0);
+        ptsSem += pts(a); ptsCom += pts(b);
+        saldoSem += (a.h - a.a); saldoCom += (b.h - b.a);
     }
-    ok(com.H < sem.H, 'expulsão não pesou: ' + com.H + ' vitórias com a menos vs ' + sem.H + ' em 11');
+    ok(ptsCom < ptsSem, 'expulsão não pesou nos pontos: ' + ptsCom + ' vs ' + ptsSem);
+    ok(saldoCom < saldoSem - 10, 'expulsão não pesou no saldo: ' + saldoCom + ' vs ' + saldoSem);
 });
 teste('Engine._distribuirXP diferencia titular de banco usando a partida real', () => {
     const s = novoSandbox();
@@ -497,6 +503,59 @@ teste('a partida a 1x dura ~3 min e o piso de 60 s não segura mais o apito', ()
     const media = ms / 3 / 1000;
     ok(media >= 150 && media <= 210, 'duração a 1x: ' + media.toFixed(1) + ' s (esperado 150-210)');
     ok(piso === 0, 'piso de parede em partida comum: ' + piso + ' ms (esperado 0)');
+});
+
+// ------------------------------- B50/B70/B73: clímax, estatística e tutorial (2026-10-19)
+console.log('-- B50/B70/B73: clímax, estatística e tutorial (2026-10-19)');
+teste('o gol escolhe o texto pela situação e o desfecho cita o placar', () => {
+    const s = novoSandbox();
+    const casa = makeTeam('Casa', 70, { isUser: true });
+    const fora = makeTeam('Fora', 70);
+    const sim = new s.MatchSim(casa, fora, null, null, { seed: 1, modo: 'detalhado', tempoMin: 90 });
+    sim.scoreH = 0; sim.scoreA = 1; sim.minuto = 20; sim._esteveAtras = [false, false];
+    ok(sim._situacaoGol(true) === 'empate', 'gol de empate mal classificado: ' + sim._situacaoGol(true));
+    sim.scoreH = 2; sim.scoreA = 2; sim._esteveAtras = [true, false];
+    ok(sim._situacaoGol(true) === 'virada', 'virada exige memória de quem esteve atrás: ' + sim._situacaoGol(true));
+    sim.scoreH = 3; sim.scoreA = 1; sim._esteveAtras = [false, false];
+    ok(sim._situacaoGol(true) === 'goleada', 'goleada mal classificada: ' + sim._situacaoGol(true));
+    sim.scoreH = 1; sim.scoreA = 1; sim.minuto = 91;
+    ok(sim._situacaoGol(true) === 'acrescimos', 'gol nos acréscimos mal classificado: ' + sim._situacaoGol(true));
+    const situacoes = ['acrescimos', 'virada', 'empate', 'goleada', 'amplia', 'abertura', 'normal'];
+    const frases = situacoes.map(sit => sim._fraseGol(casa, 'Fulano', 'Goleiro', sit));
+    frases.forEach(f => ok(f && f.indexOf('{') < 0, 'template de gol não resolvido: ' + f));
+    ok(new Set(frases).size === situacoes.length, 'pools de gol repetem entre situações diferentes');
+    const empate = sim._fraseFim(2, 2);
+    ok(empate.indexOf('2 a 2') >= 0 && empate.indexOf('{') < 0, 'desfecho de empate sem placar: ' + empate);
+    const goleada = sim._fraseFim(4, 0);
+    ok(goleada.indexOf('4 a 0') >= 0, 'desfecho de goleada sem placar: ' + goleada);
+});
+teste('a finalização narrada entra na estatística de chutes', () => {
+    const s = novoSandbox();
+    const casa = makeTeam('Casa', 70, { isUser: true });
+    const fora = makeTeam('Fora', 70);
+    const sim = new s.MatchSim(casa, fora, null, null, { seed: 1, modo: 'detalhado', tempoMin: 90 });
+    sim._emCampo = [sim._xiDoTime(sim.home), sim._xiDoTime(sim.away)];
+    sim._roll = () => false; // força 'é chance' (ehChance = !_roll)
+    sim._aplicar({ tipo: 'lance', side: 0, min: 10 });
+    ok(sim.chutes[0] === 1, 'chance narrada não contou como finalização: ' + JSON.stringify(sim.chutes));
+    sim._roll = () => true; // força lance de construção
+    sim._aplicar({ tipo: 'lance', side: 0, min: 11 });
+    ok(sim.chutes[0] === 1, 'lance de construção inflou a estatística: ' + JSON.stringify(sim.chutes));
+});
+teste('o tutorial roda num clone e não toca no clube real', () => {
+    const s = novoSandbox();
+    const real = new s.Club('Real FC', true);
+    real.gerarElencoInicial();
+    const antes = real.elenco.length;
+    const clone = s.TutorialManager._clonarClube(real);
+    ok(clone !== real && clone.elenco !== real.elenco && clone.elenco[0] !== real.elenco[0],
+        'clone compartilha referências com o clube real');
+    clone.elenco[0].folego = 5;
+    clone.elenco[0].machucado = true;
+    clone.elenco.push(new s.Player('MID'));
+    ok(real.elenco[0].folego !== 5 && real.elenco[0].machucado !== true, 'mutação do clone vazou para o clube real');
+    ok(real.elenco.length === antes, 'elenco real mudou de tamanho');
+    ok(clone.isUser === true && clone.nome === 'Real FC', 'clone perdeu a identidade do clube');
 });
 
 console.log('');
