@@ -33,7 +33,7 @@ rel.t('o estádio vem antes do board no DOM (fica atrás)',
     html.indexOf('class="estadio-bg"') > 0
     && html.indexOf('class="estadio-bg"') < html.indexOf('class="match-board"'));
 rel.t('o painel do placar é translúcido para o estádio aparecer',
-    /#screen-match \.match-header-card \{[^}]*rgba\(8, 15, 26, 0\.82\)/.test(css));
+    /#screen-match \.match-header-card \{[^}]*rgba\(24, 16, 8, 0\.86\)/.test(css));
 
 // ---------------------------------------------------------------- B56: efeitos com CSS
 rel.t('`.fx-shake` tem animação (antes só existia no JS)', /\.fx-shake \{ animation: fxShake/.test(css));
@@ -77,5 +77,23 @@ const toast = js.slice(js.indexOf('showActionFeedback(text'), js.indexOf('showFl
 rel.t('o toast tem largura máxima e transição',
     toast.includes("maxWidth = 'min(92vw, 420px)'") && toast.includes('transition'));
 rel.t('o toast continua sendo região viva', toast.includes("setAttribute('role', 'status')"));
+
+// ---------------------------------------------------------------- B58: paleta única
+rel.t('a transmissão usa os tokens de carvão/âmbar', css.includes('--match-panel') && css.includes('--match-deep'));
+rel.t('não sobrou o azul-ardósia da partida', !css.includes('#0c1520') && !/rgba\(8, 15, 26/.test(css));
+rel.t('os !important não cresceram (restantes são funcionais)', (css.match(/!important/g) || []).length < 70);
+
+// ---------------------------------------------------------------- B60: arte com identidade
+rel.t('o header usa o escudo vetorial (não o ⚽)', html.includes('id="ui-club-crest"')
+    && /ui-club-crest[\s\S]{0,220}FUTCards\.crest/.test(js));
+rel.t('o radar do verso normaliza 99 no anel externo', js.includes('/99*40'));
+rel.t('recompensas mantêm o tier coerente com a raridade',
+    (js.match(/p\.tier = p\.raridade/g) || []).length >= 4);
+
+// ---------------------------------------------------------------- B78: ritual enxuto
+rel.t('o atalho JOGAR RÁPIDO existe e pula a preparação',
+    html.includes('playQuickMatch') && js.includes('this._modoRapido'));
+rel.t('a recompensa do draft pode ser pulada (sem prêmio)',
+    html.includes('app.pularDraft') && js.includes('pularDraft()'));
 
 encerrar(rel);

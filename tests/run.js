@@ -859,6 +859,113 @@ teste('a avaliação dos fios paga uma vez e a virada de temporada renova (B64)'
     ok(f2.rivalPlacar.v === 0 && f2.avaliadaTemporada == null, 'nova temporada não renovou os fios');
 });
 
+// -------------------------------------------------- B65/B71/B72: vestiário, picos e rótulos (2026-10-19)
+console.log('-- B65/B71/B72: disciplina, ética, picos e rótulos com mecânica (2026-10-19)');
+teste('o perfil de jogo do rival muda criação e conversão (B72)', () => {
+    const s = novoSandbox();
+    const casa = makeTeam('Casa', 70, { isUser: true });
+    const medir = (perfil) => {
+        const fora = makeTeam('Fora', 70);
+        fora.perfilJogo = perfil;
+        const sim = new s.MatchSim(casa, fora, null, null, { seed: 15, modo: 'detalhado', tempoMin: 90 });
+        sim._emCampo = [sim._xiDoTime(casa), sim._xiDoTime(fora)];
+        sim.minuto = 20;
+        return sim._modeloXG(1);
+    };
+    const neutro = medir(null), posse = medir('posse'), contra = medir('contra_ataque'), retranca = medir('retranca_copeira');
+    ok(posse.criacao > neutro.criacao, 'posse não aumentou a criação');
+    ok(contra.criacao < neutro.criacao, 'contra-ataque não abriu mão de volume');
+    ok(contra.qualidade > neutro.qualidade, 'contra-ataque não ganhou conversão');
+    ok(retranca.criacao < neutro.criacao, 'retranca não fechou o jogo');
+});
+teste('o estádio e o ritmo deixam de ser rótulo (B72)', () => {
+    const s = novoSandbox();
+    const casa = makeTeam('Casa', 70, { isUser: true });
+    const medirEstadio = (nivel) => {
+        casa.estadioNivel = nivel;
+        const sim = new s.MatchSim(casa, makeTeam('Fora', 70), null, null, { seed: 16, modo: 'detalhado', tempoMin: 90 });
+        sim._emCampo = [sim._xiDoTime(casa), sim._xiDoTime(sim.away)];
+        sim.minuto = 20;
+        return sim._modeloXG(0).criacao;
+    };
+    ok(medirEstadio(3) > medirEstadio(1) * 1.03, 'estádio nível 3 não aumentou o mando');
+    const gap = (ritmo) => {
+        const sim = new s.MatchSim(makeTeam('Casa', 70), makeTeam('Fora', 70), null, null, { seed: 17, modo: 'detalhado', tempoMin: 90, ritmo });
+        return sim._gap();
+    };
+    ok(gap('lento') > gap('normal'), 'ritmo lento não desacelerou o relógio');
+    ok(gap('intenso') < gap('normal'), 'ritmo intenso não acelerou o relógio');
+});
+teste('disciplina baixa aumenta cartão; ética melhora bilheteria (B65)', () => {
+    const contarCartoes = (disc) => {
+        const s = novoSandbox();
+        const casa = makeTeam('Casa', 70, { isUser: true }), fora = makeTeam('Fora', 70);
+        casa.elenco.concat(fora.elenco).forEach(p => { p.disciplina = disc; });
+        const sim = new s.MatchSim(casa, fora, null, null, { seed: 18, modo: 'detalhado', tempoMin: 90 });
+        sim._emCampo = [sim._xiDoTime(casa), sim._xiDoTime(fora)];
+        let n = 0;
+        for (let i = 0; i < 1500; i++) {
+            sim.minuto = 1 + (i % 88);
+            const ev = sim._eventoMinuto();
+            if (ev && ev.tipo === 'cartao') n++;
+        }
+        return n;
+    };
+    ok(contarCartoes(10) > contarCartoes(90), 'disciplina não pesou no risco de cartão');
+    const s = novoSandbox();
+    const cl = new s.Club('Etica FC', true); cl.gerarElencoInicial();
+    cl.etica = 90;
+    const alto = cl.stadiumRevenue();
+    cl.etica = 10;
+    const baixo = cl.stadiumRevenue();
+    ok(alto > baixo, 'ética não mexeu na bilheteria: ' + alto + ' vs ' + baixo);
+});
+teste('a trave é pico raro (máx. 1) e a virada vale para os dois lados (B71)', () => {
+    let comTrave = 0;
+    for (let seed = 500; seed < 540; seed++) {
+        const r = runMatch({ seed });
+        ok(r.sim._traves <= 1, 'mais de uma trave na partida (seed ' + seed + ')');
+        if (r.sim._traves === 1) comTrave++;
+    }
+    ok(comTrave > 0, 'nenhuma trave em 40 partidas');
+    const s = novoSandbox();
+    const sim = new s.MatchSim(makeTeam('Casa', 70, { isUser: true }), makeTeam('Fora', 70), null, null, { seed: 19, modo: 'detalhado', tempoMin: 90 });
+    sim._emCampo = [sim._xiDoTime(sim.home), sim._xiDoTime(sim.away)];
+    sim.scoreH = 1; sim.scoreA = 0; sim._esteveAtras = [false, true];
+    sim._marcar(false, null);
+    sim._marcar(false, null);
+    ok(sim._viradaPendente === true && sim._viradaLado === 1, 'virada do visitante não foi detectada');
+});
+teste('existe pênalti em tempo normal e ele entra na estatística (B71)', () => {
+    const s = novoSandbox();
+    const sim = new s.MatchSim(makeTeam('Casa', 70, { isUser: true }), makeTeam('Fora', 70), null, null, { seed: 20, modo: 'detalhado', tempoMin: 90 });
+    sim._emCampo = [sim._xiDoTime(sim.home), sim._xiDoTime(sim.away)];
+    sim.minuto = 30;
+    sim._cobrarPenalti({ side: 0 });
+    ok(sim._penaltis === 1, 'pênalti não foi contado');
+    ok(sim.chutes[0] >= 1, 'pênalti não entrou em chutes');
+});
+
+// -------------------------------------------------- B79: meta-progressão entre carreiras (2026-10-19)
+console.log('-- B79: prestígio e dificuldades entre carreiras (2026-10-19)');
+teste('o prestígio sobe por temporada, é idempotente e destrava a Lenda (B79)', () => {
+    const s = novoSandbox();
+    const M = s.MetaProgress;
+    ok(M, 'MetaProgress não foi extraído');
+    M.salvar(M.padrao());
+    ok(M.desbloqueada(1.3) === false, 'Lenda começou destravada');
+    const r1 = M.registrarTemporada({ chave: 'seed-a:1', clube: 'Foguete FC', divisao: 4, posicao: 5, titulos: 0 });
+    ok(!r1.repetida && r1.pontos >= 4, 'temporada não pagou prestígio');
+    ok(M.ler().prestigio === r1.pontos && M.ler().temporadas === 1, 'prestígio/temporadas inconsistentes');
+    const r2 = M.registrarTemporada({ chave: 'seed-a:1', clube: 'Foguete FC', divisao: 4, posicao: 5, titulos: 0 });
+    ok(r2.repetida && M.ler().prestigio === r1.pontos, 'a mesma temporada pagou duas vezes');
+    for (let i = 2; i <= 20 && !M.desbloqueada(1.3); i++) {
+        M.registrarTemporada({ chave: 'seed-a:' + i, clube: 'Foguete FC', divisao: 1, posicao: 2, titulos: i === 2 ? 1 : 0 });
+    }
+    ok(M.desbloqueada(1.3) === true, 'Lenda não destravou com prestígio ' + M.ler().prestigio);
+    ok(M.ler().museu['Foguete FC'] === 2, 'museu global não guardou a melhor posição');
+});
+
 console.log('');
 console.log('=== ' + (total - falhas) + '/' + total + ' verificações passaram' + (falhas ? ' — ' + falhas + ' FALHAS' : '') + ' ===');
 process.exit(falhas ? 1 : 0);

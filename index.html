@@ -27,6 +27,9 @@
     --text-dim: #8a7559;
     --border: rgba(255, 176, 0, 0.16);
     --border-bright: rgba(255, 176, 0, 0.34);
+    /* B58: tokens da transmissão — a partida usa o mesmo carvão/âmbar da raiz. */
+    --match-panel: rgba(21, 16, 10, 0.92);
+    --match-deep: #140d07;
     --app-max-w: 640px;
     --pitch-h: clamp(130px, 31vh, 300px);
     --cell-min: clamp(26px, 5.5vh, 54px);
@@ -145,7 +148,7 @@ body {
         radial-gradient(circle at 20% 40%, rgba(255,255,255,0.18) 0 1px, transparent 1.5px),
         radial-gradient(circle at 70% 60%, rgba(255,255,255,0.14) 0 1px, transparent 1.5px),
         radial-gradient(circle at 45% 30%, rgba(255,255,255,0.12) 0 1px, transparent 1.5px),
-        linear-gradient(180deg, #0b1220 0%, #1a2233 40%, #0e1524 100%);
+        linear-gradient(180deg, #140d07 0%, #241809 40%, #160f08 100%);
     background-size: 28px 22px, 34px 26px, 22px 18px, 100% 100%;
     box-shadow: inset 0 12px 24px rgba(0,0,0,0.45);
 }
@@ -374,6 +377,10 @@ body {
     font-size: 1.1rem;
     box-shadow: 0 4px 10px var(--primary-glow);
     border: 1.5px solid rgba(255, 255, 255, 0.3);
+    overflow: hidden;
+}
+/* B60: o escudo vetorial ocupa o badge do header sem o fundo âmbar do emoji. */
+.header-club-badge .club-crest { width: 32px; height: 32px; margin: 0; }
 }
 .header-money-pill {
     display: inline-flex;
@@ -2589,7 +2596,7 @@ html, body, * {
     .how-to-play-btn { padding: 4px 8px; font-size: 0.64rem; }
     .meta-row { display: none; }
     .match-narrative-section { min-height: 72px; max-height: 32vh; padding: 5px 8px; }
-    #match-log { font-size: 0.66rem !important; min-height: 18px; margin-bottom: 4px; }
+    #match-log { min-height: 18px; margin-bottom: 4px; }
     .feed-item { padding: 3px 6px; font-size: 0.66rem; }
     .campo-2d { aspect-ratio: 21 / 9; }
     .campo-duelo .duelo-mini { min-width: 70px; padding: 5px 8px; }
@@ -2932,7 +2939,7 @@ button:focus-visible,summary:focus-visible,[role="button"]:focus-visible,[tabind
     #screen-match .match-timeline .tl-flash:not(.on) { display:none; }
     #screen-match #match-decision { position:static; margin:0; max-height:42dvh; min-height:0; overflow-y:auto; z-index:20; padding:8px; }
     #screen-match .decision-btn { font-size:.75rem; min-height:44px; }
-    #screen-match .match-footer-row { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:5px; padding:6px 0 max(6px,env(safe-area-inset-bottom)); background:#0c1520; }
+    #screen-match .match-footer-row { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:5px; padding:6px 0 max(6px,env(safe-area-inset-bottom)); background:var(--match-panel); }
     #screen-match #match-status { grid-column:1/-1; text-align:center; font-size:.75rem; line-height:1.35; }
     #screen-match .match-speed-btn,#screen-match .match-skip-btn { width:100%; min-width:0; min-height:44px; font-size:.75rem; padding:6px 3px; }
     #screen-match .estadio-selo { top:12px; left:18px; right:auto; max-width:calc(100% - 78px); }
@@ -2960,9 +2967,9 @@ button:focus-visible,summary:focus-visible,[role="button"]:focus-visible,[tabind
 #screen-match .estadio-gramado { display: block; }
 #screen-match .match-board { background: transparent; }
 /* Painéis translúcidos o bastante para o estádio respirar, escuros o bastante para ler. */
-#screen-match .match-header-card { background: rgba(8, 15, 26, 0.82); border-color: rgba(255, 176, 0, 0.28); box-shadow: none; }
+#screen-match .match-header-card { background: rgba(24, 16, 8, 0.86); border-color: rgba(255, 176, 0, 0.28); box-shadow: none; }
 #screen-match .score-big { background: rgba(6, 12, 22, 0.85); }
-#screen-match .match-footer-row { background: rgba(8, 15, 26, 0.9); }
+#screen-match .match-footer-row { background: var(--match-panel); }
 
 /* B56 — os efeitos de impacto do gol/campeão existiam só no JS. */
 .fx-shake { animation: fxShake 0.45s cubic-bezier(0.36, 0.07, 0.19, 0.97) both; }
@@ -3071,6 +3078,8 @@ button:focus-visible,summary:focus-visible,[role="button"]:focus-visible,[tabind
    📁 CONTINUAR CARREIRA
  </button>
  <button onclick="HistoricalScenarios.open()" class="btn-secondary" style="margin-top:12px;min-height:44px">📻 CENÁRIOS HISTÓRICOS</button>
+  <!-- B79: prestígio entre carreiras (localStorage), separado do save do clube. -->
+  <div id="menu-meta" style="margin-top: 10px; font-size: 0.68rem; color: var(--accent); text-align: center; font-weight: 800; min-height: 16px;">🏅 Prestígio 0 · 0 temporada(s)</div>
  <div id="menu-slot-row" style="margin-top: 16px; display: flex; gap: 8px; justify-content: center;">
    <button id="slot-btn-1" onclick="app.selectSlot(1)" class="btn-secondary" style="flex:1; max-width:110px; font-size:0.68rem; padding:8px 4px;">SLOT 1</button>
    <button id="slot-btn-2" onclick="app.selectSlot(2)" class="btn-secondary" style="flex:1; max-width:110px; font-size:0.68rem; padding:8px 4px;">SLOT 2</button>
@@ -3084,7 +3093,7 @@ button:focus-visible,summary:focus-visible,[role="button"]:focus-visible,[tabind
  <div id="screen-game" class="screen hidden">
  <header>
  <div class="header-club-info">
-   <div class="header-club-badge">⚽</div>
+   <div class="header-club-badge" id="ui-club-crest" aria-hidden="true">⚽</div>
    <div>
      <div id="ui-club-name" style="font-weight: 900; font-size: 1.05rem; line-height: 1.2;">MEU CLUBE</div>
     <div id="ui-club-serie" class="header-money-pill" style="background: rgba(59,130,246,0.15); margin-top: 2px;">SÉRIE A</div>
@@ -3134,6 +3143,8 @@ button:focus-visible,summary:focus-visible,[role="button"]:focus-visible,[tabind
   <button onclick="app.playMatch()" class="btn-end-turn" style="width: 100%; font-size: 0.95rem; padding: 13px;">
     ⚽ ENTRAR EM CAMPO
   </button>
+  <!-- B78: atalho de rodada — pula a preparação e a Gazeta; o resultado e o draft continuam. -->
+  <button onclick="app.playQuickMatch()" class="btn-secondary" style="width:100%;margin-top:8px;font-size:.78rem;padding:9px;">⚡ JOGAR RÁPIDO — sem preparação</button>
  </div>
 
  <!-- HUD compacto de métricas do clube -->
@@ -3857,6 +3868,8 @@ button:focus-visible,summary:focus-visible,[role="button"]:focus-visible,[tabind
      <h2 style="margin: 0 0 6px; font-weight: 900; color: var(--accent); font-size: 1.25rem;">RECOMPENSA DA VITÓRIA</h2>
      <p style="color: var(--text-muted); font-size: 0.8rem; line-height: 1.4; margin: 0 0 14px;">O scout trouxe 3 opções — escolha 1:</p>
      <div id="draft-choices" style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;"></div>
+     <!-- B78: a recompensa é opcional — pular não dá prêmio, mas devolve o ritmo. -->
+     <button onclick="app.pularDraft()" class="btn-secondary" style="width:100%;margin-top:12px;font-size:.74rem;padding:8px;">PULAR RECOMPENSA</button>
    </div>
  </div>
 
@@ -4738,7 +4751,7 @@ const LockerRoom = {
   },
   afterRound(club, league, usados, ganhou) {
     const ids = new Set((usados || club.escalacaoXI || []).map(String));
-    let liderBarrado = false, veteranoBanco = false;
+    let liderBarrado = false, veteranoBanco = false, indisciplina = 0;
     club.elenco.forEach(p => {
       const jogou = ids.has(String(p.id));
       if (!jogou && !p.machucado && this.hierarquia(club, p) === 'Líder de Vestiário') {
@@ -4746,7 +4759,17 @@ const LockerRoom = {
         liderBarrado = true;
       }
       if (!jogou && p.idade >= 32 && !p.machucado) veteranoBanco = true;
+      // B65: disciplina baixa pesa na moral de quem jogou; alta disciplina segura o grupo.
+      if (jogou) {
+        const d = Number.isFinite(Number(p.disciplina)) ? Number(p.disciplina) : 70;
+        if (d <= 30) { p.moral = Math.max(0, (p.moral == null ? 70 : p.moral) - 2); indisciplina++; }
+        else if (d >= 85) p.moral = Math.min(100, (p.moral == null ? 70 : p.moral) + 1);
+      }
     });
+    if (indisciplina) {
+      club.moral = Math.max(0, club.moral - 1);
+      league.adicionarNoticia('🚪 ' + indisciplina + ' atleta(s) sem disciplina abalaram o vestiário.');
+    }
     club.semVencer = ganhou ? 0 : (club.semVencer || 0) + 1;
     if (liderBarrado) {
       club.moral = Math.max(0, club.moral - 2);
@@ -4912,6 +4935,15 @@ const ClubEcosystem = {
     if (club.rodadasDiretoriaCritica >= 3) {
       club.demitido = true;
       league.adicionarNoticia('📋 FIM DE CARREIRA: diretoria demitiu o treinador após três rodadas abaixo de 20% de confiança.');
+    }
+    // B65: ética cobra (ou paga) no vestiário e na torcida — o fair play deixa de ser decorativo.
+    const eticaClube = Math.max(0, Math.min(100, Number(club.etica == null ? 50 : club.etica)));
+    if (eticaClube >= 70) {
+      club.moral = Math.min(100, (Number(club.moral) || 70) + 1);
+      club.fans = Math.min(100, (Number(club.fans) || 50) + 1);
+    } else if (eticaClube <= 30) {
+      club.moral = Math.max(0, (Number(club.moral) || 70) - 1);
+      club.fans = Math.max(0, (Number(club.fans) || 50) - 1);
     }
     TransferMarket.afterRound(club, league);
     LockerRoom.afterRound(club, league, resultado.usados, ganhou);
@@ -5154,6 +5186,8 @@ class Club {
     this.ofertas = [];          // propostas de compra recebidas
     this.moral = 75;            // moral geral do elenco (eventos de vestiário)
     this.fans = 50;             // aprovação da torcida 0-100 (multiplica bilheteria)
+    // B65: ética do clube (fair play) — antes era só um rótulo de partida e não persistia.
+    this.etica = 50;
     this.consecDerrotas = 0;    // sequência atual de derrotas (pressão da diretoria)
     this.consecVitorias = 0;    // sequência atual de vitórias
     this.consecSemSofrerGol = 0; // sequência de jogos sem sofrer gol
@@ -5180,11 +5214,13 @@ class Club {
     }
     // Aprovação da torcida: 0.5x (torcida contra) até 1.5x (clube em festa)
     const fansMult = 0.5 + ((this.fans == null ? 50 : this.fans) / 100) * 1.0;
+    // B65: a ética (fair play) mexe na reputação e na bilheteria (±10%), não é só rótulo.
+    const eticaMult = 0.9 + Math.max(0, Math.min(100, this.etica == null ? 50 : Number(this.etica))) / 500;
     const popular = ClubEcosystem.nivel(this, 'popular');
     const ocupacao = (1 + popular * 0.3) * (1 - popular * 0.1);
     const midia = 1 + ClubEcosystem.nivel(this, 'midia') * 0.15;
     const garantido = ClubEcosystem.nivel(this, 'camarotes') * 20000;
-    return Math.round((base * mult * ocupacao + patrocinio * midia) * fansMult + garantido);
+    return Math.round((base * mult * ocupacao + patrocinio * midia) * fansMult * eticaMult + garantido);
   }
   stadiumCost() {
     return 200000 + (this.estadioNivel - 1) * 150000;
@@ -5201,7 +5237,7 @@ class Club {
       if (this.fraca) {
         // Série B (Fase 4): elenco nitidamente mais fraco — 38..53 OVR (A: 50..69).
         p.overall = 38 + Math.floor(Math.random() * 16);
-        p.raridade = p.calcularRaridade(p.overall);
+        p.raridade = p.calcularRaridade(p.overall); p.tier = p.raridade;
         p.custoEnergia = p.calcularCustoEnergia(p.raridade);
         p.stats = p.gerarStatsPorPosicao(p.posicao, p.overall);
         p.valor = p.overall * p.overall * 100;
@@ -5246,7 +5282,7 @@ class Club {
         p.potencialRevelado = true; // a IA não passa pelo fluxo do olheiro
         p.machucado = false;
         p.rodadasRecuperacao = 0;
-        p.raridade = p.calcularRaridade(p.overall);
+        p.raridade = p.calcularRaridade(p.overall); p.tier = p.raridade;
         p.custoEnergia = p.calcularCustoEnergia(p.raridade);
         p.stats = p.gerarStatsPorPosicao(p.posicao, p.overall);
         p.valor = p.overall * p.overall * 100;
@@ -5754,6 +5790,79 @@ function rivalHistorico(club, league) {
     const h = (typeof TransferMarket !== 'undefined') ? TransferMarket.hash(club.nome + '|rival') : 0;
     return lista[h % lista.length];
 }
+// B79 (2026-10-19): meta-progressão ENTRE carreiras. Prestígio e dificuldades
+// desbloqueadas vivem em localStorage, separados do save do clube (que continua por slot).
+// Save antigo não tem a chave: começa em zero, sem perder nada. Função pura/testável
+// (tests/run.js), com fallback em memória quando não há localStorage.
+const MetaProgress = {
+  CHAVE: 'altfoot_meta_v1',
+  _mem: null,
+  padrao() { return { versao: 1, prestigio: 0, temporadas: 0, titulos: 0, ultimaChave: '', museu: {} }; },
+  _store() { try { return (typeof localStorage !== 'undefined' && localStorage) ? localStorage : null; } catch (e) { return null; } },
+  ler() {
+    const base = this.padrao();
+    try {
+      const st = this._store();
+      const raw = st ? st.getItem(this.CHAVE) : this._mem;
+      const obj = raw ? JSON.parse(raw) : null;
+      if (!obj || typeof obj !== 'object') return base;
+      base.prestigio = Math.max(0, Number(obj.prestigio) || 0);
+      base.temporadas = Math.max(0, Number(obj.temporadas) || 0);
+      base.titulos = Math.max(0, Number(obj.titulos) || 0);
+      base.ultimaChave = String(obj.ultimaChave || '');
+      base.museu = (obj.museu && typeof obj.museu === 'object') ? obj.museu : {};
+      return base;
+    } catch (e) { return base; }
+  },
+  salvar(dados) {
+    const m = dados || this.padrao();
+    try {
+      const txt = JSON.stringify(m);
+      const st = this._store();
+      if (st) st.setItem(this.CHAVE, txt); else this._mem = txt;
+    } catch (e) { try { this._mem = JSON.stringify(m); } catch (_) { } }
+    return m;
+  },
+  registrarTemporada(info) {
+    const dados = this.ler();
+    const chave = String((info && info.chave) || '');
+    if (chave && dados.ultimaChave === chave) return { repetida: true, pontos: 0, dados };
+    const div = Math.max(1, Math.min(4, Number(info && info.divisao) || 1));
+    const pos = Math.max(1, Number(info && info.posicao) || 20);
+    const titulos = Math.max(0, Number(info && info.titulos) || 0);
+    const pontos = Math.max(4, Math.round((5 - div) * 6 + Math.max(0, 9 - pos) * 2 + titulos * 25));
+    dados.prestigio += pontos;
+    dados.temporadas += 1;
+    dados.titulos += titulos;
+    if (chave) dados.ultimaChave = chave;
+    if (info && info.clube) {
+      const nome = String(info.clube);
+      const atual = Number(dados.museu[nome]);
+      // Melhor (menor) posição já alcançada pelo clube entre carreiras.
+      dados.museu[nome] = (Number.isFinite(atual) && atual > 0) ? Math.min(atual, pos) : pos;
+    }
+    this.salvar(dados);
+    return { repetida: false, pontos, dados };
+  },
+  dificuldades() {
+    return [
+      { id: 'facil', nome: 'Fácil', mult: 0.75, min: 0 },
+      { id: 'medio', nome: 'Médio', mult: 0.9, min: 0 },
+      { id: 'profissional', nome: 'Profissional', mult: 1, min: 0 },
+      { id: 'lenda', nome: 'Lenda', mult: 1.3, min: 80 }
+    ];
+  },
+  desbloqueada(mult, dados) {
+    const info = this.dificuldades().find(d => Math.abs(d.mult - Number(mult)) < 0.01);
+    if (!info) return true;
+    const m = dados || this.ler();
+    return (Number(m.prestigio) || 0) >= info.min;
+  },
+  resumo() {
+    const m = this.ler();
+    return '🏅 Prestígio ' + m.prestigio + ' · ' + m.temporadas + ' temporada(s) · ' + m.titulos + ' título(s)';
+  }
+};
 // fut-cards.js — radar vetorial leve e inspeção no verso da carta.
 const FUTCards = {
     // Identidade vetorial determinística, sem mídia extra nem campo de save.
@@ -5782,7 +5891,10 @@ const FUTCards = {
             'M44 35Q44 18 70 18Q95 18 96 35L89 29Q70 23 51 30Z'
         ][(h >>> 8) % 4];
         const barba = (h >>> 12) % 3 === 0 ? '<path d="M48 50Q51 76 70 76Q90 75 92 50L87 66 76 71H64L52 64Z" fill="'+cabelo+'" opacity=".7"/>' : '';
-        return '<div class="card-portrait" aria-hidden="true"><svg viewBox="0 0 140 138"><ellipse cx="70" cy="127" rx="60" ry="8" fill="#0003"/><path d="M13 135L19 99Q29 86 55 82H85Q111 86 121 99L127 135Z" fill="'+cor+'" stroke="#ffffff55"/><path d="M54 82L70 98 86 82 93 135H47Z" fill="#ffffff30"/><path d="M58 70H82V86Q70 100 58 86Z" fill="'+pele+'"/><ellipse cx="46" cy="48" rx="5" ry="9" fill="'+pele+'"/><ellipse cx="94" cy="48" rx="5" ry="9" fill="'+pele+'"/><path d="M45 33Q47 17 70 17Q94 17 95 33V51Q94 75 70 80Q46 74 45 51Z" fill="'+pele+'"/><path d="'+penteado+'" fill="'+cabelo+'"/>'+barba+'<path d="M53 42H63M78 42H88" stroke="'+cabelo+'" stroke-width="3" stroke-linecap="round"/><circle cx="58" cy="47" r="2" fill="#231b17"/><circle cx="83" cy="47" r="2" fill="#231b17"/><path d="M70 48L67 58H73M61 65Q70 70 79 65" fill="none" stroke="#734532" stroke-width="2" stroke-linecap="round"/><path d="M56 82L70 95 84 82" fill="none" stroke="#f8fafc" stroke-width="4"/></svg></div>';
+        // B60: variação real de rosto (óculos e boca) além do penteado/pele/barba.
+        const oculos = (h >>> 20) % 6 === 0 ? '<g fill="none" stroke="#2b1d12" stroke-width="2"><circle cx="57" cy="47" r="9"/><circle cx="84" cy="47" r="9"/><path d="M66 47H75"/></g>' : '';
+        const boca = (h >>> 23) % 3 === 0 ? 'M62 67Q70 64 78 67' : 'M61 65Q70 70 79 65';
+        return '<div class="card-portrait" aria-hidden="true"><svg viewBox="0 0 140 138"><ellipse cx="70" cy="127" rx="60" ry="8" fill="#0003"/><path d="M13 135L19 99Q29 86 55 82H85Q111 86 121 99L127 135Z" fill="'+cor+'" stroke="#ffffff55"/><path d="M54 82L70 98 86 82 93 135H47Z" fill="#ffffff30"/><path d="M58 70H82V86Q70 100 58 86Z" fill="'+pele+'"/><ellipse cx="46" cy="48" rx="5" ry="9" fill="'+pele+'"/><ellipse cx="94" cy="48" rx="5" ry="9" fill="'+pele+'"/><path d="M45 33Q47 17 70 17Q94 17 95 33V51Q94 75 70 80Q46 74 45 51Z" fill="'+pele+'"/><path d="'+penteado+'" fill="'+cabelo+'"/>'+barba+'<path d="M53 42H63M78 42H88" stroke="'+cabelo+'" stroke-width="3" stroke-linecap="round"/><circle cx="58" cy="47" r="2" fill="#231b17"/><circle cx="83" cy="47" r="2" fill="#231b17"/>'+oculos+'<path d="M70 48L67 58H73M'+boca+'" fill="none" stroke="#734532" stroke-width="2" stroke-linecap="round"/><path d="M56 82L70 95 84 82" fill="none" stroke="#f8fafc" stroke-width="4"/></svg></div>';
     },
     initTouch() {
         let active=null;
@@ -5800,7 +5912,9 @@ const FUTCards = {
         const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
         const labels=['GK','DEF','MID','ATT','VEL','PAS','FIN'];
         const point=(i,r)=>[70+Math.sin(i*Math.PI*2/7)*r,58-Math.cos(i*Math.PI*2/7)*r];
-        const poly=labels.map((l,i)=>point(i,Math.min(99,Math.max(0,Number((p.stats||{})[l])||0))*0.4).join(',')).join(' ');
+        // B60: o radar usava valor*0,4 contra anéis de 20/40 — o anel externo nunca era
+        // alcançado. Escala normalizada: 99 de atributo encosta no anel de 40.
+        const poly=labels.map((l,i)=>point(i,Math.min(99,Math.max(0,Number((p.stats||{})[l])||0))/99*40).join(',')).join(' ');
         const rings=[20,40].map(r=>'<polygon points="'+labels.map((l,i)=>point(i,r).join(',')).join(' ')+'" fill="none" stroke="currentColor" opacity=".3"/>').join('');
         const texts=labels.map((l,i)=>{const [x,y]=point(i,52);return '<text x="'+x+'" y="'+y+'" text-anchor="middle" font-size="9" fill="currentColor">'+l+'</text>';}).join('');
         const hidden=p.scouting&&p.scouting.etapa<3;
@@ -7096,7 +7210,12 @@ class MatchSim {
         this._usados = { 0: {}, 1: {} };
         this._ctxUsados = {};     // bordões contextuais já falados (1x / ocasiao)
         this._viradaPendente = false;
+        this._viradaLado = null;
         this._golsMin = [];       // minutos dos últimos gols (sequência)
+        // B71: picos deixam de ser banalizados — 1 trave e 1 "milagre" por partida no máximo.
+        this._traves = 0;
+        this._milagres = 0;
+        this._penaltis = 0;
         // Pressão/momentum ao vivo (>0 = casa, <0 = fora) + amostras de posse por tempo.
         this._pressao = 0;
         this._posseHist = [{ min: 0, posse: 50, pressao: 0 }];
@@ -7434,11 +7553,22 @@ class MatchSim {
         const volumeEstilo = !temUsuario ? 1 : this.estilo === 'ofensivo'
             ? (side === this._userSide() ? 1.22 : 1.20)
             : this.estilo === 'retranca' && side === this._userSide() ? 0.85 : 1;
+        // B72 (2026-10-19): o perfil de jogo do rival deixa de ser só rótulo.
+        // posse = mais volume e menos verticalidade; contra-ataque = menos volume e mais
+        // conversão; retranca_copeira = fecha o próprio jogo e o jogo do adversário.
+        const perfil = (team && team.perfilJogo) || null;
+        const perfilRival = (rival && rival.perfilJogo) || null;
+        const perfilCriacao = perfil === 'posse' ? 1.07 : perfil === 'contra_ataque' ? 0.92 : perfil === 'retranca_copeira' ? 0.86 : 1;
+        const perfilQualidade = perfil === 'contra_ataque' ? 1.10 : perfil === 'posse' ? 0.98 : perfil === 'retranca_copeira' ? 0.96 : 1;
+        const perfilDefesaRival = perfilRival === 'retranca_copeira' ? 0.90 : 1;
         // Mando (2026-10-06, calibrado na bancada): o mandante cria mais e converte
         // um pouco mais — medido para dar ~46% de vitória entre times iguais, sem
         // transformar a casa em fortaleza. Clássico reduz pela pressão do confronto.
-        const casaMul = this.regra === 'classico' ? 1.04 : 1.08;
-        const casaQ = this.regra === 'classico' ? 1.02 : 1.06;
+        // B72: o nível do estádio do mandante soma até +4% de mando (níveis 2 e 3).
+        const estadioNivel = Math.max(1, Math.min(3, Number(this.home && this.home.estadioNivel) || 1));
+        const estadioMul = 1 + (estadioNivel - 1) * 0.02;
+        const casaMul = (this.regra === 'classico' ? 1.04 : 1.08) * estadioMul;
+        const casaQ = (this.regra === 'classico' ? 1.02 : 1.06) * estadioMul;
         const clima = (CONDICOES_JOGO[this.condicao] || CONDICOES_JOGO.normal).lambdaMul || 1;
         // Base de criação 0,033 (era 0,038) e conversão 0,135 (era 0,16): a bancada
         // media 4,58 gols/jogo no quickSim e 3,84 no detalhado — acima do universo
@@ -7458,11 +7588,12 @@ class MatchSim {
         const criacao = Math.max(0.015, Math.min(0.14, 0.033 * Math.exp((p.mid - d.mid) / 70)))
             * (0.65 + folego / 285) * this._contratatica(side) * momentum * pressao * retrancaRival * volumeEstilo
             * tikiAtk * tikiDef * muralhaRival * impedimentoRival
-            * (side === 0 ? casaMul : 1) * urgencia * volumeInt;
+            * (side === 0 ? casaMul : 1) * urgencia * volumeInt
+            * perfilCriacao * perfilDefesaRival;
         const qualidade = Math.max(0.04, Math.min(0.48, 0.135 * Math.exp((p.atk - d.def) / 55) * clima
             * (side === 0 ? casaQ : 1)
             * (cruzar ? 0.8 + melhor / 160 : 1)
-            * contra));
+            * contra * perfilQualidade));
         return { criacao: criacao * ceraRival * (cruzar ? 1.25 : 1), qualidade };
     }
 
@@ -7477,6 +7608,11 @@ class MatchSim {
             return { min: this.minuto, tipo: 'intervalo', side: this._userSide() };
         }
         if (this.minuto === this.tempoMin) return { min: this.minuto, tipo: 'acrescimo', side: 0 };
+        // B71: pênalti em tempo normal (não existia). ~0,3 por partida: raro, mas possível,
+        // e resolvido com a mesma engine de chance (63% de conversão base + VAR).
+        if (this.modo !== 'instantaneo' && this.minuto % 5 === 0 && this._roll(0.0175)) {
+            return { min: this.minuto, tipo: 'penalti', side: this._roll(0.5) ? 0 : 1 };
+        }
         // Quatro subticks: cada um sorteia disputa e chance, sem placar predeterminado.
         for (let sub = 0; sub < 4; sub++) {
             const h = this._modeloXG(0), a = this._modeloXG(1);
@@ -7514,8 +7650,11 @@ class MatchSim {
         if (atleta && this._roll(0.0015 * medico * fragil)) return { min:this.minuto,tipo:'lesao',side,atleta };
         const rigor = this.arbitro === 'Rigoroso' ? 1.5 : this.arbitro === 'Conivente' ? 0.65 : 1;
         const retranca = side === this._userSide() && this.estilo === 'retranca' ? 1.5 : 1;
+        // B65: a disciplina do atleta (vestiário) pesa no risco de cartão — era só leitura de tela.
+        const disc = atleta && Number.isFinite(Number(atleta.disciplina)) ? Number(atleta.disciplina) : 70;
+        const fatorDisc = disc <= 30 ? 1.8 : disc <= 50 ? 1.25 : disc >= 85 ? 0.55 : 1;
         const sorte = this.rng();
-        let tipo = sorte < 0.028 * rigor * retranca ? 'cartao' : sorte < 0.11 ? 'falta' : sorte < 0.15 ? 'escanteio' : 'lance';
+        let tipo = sorte < 0.028 * rigor * retranca * fatorDisc ? 'cartao' : sorte < 0.11 ? 'falta' : sorte < 0.15 ? 'escanteio' : 'lance';
         if (side !== this._userSide() && tipo === 'escanteio' && this._buffsAtivos().some(b => b.id === 't_cera')) tipo = 'lance';
         return { min: this.minuto, tipo, side };
     }
@@ -7709,7 +7848,7 @@ class MatchSim {
     _fraseMiss(team, nomeJ, comTipo = false) {
         const j = nomeJ || (team === this.home ? this._nomeHome('ATT') : this._nomeAdv('ATT'));
         const ctx = this._ctxTexto(team); ctx.j = j;
-        const resultado = this._pickSaco('miss', [
+        const pool = [
             { tipo: 'fora', texto: "{j} finaliza por cima da meta do {adv}..." },
             { tipo: 'defesa', texto: "{j} chuta fraco e o goleiro do {adv} agradece." },
             { tipo: 'trave', texto: "A bola de {j} beija a trave e sai! Quase!" },
@@ -7720,7 +7859,14 @@ class MatchSim {
             { tipo: 'fora', texto: "Cruzamento errado: {j} cabeceia pra fora." },
             { tipo: 'defesa', texto: "{j} tenta o toque por cima e o goleiro do {adv} encaixa." },
             { tipo: 'fora', texto: "{j} chuta em cima da zaga do {adv} e a bola sai pela linha de fundo." }
-        ]);
+        ];
+        // B71: a trave era o pico mais banalizado (3,8×/jogo). No máximo 1 por partida:
+        // se a sacola trouxer a segunda, troca por uma variante sem trave.
+        let resultado = this._pickSaco('miss', pool);
+        if (resultado.tipo === 'trave' && this._traves >= 1) {
+            resultado = this._pickSaco('miss_sem_trave', pool.filter(x => x.tipo !== 'trave'));
+        }
+        if (resultado.tipo === 'trave') this._traves++;
         const texto = this._fmt(resultado.texto, ctx);
         return comTipo ? { tipo: resultado.tipo, texto } : texto;
     }
@@ -7961,6 +8107,13 @@ class MatchSim {
                 "Clássico não se joga com a cabeça fria, se joga deixando a pele no gramado!",
                 "Jogo pegado, reclamação com o juiz e dividida estalando! Clássico de verdade aqui na noventa e cinco vírgula três!"
             ],
+            // B72: o tema da partida (final) finalmente escolhe a abertura, em vez de só o selo.
+            aberturaFinal: [
+                "É FINAL! O estádio inteiro de pé, o coração na boca e noventa e cinco vírgula três na cobertura!",
+                "Uma taça em jogo, noventa minutos de história e ninguém quer sair do lado errado dela!",
+                "Silêncio nas arquibancadas... o apito vai tocar e a final começa AGORA!",
+                "Tudo o que foi feito na temporada se decide nos próximos noventa minutos!"
+            ],
             goleadaCasa: [
                 "É chocolate, torcida! O time da casa tá jogando em ritmo de treino de quinta-feira!",
                 "O técnico do time de fora tá com aquela cara de quem se arrependeu de ter aceitado o cargo!",
@@ -7975,10 +8128,10 @@ class MatchSim {
                 "Deixaram uma avenida aberta na marcação... se bobear passa até caminhão!"
             ],
             virada: [
-                "VIROU! VIROU! O time da casa buscou o resultado no peito e na raça! Que coisa espetacular!",
+                "VIROU! VIROU! O {time} buscou o resultado no peito e na raça! Que coisa espetacular!",
                 "Quem desligou o rádio antes da hora perdeu a história que tá sendo escrita aqui na noventa e cinco vírgula três!",
-                "Parecia caso perdido, mas o time da casa ressuscitou e virou o jogo com a força da torcida!",
-                "O time de fora achou que a vitória tava no bolso e levou o troco com juros e correção monetária!"
+                "Parecia caso perdido, mas o {time} ressuscitou e virou o jogo com a força da torcida!",
+                "O {adv} achou que a vitória tava no bolso e levou o troco com juros e correção monetária!"
             ],
             empateFinal: [
                 "Reta final de desespero! Um pontinho pra cada lado não resolve a vida de ninguém na tabela!",
@@ -8002,9 +8155,9 @@ class MatchSim {
                 "O time de fora nem conseguiu reiniciar a partida direito e já levou outro golpe! Que blitz!"
             ],
             penalti: [
-                "PÊNALTI MARCADO! O estádio prende a respiração e o cobrador tá sozinho contra o mundo!",
+                "PÊNALTI MARCADO para o {time}! O estádio prende a respiração e o cobrador tá sozinho contra o mundo!",
                 "Bola na marca da cal! É o momento de maior solidão do futebol: olho no olho entre o batedor e o goleiro!",
-                "Pênalti pro time da casa! É a chance de ouro do jogo... não pode tremer a perna uma hora dessas!"
+                "Pênalti pro {time}! É a chance de ouro do jogo... não pode tremer a perna uma hora dessas!"
             ],
             trave: [
                 "NA TRAVE! O estalo do ferro ecoou no estádio inteiro! Quase, quase o gol!",
@@ -8042,9 +8195,14 @@ class MatchSim {
         if (this.minuto >= 80 && diff === 0) return this._fraseContexto('empateFinal');
         if (diff >= 3) return this._fraseContexto('goleadaCasa');
         if (diff <= -2) return this._fraseContexto('sofrendo');
-        if (this._viradaPendente && diff > 0) {
-            this._viradaPendente = false;
-            return this._fraseContexto('virada');
+        if (this._viradaPendente) {
+            const lado = this._viradaLado == null ? 0 : this._viradaLado;
+            const diffLado = lado === 0 ? this.scoreH - this.scoreA : this.scoreA - this.scoreH;
+            if (diffLado > 0) {
+                this._viradaPendente = false;
+                const t = this._fraseContexto('virada');
+                return t ? this._fmt(t, this._ctxTexto(lado === 0 ? this.home : this.away)) : null;
+            }
         }
         return null;
     }
@@ -8097,7 +8255,7 @@ class MatchSim {
         // Abertura só em texto no feed — a locução INTRO roda no menu de preparação
         // (ou INTRO PARA JOGOS DE FINAIS exclusivo na final; ver _abrirPreparacao).
         const ehGrande = this.regra === 'classico' || this.regra === 'torneio' || this.derbi;
-        const ab = this._fraseContexto(ehGrande ? 'aberturaClassico' : 'abertura');
+        const ab = this._fraseContexto(ehGrande ? 'aberturaClassico' : (this.tema === 'final' ? 'aberturaFinal' : 'abertura'));
         if (ab) this._emit(ab, 'info');
         // G2: o rádio anuncia a condição do campo ao menos 1× por partida.
         const cinfo = CONDICOES_JOGO[this.condicao] || CONDICOES_JOGO.normal;
@@ -8362,8 +8520,11 @@ class MatchSim {
         }
         // B47 (2026-10-19): 1x passa a durar ~3 min (eram 52 s de simulação + 60 s de piso).
         // Cenário que começa no meio (startMinute > 0) tem metade do peso de parede.
+        // B72: o ritmo do clima de jogo (intenso/lento) passa a valer no relógio — antes
+        // era um rótulo atribuído e nunca lido.
+        const ritmoMul = this.ritmo === 'intenso' ? 0.9 : (this.ritmo === 'lento' ? 1.18 : 1);
         const base = this.startMinute > 0 ? 120000 : 180000;
-        return Math.floor(base / this._fimSimulado / this.speed);
+        return Math.floor(base / this._fimSimulado / this.speed * ritmoMul);
     }
     // B47: pausa de leitura nos picos (gol/cartão/VAR), proporcional à velocidade.
     _beat(ms) {
@@ -8431,6 +8592,7 @@ class MatchSim {
         if (ev.tipo === 'minuto') ev = this._eventoMinuto();
         if (ev.tipo === 'etica') { this._mostrarEtica(); return; }
         if (ev.tipo === 'intervalo') { this._mostrarIntervalo(); return; }
+        if (ev.tipo === 'penalti') { this._cobrarPenalti(ev); return; }
         if (ev.tipo === 'chanceXG') { this._resolverChance(ev.side === 0, this._chanceXG); return; }
         try {
             this._aplicar(ev);
@@ -8451,6 +8613,22 @@ class MatchSim {
         MatchUI.clock(this.minuto);
         clearTimeout(this._timer);
         this._timer = setTimeout(() => this._tick(), this._gapBeat());
+    }
+
+    // B71 (2026-10-19): pênalti em tempo normal. O evento é raro (≈0,3/partida), anunciado
+    // com o bordão próprio e resolvido pela engine de chance — o mesmo goleiro do campo 2D.
+    _cobrarPenalti(ev) {
+        const side = ev.side === 0 ? 0 : 1;
+        this._penaltis++;
+        const t = this._fraseContexto('penalti');
+        const ctx = this._ctxTexto(side === 0 ? this.home : this.away);
+        if (t) this._emit(this._fmt(t, ctx), 'warn');
+        this._beat(1800);
+        const jp = this._pickXI(side, 'ATT');
+        this._decisaoAtk = jp || null;
+        this.chutes[side]++;
+        this.xG[side] += 0.76;
+        this._resolverChance(side === 0, 0.76);
     }
 
     // B67 (2026-10-19): intervalo com três posturas. O default é "manter o plano" para
@@ -8735,11 +8913,13 @@ class MatchSim {
             const tSeq = this._fraseContexto('sequencia');
             if (tSeq) this._bordaoPosGol = tSeq;
         }
-        if (diff > 0 && this._perdiaPartida) {
+        // B71: a virada era detectada só do mandante. Agora cada lado tem o próprio
+        // "esteve atrás" e o bordão usa o lado que virou.
+        const marcador = isHome ? 0 : 1;
+        const marcadorNaFrente = isHome ? (this.scoreH > this.scoreA) : (this.scoreA > this.scoreH);
+        if (marcadorNaFrente && this._esteveAtras[marcador]) {
             this._viradaPendente = true;
-            this._perdiaPartida = false;
-        } else if (diff < 0) {
-            this._perdiaPartida = true;
+            this._viradaLado = marcador;
         }
         if (autor) {
             const el = isHome ? this.home.elenco : this.away.elenco;
@@ -9063,7 +9243,8 @@ class MatchSim {
                 // Mesmo goleiro do card-battle / campo 2D
                 this._registrarZona(isHome, 'defesa');
                 this._fecharDecisao('defesa');
-                if (this.minuto >= 85 && Math.abs(this.scoreH - this.scoreA) <= 1) {
+                if (this.minuto >= 85 && Math.abs(this.scoreH - this.scoreA) <= 1 && this._milagres < 1) {
+                    this._milagres++;
                     this._emit("🧤 MILAGRE DE " + (nomeGk || "Goleiro") + "! Defesa espetacular no puro reflexo que salva o time!", 'def');
                 } else {
                     this._emit(this._fraseDef(isHome ? this.home : this.away, nomeGk), 'def');
@@ -9713,6 +9894,19 @@ class UI {
         if (modal) modal.classList.add('hidden');
       });
       try { MatchUI.stopCrowdLoop(300); MatchUI.radioHide(); } catch (e) { }
+    }
+    // B79: prestígio e travas de dificuldade no menu (meta entre carreiras).
+    if (screenId === 'screen-menu') {
+      try {
+        const metaEl = document.getElementById('menu-meta');
+        if (metaEl && typeof MetaProgress !== 'undefined') metaEl.innerText = MetaProgress.resumo();
+        const sel = document.getElementById('difficulty-select');
+        if (sel && typeof MetaProgress !== 'undefined') {
+          Array.from(sel.options).forEach(op => {
+            if (Math.abs(parseFloat(op.value) - 1.3) < 0.01) op.disabled = !MetaProgress.desbloqueada(1.3);
+          });
+        }
+      } catch (e) { /* meta nunca derruba o menu */ }
     }
   }
 
@@ -10924,6 +11118,11 @@ class UI {
     }
     const serEl = document.getElementById('ui-club-serie');
     if (serEl) serEl.innerText = 'SÉRIE '+CompetitionSystem.letters[(app.league.divisaoUser||1)-1];
+    // B60: o escudo do clube no header deixa de ser o emoji genérico (⚽) e usa o vetor.
+    const crestEl = document.getElementById('ui-club-crest');
+    if (crestEl && typeof FUTCards !== 'undefined' && FUTCards.crest) {
+        try { crestEl.innerHTML = FUTCards.crest(app.club); } catch (e) { /* arte nunca derruba o HUD */ }
+    }
     const moneyEl = document.getElementById('ui-club-money');
     if (moneyEl) moneyEl.innerText = app.fmtMoneyShort(app.club.orcamento);
     const diff = (app.difficulty && app.difficulty.nome) || 'Profissional';
@@ -13010,7 +13209,12 @@ const app = {
         this.club.isUser = true;
         this.club.formacao = this.club.formacao || '4-4-2';
         const sel = document.getElementById('difficulty-select');
-        const mult = sel ? parseFloat(sel.value) : 1;
+        let mult = sel ? parseFloat(sel.value) : 1;
+        // B79: Lenda é meta-progressão — sem prestígio suficiente, cai para o padrão.
+        if (typeof MetaProgress !== 'undefined' && !MetaProgress.desbloqueada(mult)) {
+            mult = 1;
+            if (typeof ui !== 'undefined') ui.showActionFeedback('🔒 Lenda desbloqueia com 80 de prestígio. Carreira criada no Profissional.', 'warning');
+        }
         this.difficulty = { nome: this.diffName(mult), multiplier: mult };
         this.club.difficulty = this.difficulty;
 
@@ -13920,7 +14124,7 @@ const app = {
                     p.moral = 85;
                 }
                 if (!p.valor) p.valor = p.overall * p.overall * 100;
-                p.raridade = p.calcularRaridade(p.overall);
+                p.raridade = p.calcularRaridade(p.overall); p.tier = p.raridade;
                 p.salario = Math.floor(p.valor / 100);
                 this.marketPlayers.push(p);
             }
@@ -13939,6 +14143,8 @@ const app = {
         if (club.baseNivel == null) club.baseNivel = 1;
         if (club.ofertas == null) club.ofertas = [];
         if (club.moral == null) club.moral = 75;
+        // B65: ética persistida (save antigo herda o neutro 50).
+        if (club.etica == null || !Number.isFinite(Number(club.etica))) club.etica = 50;
         if (club.missoes == null || !Array.isArray(club.missoes)) club.missoes = [];
         if (club.fans == null) club.fans = 50;
         if (club.consecDerrotas == null) club.consecDerrotas = 0;
@@ -14186,7 +14392,7 @@ const app = {
         // Potencial (Fase 6): teto de evolução aleatório da promessa — some o teto ao overall futuro.
         p.potencial = p.overall + 4 + Math.floor(Math.random() * 8);
         p.potencialRevelado = true; // legado: já nasce visível
-        p.raridade = p.calcularRaridade(p.overall);
+        p.raridade = p.calcularRaridade(p.overall); p.tier = p.raridade;
         p.custoEnergia = p.calcularCustoEnergia(p.raridade);
         p.stats = p.gerarStatsPorPosicao(p.posicao, p.overall);
         p.valor = p.overall * p.overall * 100;
@@ -14210,7 +14416,7 @@ const app = {
         p.overall = 58 + this.club.baseNivel * 2 + Math.floor(Math.random() * 8);
         p.potencial = p.overall + 4 + Math.floor(Math.random() * 8);
         p.potencialRevelado = false;
-        p.raridade = p.calcularRaridade(p.overall);
+        p.raridade = p.calcularRaridade(p.overall); p.tier = p.raridade;
         p.custoEnergia = p.calcularCustoEnergia(p.raridade);
         p.stats = p.gerarStatsPorPosicao(p.posicao, p.overall);
         p.valor = p.overall * p.overall * 100;
@@ -14732,7 +14938,7 @@ const app = {
         const p = new Player();
         const asc = this.club.ascensaoNivel || 0;
         p.overall = Math.min(99, 60 + Math.floor(Math.random() * 15) + asc * 2);
-        p.raridade = p.calcularRaridade(p.overall);
+        p.raridade = p.calcularRaridade(p.overall); p.tier = p.raridade;
         p.stats = p.gerarStatsPorPosicao(p.posicao, p.overall);
         p.custoEnergia = p.calcularCustoEnergia(p.raridade);
         p.staminaConsumption = Math.max(2, 12 - Math.floor(p.overall / 10));
@@ -14781,7 +14987,7 @@ const app = {
         const p = new Player();
         const asc = this.club.ascensaoNivel || 0;
         p.overall = Math.min(99, 78 + Math.floor(Math.random() * 10) + asc * 1);
-        p.raridade = p.calcularRaridade(p.overall);
+        p.raridade = p.calcularRaridade(p.overall); p.tier = p.raridade;
         p.stats = p.gerarStatsPorPosicao(p.posicao, p.overall);
         p.custoEnergia = p.calcularCustoEnergia(p.raridade);
         p.staminaConsumption = Math.max(2, 12 - Math.floor(p.overall / 10));
@@ -14904,7 +15110,7 @@ const app = {
         for (let i = 0; i < 2; i++) {
             const p = new Player();
             p.overall = Math.min(99, baseDraft + Math.floor(Math.random() * 18) + asc * 2);
-            p.raridade = p.calcularRaridade(p.overall);
+            p.raridade = p.calcularRaridade(p.overall); p.tier = p.raridade;
             p.stats = p.gerarStatsPorPosicao(p.posicao, p.overall);
             p.custoEnergia = p.calcularCustoEnergia(p.raridade);
             p.staminaConsumption = Math.max(2, 12 - Math.floor(p.overall / 10));
@@ -14958,6 +15164,15 @@ const app = {
         ui.playSFX('sfx_contract', 0.8);
         this.saveGame();
         if (this._nextMatchQueued) setTimeout(() => this._rumoAPartida(), 250);
+    },
+
+    // B78: pula a recompensa (sem prêmio) e retoma o fluxo — o draft deixa de ser obrigatório.
+    pularDraft() {
+        this._draftOpts = null;
+        const m = document.getElementById('modal-draft');
+        if (m) m.classList.add('hidden');
+        if (this._nextMatchQueued) setTimeout(() => this._rumoAPartida(), 200);
+        this.saveGame();
     },
 
     // ---- Conquistas (define catálogo, registra e entrega recompensa) ----
@@ -15158,6 +15373,7 @@ const app = {
                 else if (roll > 0.8) reward.overall = 75 + Math.floor(Math.random() * 10);
                 
                 reward.raridade = reward.calcularRaridade(reward.overall);
+                reward.tier = reward.raridade;
                 reward.custoEnergia = reward.calcularCustoEnergia(reward.raridade);
                 reward.stats = reward.gerarStatsPorPosicao(reward.posicao, reward.overall);
                 reward.valor = reward.overall * reward.overall * 100;
@@ -15203,8 +15419,27 @@ const app = {
             this.abrirPatrocinio();
             return;
         }
+        // B78: JOGAR RÁPIDO pula a preparação e a Gazeta. Mantém o estilo salvo,
+        // sorteia o clima e vai direto para a partida (resultado e draft continuam).
+        if (this._modoRapido) {
+            this._modoRapido = false;
+            this._estiloPartida = this._estiloPartida || 'equilibrado';
+            this._craquePartida = null;
+            this._pularJornal = true;
+            this._sortearCondicao();
+            this.confirmarPreparacao();
+            return;
+        }
         // Antes de entrar em campo: estilo de jogo + craque da rodada
         this._abrirPreparacao();
+    },
+
+    // B78 (2026-10-19): atalho de rodada — o jogador que não quer o ritual de preparação
+    // vai direto ao jogo (o resultado, o draft opcional e o fim de temporada continuam).
+    playQuickMatch() {
+        if (!this.club || !this.league) return;
+        this._modoRapido = true;
+        this.playMatch();
     },
 
     // ---- Timing da locução / final ----
@@ -15462,6 +15697,9 @@ const app = {
             else if (this._condicaoJogo === 'sol') txt += ' Gramado seco: jogo aberto e mais gols.';
             if (this._isClassico) txt += ' 🏟️ Clássico da Semana: rival mais forte, jogo pegado (mais faltas e cartões).';
             else if (this._isTorneio) txt += ' ⚡ Torneio Relâmpago: vitória vale a vaga na próxima fase (' + this._torneioFaseNome() + ').';
+            // B72: o estádio deixa de ser só bilheteria — o nível vira mando em campo.
+            const nivelEstadio = Math.max(1, Math.min(3, Number(this.club.estadioNivel) || 1));
+            if (nivelEstadio > 1) txt += ' 🏟️ Estádio nível ' + nivelEstadio + ' — mando +' + ((nivelEstadio - 1) * 2) + '%.';
             txt += ' Escolha o estilo de jogo e um craque emprestado (1 por dia) para reforçar o time só nesta partida.';
             obs.innerText = txt;
         }
@@ -15808,6 +16046,14 @@ const app = {
         this._seqJogos = []; this._seqGols = {};
         this._jogosJornal = jogos; this._golsJornal = gols;
         this._posJornal = continuar || (() => {});
+        // B78: no JOGAR RÁPIDO a Gazeta não abre — segue direto para o próximo passo.
+        if (this._pularJornal) {
+            this._pularJornal = false;
+            const fn = this._posJornal;
+            this._posJornal = null; this._jogosJornal = null; this._golsJornal = null; this._ultimoResumo = null;
+            setTimeout(() => { try { if (typeof fn === 'function') fn(); } catch (e) { console.error(e); } }, 200);
+            return;
+        }
         setTimeout(() => this._abrirJornal(), 350);
     },
 
@@ -16233,6 +16479,17 @@ const app = {
         if (tor && tor.campeao != null && (this.league.getClubesAtuais() || []).indexOf(this.club) === tor.campeao) {
             trofeus.push('⚡ Torneio Relâmpago');
         }
+        // B79: a temporada alimenta o prestígio entre carreiras. Chave = seed da temporada
+        // (muda a cada ano), então reabrir o fim de temporada não paga de novo.
+        try {
+            MetaProgress.registrarTemporada({
+                chave: String(this.league.seed || '') + ':' + (this.league.temporada || 1),
+                clube: this.club.nome,
+                divisao: divisao,
+                posicao: userPos,
+                titulos: trofeus.length
+            });
+        } catch (e) { /* meta nunca derruba o fim de temporada */ }
         const hist = {
             temporada: this.league.temporada || 1,
             divisao: letra,

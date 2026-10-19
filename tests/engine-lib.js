@@ -88,7 +88,8 @@ function novoSandbox(opts = {}) {
         + ', fecharPartidaElenco: (typeof fecharPartidaElenco === "function" ? fecharPartidaElenco : null)'
         + ', Player, Club, League, TransferMarket, LockerRoom, ClubEcosystem, CompetitionSystem, GAME_DATA, TaticaCard, TutorialManager'
         + ', rivalHistorico: (typeof rivalHistorico === "function" ? rivalHistorico : null)'
-        + ', mancheteDaGazeta: (typeof mancheteDaGazeta === "function" ? mancheteDaGazeta : null) };'
+        + ', mancheteDaGazeta: (typeof mancheteDaGazeta === "function" ? mancheteDaGazeta : null)'
+        + ', MetaProgress: (typeof MetaProgress !== "undefined" ? MetaProgress : null) };'
     );
     const appStub = opts.app || {};
     const api = fabrica(
