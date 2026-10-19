@@ -39,7 +39,7 @@
 * { 
     box-sizing: border-box; 
     -webkit-tap-highlight-color: transparent; 
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     margin: 0;
     padding: 0;
 }
@@ -2891,8 +2891,6 @@ button:focus-visible,summary:focus-visible,[role="button"]:focus-visible,[tabind
 @media(max-width:600px) { #screen-match .match-narrative-section,#screen-match .match-stats-row,#screen-match #match-decision { padding:7px; } #screen-match .decision-btn { font-size:.7rem; padding:8px 4px; } .result-scroll { padding:14px; } }
 /* Transmissão limpa: identificação e leitura antes dos efeitos decorativos. */
 #screen-match::before,#screen-match::after { display:none; animation:none; }
-#screen-match .estadio-gramado { display:none; }
-#screen-match .match-board { background:#0c1520; }
 #screen-match .match-header-card { background:#111e2c; border-color:#40516a; box-shadow:none; }
 #screen-match .team-tag { min-width:0; overflow-wrap:anywhere; letter-spacing:.3px; line-height:1.35; font-size:clamp(.78rem,2.3vw,1rem); }
 #screen-match .score-big { background:#09121d; text-shadow:none; color:#ffc04d; letter-spacing:1px; }
@@ -2910,7 +2908,7 @@ button:focus-visible,summary:focus-visible,[role="button"]:focus-visible,[tabind
 #screen-match .campo-chip.gk::before { background:#f59e0b; }
 #screen-match .campo-chip.ativo,#screen-match .campo-chip.atacante,#screen-match .campo-chip.defensor { box-shadow:0 0 0 2px #fff,0 2px 3px #071b12; transform:translate(-50%,-50%) scale(1.25); }
 #screen-match .chip-label { text-shadow:none; font-size:.52rem; line-height:1.3; }
-#modal-match-result #modal-result-score { text-shadow:none!important; color:#ffc04d!important; box-shadow:none!important; }
+#modal-match-result #modal-result-score { text-shadow:none!important; }
 @media(max-width:600px) {
     #screen-match .campo-chip { width:10px; height:12px; }
     #screen-match .campo-chip::before { width:5px; height:3px; left:1px; top:-2px; }
@@ -2923,7 +2921,7 @@ button:focus-visible,summary:focus-visible,[role="button"]:focus-visible,[tabind
 @media (max-width:1099px) {
     #screen-match .match-board { display:grid; grid-template-rows:minmax(0,1fr) auto auto; overflow:hidden; min-height:0; gap:6px; padding:6px; }
     #screen-match .match-content-scroll { display:flex; flex-direction:column; min-height:0; overflow-y:auto; overscroll-behavior:contain; gap:8px; padding-bottom:8px; -webkit-overflow-scrolling:touch; }
-    #screen-match .match-header-card { order:1; padding-top:48px; }
+    #screen-match .match-header-card { order:1; padding-top:10px; }
     #screen-match .campo-2d { order:2; width:100%; flex:none; }
     #screen-match .match-narrative-section { order:3; flex:none; min-height:148px; max-height:none; }
     #screen-match .match-stats-row { order:4; }
@@ -2953,7 +2951,61 @@ button:focus-visible,summary:focus-visible,[role="button"]:focus-visible,[tabind
     #screen-match .match-footer-row { grid-template-columns:repeat(7,minmax(0,1fr)); }
     #screen-match #match-status { grid-column:auto; align-self:center; }
 }
- </style>
+ /* ===== 2026-10-19 · Bloco 3: estádio de volta, efeitos com CSS, campo completo e legibilidade =====
+   Contexto: o gramado estava display:none e o board tinha fundo opaco (o estádio inteiro era
+   invisível); ".fx-shake" e ".fx-flash" eram aplicados por JS e não tinham NENHUMA regra; o campo
+   não tinha gol/rede/marca do pênalti/meia-lua/arcos; e a engrenagem fixa cobria o cabeçalho. */
+
+/* B56 — o estádio (céu, torcida e gramado) volta a aparecer atrás dos painéis. */
+#screen-match .estadio-gramado { display: block; }
+#screen-match .match-board { background: transparent; }
+/* Painéis translúcidos o bastante para o estádio respirar, escuros o bastante para ler. */
+#screen-match .match-header-card { background: rgba(8, 15, 26, 0.82); border-color: rgba(255, 176, 0, 0.28); box-shadow: none; }
+#screen-match .score-big { background: rgba(6, 12, 22, 0.85); }
+#screen-match .match-footer-row { background: rgba(8, 15, 26, 0.9); }
+
+/* B56 — os efeitos de impacto do gol/campeão existiam só no JS. */
+.fx-shake { animation: fxShake 0.45s cubic-bezier(0.36, 0.07, 0.19, 0.97) both; }
+@keyframes fxShake {
+    10%, 90% { transform: translate3d(-1px, 0, 0); }
+    20%, 80% { transform: translate3d(2px, 0, 0); }
+    30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+    40%, 60% { transform: translate3d(4px, 0, 0); }
+}
+.fx-flash {
+    position: fixed; inset: 0; z-index: 9998; pointer-events: none; opacity: 0;
+    background: radial-gradient(circle at 50% 45%, rgba(255, 255, 255, 0.6), rgba(255, 176, 0, 0.22) 45%, transparent 72%);
+}
+.fx-flash.on { animation: fxFlash 0.42s ease-out both; }
+@keyframes fxFlash { 0% { opacity: 0; } 12% { opacity: 0.9; } 100% { opacity: 0; } }
+.fx-floating {
+    position: fixed; z-index: 9999; pointer-events: none; font-weight: 900;
+    transform: translate(-50%, -50%); text-shadow: 0 2px 12px #000;
+    animation: fxFloat 1.2s ease-out both;
+}
+@keyframes fxFloat {
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.6); }
+    20% { opacity: 1; transform: translate(-50%, -50%) scale(1.08); }
+    100% { opacity: 0; transform: translate(-50%, -140%) scale(1); }
+}
+
+/* B57 — campo desenhado em SVG (gol, rede, marca do pênalti, meia-lua e arcos). */
+.campo-2d .campo-svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+
+/* B61 — a engrenagem deixa de cobrir o cabeçalho e o botão COMO JOGAR. */
+#btn-settings {
+    top: max(8px, env(safe-area-inset-top)); right: 8px;
+    width: 44px; height: 44px; border-radius: 12px; font-size: 1.05rem;
+}
+#screen-game header { padding-right: 60px; }
+#screen-match .match-top-bar { padding-right: 56px; }
+
+/* B58 — piso de leitura nos rótulos mais usados (eram 6,7-10,9 px). */
+.hud-metric .hm-label { font-size: 0.7rem; }
+.match-timeline .tl-legend { font-size: 0.66rem; }
+.campo-chip .chip-label { font-size: 0.55rem; }
+.campo-duelo .duelo-mini .dm-pos { font-size: 0.6rem; }
+</style>
 </head>
 <body>
 
@@ -5647,6 +5699,38 @@ function hashStr(s) {
 }
 
 // --- Renderer da tela de partida (DOM puro) ---
+// B57 (2026-10-19): o campo era um diagrama de divs sem gol, rede, marca do pênalti,
+// meia-lua nem arcos de canto. O SVG abaixo desenha o campo inteiro no MESMO espaço
+// de coordenadas das fichas (160x90, a mesma proporção 16:9 do container), então tudo
+// escala junto e as linhas ficam nítidas em qualquer largura.
+function campoSvg() {
+    const t = 'stroke="rgba(255,255,255,.66)" stroke-width="0.8" fill="none" stroke-linecap="round"';
+    return '<svg class="campo-svg" viewBox="0 0 160 90" preserveAspectRatio="none" aria-hidden="true" focusable="false">'
+        + '<rect x="3" y="3" width="154" height="84" ' + t + '/>'
+        + '<line x1="80" y1="3" x2="80" y2="87" ' + t + '/>'
+        + '<circle cx="80" cy="45" r="12" ' + t + '/>'
+        + '<circle cx="80" cy="45" r="1" fill="rgba(255,255,255,.8)"/>'
+        + '<rect x="3" y="18" width="22" height="54" ' + t + '/>'
+        + '<rect x="135" y="18" width="22" height="54" ' + t + '/>'
+        + '<rect x="3" y="33" width="9" height="24" ' + t + '/>'
+        + '<rect x="148" y="33" width="9" height="24" ' + t + '/>'
+        + '<circle cx="16" cy="45" r="1" fill="rgba(255,255,255,.8)"/>'
+        + '<circle cx="144" cy="45" r="1" fill="rgba(255,255,255,.8)"/>'
+        + '<path d="M25 33 A12 12 0 0 1 25 57" ' + t + '/>'
+        + '<path d="M135 33 A12 12 0 0 0 135 57" ' + t + '/>'
+        + '<path d="M3 9 A6 6 0 0 1 9 3" ' + t + '/>'
+        + '<path d="M151 3 A6 6 0 0 1 157 9" ' + t + '/>'
+        + '<path d="M157 81 A6 6 0 0 1 151 87" ' + t + '/>'
+        + '<path d="M9 87 A6 6 0 0 1 3 81" ' + t + '/>'
+        + '<rect x="0.6" y="40" width="2.4" height="10" ' + t + ' fill="rgba(255,255,255,.10)"/>'
+        + '<rect x="157" y="40" width="2.4" height="10" ' + t + ' fill="rgba(255,255,255,.10)"/>'
+        + '<line x1="1.4" y1="40" x2="1.4" y2="50" stroke="rgba(255,255,255,.45)" stroke-width="0.4"/>'
+        + '<line x1="2.2" y1="40" x2="2.2" y2="50" stroke="rgba(255,255,255,.45)" stroke-width="0.4"/>'
+        + '<line x1="157.8" y1="40" x2="157.8" y2="50" stroke="rgba(255,255,255,.45)" stroke-width="0.4"/>'
+        + '<line x1="158.6" y1="40" x2="158.6" y2="50" stroke="rgba(255,255,255,.45)" stroke-width="0.4"/>'
+        + '</svg>';
+}
+
 const MatchUI = {
     _el(id) { return document.getElementById(id); },
     init(homeNome, advNome, competicao, forcaTexto, craqueNome) {
@@ -5847,7 +5931,7 @@ const MatchUI = {
     fieldInit(homeNome, advNome, homeForm, advForm) {
         const campo = this._el('campo-2d');
         if (!campo) return;
-        campo.innerHTML = '<div class="campo-linhas"></div><div class="campo-area esq"></div><div class="campo-area dir"></div>';
+        campo.innerHTML = campoSvg();
         this._chipById = {};
         this._chipSlots = { casa: [], fora: [] };
         this._formCasa = homeForm || '4-4-2';
@@ -11064,15 +11148,22 @@ class UI {
     feedback.style.position = 'fixed';
     feedback.style.top = '20px';
     feedback.style.left = '50%';
-    feedback.style.transform = 'translateX(-50%)';
+    feedback.style.transform = 'translateX(-50%) translateY(-8px)';
     feedback.style.background = colors[type] || 'var(--danger)';
     feedback.style.color = '#fff';
-    feedback.style.padding = '8px 18px';
-    feedback.style.borderRadius = '999px';
+    feedback.style.padding = '10px 18px';
+    // B59: sem largura máxima, uma mensagem longa a 320px virava uma pílula alta;
+    // e sem transição o único feedback de 108 ações aparecia/sumia cortado.
+    feedback.style.maxWidth = 'min(92vw, 420px)';
+    feedback.style.textAlign = 'center';
+    feedback.style.lineHeight = '1.3';
+    feedback.style.borderRadius = '14px';
     feedback.style.zIndex = '1000';
     feedback.style.fontSize = '0.82rem';
     feedback.style.fontWeight = '800';
     feedback.style.boxShadow = '0 6px 20px rgba(0,0,0,0.5)';
+    feedback.style.opacity = '0';
+    feedback.style.transition = 'opacity .18s ease, transform .18s ease';
     feedback.innerText = text;
     // B22: o toast é o único feedback de muitas ações (108 chamadas) e era
     // silencioso para leitor de tela. role="status" traz aria-live implícito;
@@ -11081,6 +11172,12 @@ class UI {
     feedback.setAttribute('role', 'status');
     document.body.appendChild(feedback);
     requestAnimationFrame(() => { feedback.innerText = text; });
+    // B59: a transição roda num segundo frame para o navegador aplicar o estado inicial.
+    requestAnimationFrame(() => {
+      feedback.style.opacity = '1';
+      feedback.style.transform = 'translateX(-50%) translateY(0)';
+    });
+    setTimeout(() => { feedback.style.opacity = '0'; }, 2200);
     setTimeout(() => feedback.remove(), 2500);
   }
 
@@ -12629,7 +12726,7 @@ const app = {
     _renderCampoXI(xi, formacao) {
         const campo = document.getElementById('campo-xi');
         if (!campo) return;
-        campo.innerHTML = '<div class="campo-linhas"></div><div class="campo-area esq"></div><div class="campo-area dir"></div>';
+        campo.innerHTML = campoSvg();
         const esquemas = {
             '4-4-2': [
                 { x: 8, y: 50 }, { x: 24, y: 18 }, { x: 24, y: 40 }, { x: 24, y: 60 }, { x: 24, y: 82 },
