@@ -96,4 +96,10 @@ rel.t('o atalho JOGAR RÁPIDO existe e pula a preparação',
 rel.t('a recompensa do draft pode ser pulada (sem prêmio)',
     html.includes('app.pularDraft') && js.includes('pularDraft()'));
 
+// ---------------------------------------------------------------- B36/B42: fiação do tutorial e FPS
+rel.t('B36: o tutorial aponta para o estilo (não para o seletor de modo)',
+    js.includes("targetSel: '[data-estilo]'"));
+rel.t('B42: measureFrames só roda em modo debug (?debug-fps)',
+    js.includes('debug-fps') && js.includes('__ALTFOOT_FPS'));
+
 encerrar(rel);

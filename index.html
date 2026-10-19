@@ -3484,7 +3484,7 @@ button:focus-visible,summary:focus-visible,[role="button"]:focus-visible,[tabind
     </div><!-- /.match-content-scroll -->
 
     <!-- Decisão do técnico -->
-    <div id="match-decision" class="hidden">
+    <div id="match-decision" class="hidden" role="dialog" aria-modal="false" aria-labelledby="match-decision-title" aria-describedby="match-decision-desc" aria-live="assertive">
       <div id="match-decision-title">DECISÃO DO TÉCNICO</div>
       <div id="match-decision-desc"></div>
       <div id="match-decision-btns"></div>
@@ -3812,6 +3812,7 @@ button:focus-visible,summary:focus-visible,[role="button"]:focus-visible,[tabind
      <button onclick="app.createNewClub(document.getElementById('club-name-input').value.trim() || 'Nacional FC')" class="btn-end-turn" style="width: 100%; font-size: 0.95rem; padding: 12px;">
        COMEÇAR CARREIRA ▶
      </button>
+     <button onclick="app.cancelarCriacaoClube()" class="btn-secondary" style="width:100%;margin-top:8px;padding:9px;font-size:.78rem;">VOLTAR AO MENU</button>
    </div>
  </div>
 
@@ -6026,6 +6027,13 @@ function hashStr(s) {
     for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
     return h >>> 0;
 }
+// B39 (2026-10-19): escape único para texto que entra em innerHTML. O nome do clube/atleta
+// pode vir de save importado; sem isto, um nome com <script> executava no jogo.
+function escaparHTML(valor) {
+    return String(valor == null ? '' : valor).replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+}
 
 // --- Renderer da tela de partida (DOM puro) ---
 // B57 (2026-10-19): o campo era um diagrama de divs sem gol, rede, marca do pênalti,
@@ -6143,10 +6151,12 @@ const MatchUI = {
     // Decisão do técnico: opções + timer que escala com a velocidade (8s a 1×, 2s a 4×, piso 2s; default
     // = opção central). O chamador passa o prazo já dividido pela velocidade (B66).
     prompt(desc, opts, onPick, timeoutMs, defaultIndex = 1) {
-        this.clearPrompt();
+        this.clearPrompt(false);
         const box = this._el('match-decision');
         if (!box) { if (typeof onPick === 'function') onPick(defaultIndex); return; }
         box.classList.remove('hidden');
+        const anterior = document.activeElement;
+        this._promptFocoAnterior = (anterior && anterior !== document.body && typeof anterior.focus === 'function') ? anterior : null;
         const d = this._el('match-decision-desc'); if (d) d.innerText = desc;
         const btns = this._el('match-decision-btns'); if (btns) btns.innerHTML = '';
         let picked = false;
@@ -6174,6 +6184,9 @@ const MatchUI = {
             b.onclick = () => done(i);
             btns.appendChild(b);
         });
+        // B38: o foco entra na decisão (o teclado 1/2/3 e o leitor de tela precisam dela).
+        const primeiroBtn = btns && btns.querySelector('button');
+        if (primeiroBtn) { try { primeiroBtn.focus({ preventScroll: true }); } catch (e) { } }
         const bar = this._el('match-decision-timer-bar');
         if (bar) { bar.style.width = '100%'; bar.setAttribute('aria-valuenow', '100'); }
         const total = timeoutMs || 8000;
@@ -6209,11 +6222,17 @@ const MatchUI = {
         }, 80);
         return done;
     },
-    clearPrompt() {
+    clearPrompt(restaurarFoco = true) {
         if (this._promptTimer) { clearInterval(this._promptTimer); this._promptTimer = null; }
         if (this._promptKeyHandler) { document.removeEventListener('keydown', this._promptKeyHandler); this._promptKeyHandler = null; }
         const box = this._el('match-decision');
         if (box) { box.classList.add('hidden'); box.classList.remove('urgente'); }
+        // B38: devolve o foco a quem estava nele antes da decisão.
+        const anterior = this._promptFocoAnterior;
+        this._promptFocoAnterior = null;
+        if (restaurarFoco && anterior && document.contains(anterior)) {
+            try { anterior.focus({ preventScroll: true }); } catch (e) { }
+        }
     },
     // --- Campo 2D (fichas 11×11 + bola) ligadas ao MatchSim ---
     // Slots por formação real (x: 0=defesa casa → 100=ataque casa; y: 0=topo → 100=base).
@@ -9815,6 +9834,8 @@ class UI {
           const recémEncerrado = tm._finishedAt && (Date.now() - tm._finishedAt) < 800;
           if (tm.isActive || recémEncerrado) return;
         }
+        // B31: ESC fecha o modal do topo antes de sair para o menu.
+        if (typeof this.fecharModalTopo === 'function' && this.fecharModalTopo()) return;
         if (this.currentScreen === 'screen-match' && Engine.activeMatch) {
           this.showActionFeedback("Termine a partida antes de sair!", "warning");
           return;
@@ -10728,7 +10749,7 @@ class UI {
         const m = s.melhorEmCampo;
         html += `<div style="margin:12px 0 4px; font-size:0.72rem; font-weight:900; letter-spacing:2px; color:var(--accent);">⭐ MELHOR EM CAMPO</div>`;
         html += `<div class="glass-ui" style="padding:10px 12px; font-size:0.78rem; text-align:left;">`;
-        html += `<div style="display:flex; justify-content:space-between; align-items:center;"><b>${m.nome}</b><span style="color:var(--text-muted);">${m.posicao || ''} · ${m.overall} OVR</span></div>`;
+        html += `<div style="display:flex; justify-content:space-between; align-items:center;"><b>${escaparHTML(m.nome)}</b><span style="color:var(--text-muted);">${escaparHTML(m.posicao || '')} · ${m.overall} OVR</span></div>`;
         if (s.mvpXp) html += `<div style="padding:2px 0; color:var(--primary);">✨ Bônus de destaque: +${s.mvpXp} XP</div>`;
         html += `</div>`;
     }
@@ -11025,7 +11046,7 @@ class UI {
     if (data.artilheiros && data.artilheiros.length) {
         html += `<div class="glass-ui" style="padding:10px 12px; font-size:0.78rem; text-align:left;">`;
         data.artilheiros.forEach(a => {
-            html += `<div style="display:flex; justify-content:space-between; align-items:center; padding:2px 0;"><b>${a.nome}</b><span style="color:var(--text-muted);">${a.clube} · ${a.gols} gols</span></div>`;
+            html += `<div style="display:flex; justify-content:space-between; align-items:center; padding:2px 0;"><b>${escaparHTML(a.nome)}</b><span style="color:var(--text-muted);">${escaparHTML(a.clube)} · ${a.gols} gols</span></div>`;
         });
         html += `</div>`;
     }
@@ -11227,7 +11248,7 @@ class UI {
             const txt = document.getElementById('daily-rival-text');
             if (txt) {
                 txt.innerHTML = rival
-                    ? `Vença <b>${rival.nome}</b> hoje para +R$100k e 1 jogador grátis.`
+                    ? `Vença <b>${escaparHTML(rival.nome)}</b> hoje para +R$100k e 1 jogador grátis.`
                     : 'Desafio diário disponível: +R$100k e 1 jogador grátis.';
             }
             dailyEl.style.display = 'flex';
@@ -11244,7 +11265,7 @@ class UI {
             const txt = document.getElementById('classico-rival-text');
             if (txt) {
                 txt.innerHTML = rival
-                    ? `Clássico! Vença <b>${rival.nome}</b> (o mais forte da liga) para +R$250k e 1 jogador.`
+                    ? `Clássico! Vença <b>${escaparHTML(rival.nome)}</b> (o mais forte da liga) para +R$250k e 1 jogador.`
                     : 'Clássico da Semana disponível: +R$250k e 1 jogador.';
             }
             clEl.style.display = 'flex';
@@ -11261,7 +11282,7 @@ class UI {
             const adv = app._torneioAdversario ? app._torneioAdversario() : null;
             const txt = document.getElementById('torneio-rival-text');
             if (txt) {
-                txt.innerHTML = `${app._torneioFaseNome(tor.fase)} — vença <b>${adv ? adv.nome : '?'}</b> para +${app.fmtMoneyShort(tor.premioFase)}. Campeão leva R$1,5M!`;
+                txt.innerHTML = `${app._torneioFaseNome(tor.fase)} — vença <b>${adv ? escaparHTML(adv.nome) : '?'}</b> para +${app.fmtMoneyShort(tor.premioFase)}. Campeão leva R$1,5M!`;
             }
             torEl.style.display = 'flex';
         } else {
@@ -11721,7 +11742,7 @@ class UI {
       const posClass = i === 0 ? 'top-1' : (i < 4 ? 'top-4' : (i >= table.length - 4 ? 'bottom-4' : ''));
       row.innerHTML = `
         <td><span class="pos-pill ${posClass}">${i + 1}</span></td>
-        <td style="text-align: left; padding-left: 8px;">${c.nome}</td>
+        <td style="text-align: left; padding-left: 8px;">${escaparHTML(c.nome)}</td>
         <td><strong>${c.pontos}</strong></td>
         <td>${c.vitorias}/${c.empates}/${c.derrotas}</td>
         <td>${c.golsPro}:${c.golsContra}</td>
@@ -11742,8 +11763,8 @@ class UI {
     const fmt = (arr) => arr.length
       ? arr.map((x, i) => `
           <div class="scorer-row${i === 0 ? ' golden' : ''}">
-            <span class="sc-crest" title="${x.clube}">${crest(x.clube)}</span>
-            <span class="sc-name">${x.nome}${i === 0 ? ' <span style="color:#f5c542;font-size:0.62rem;">⭐</span>' : ''}</span>
+            <span class="sc-crest" title="${escaparHTML(x.clube)}">${escaparHTML(crest(x.clube))}</span>
+            <span class="sc-name">${escaparHTML(x.nome)}${i === 0 ? ' <span style="color:#f5c542;font-size:0.62rem;">⭐</span>' : ''}</span>
             <span class="sc-val">${x.v}</span>
           </div>`).join('')
       : '<span style="color:var(--text-dim)">Ninguém ainda.</span>';
@@ -12199,7 +12220,7 @@ const TutorialManager = {
             id: 'boas_vindas',
             title: '🎯 Bem-vindo ao Rádio do Estádio',
             text: 'Antes de cada partida você monta a estratégia aqui. Veja o rival e toque em um ESTILO de jogo para começar: OFENSIVO ataca mais, RETRANCA defende mais, EQUILIBRADO é o meio-termo.',
-            targetSel: '.style-btn',
+            targetSel: '[data-estilo]',
             expectedAction: 'escolher_estilo',
             badge: 'INTRODUÇÃO'
         },
@@ -12769,7 +12790,15 @@ const GameState = {
 const UIRenderer = {
     pending: new Map(), frame: null,
     // Amostra local de 10 s, sem rede nem dados da carreira, para verificar fluidez real.
+    // B42: roda SÓ com `?debug-fps` (ou window.__ALTFOOT_FPS) — antes um rAF de 10 s
+    // iniciava em toda partida e em toda volta ao menu, custo ocioso em produção.
     measureFrames() {
+        let depurar = false;
+        try {
+            depurar = (typeof window !== 'undefined' && window.__ALTFOOT_FPS === true)
+                || (typeof location !== 'undefined' && /(?:\?|&)debug-fps(?:=1)?(?:&|$)/.test(location.search || ''));
+        } catch (e) { depurar = false; }
+        if (!depurar) { try { document.documentElement.removeAttribute('data-frame-report'); } catch (e) { } return; }
         if (this.meterFrame != null) cancelAnimationFrame(this.meterFrame);
         const gaps = []; let start = null, previous = null;
         document.documentElement.removeAttribute('data-frame-report');
@@ -12828,13 +12857,18 @@ const SaveRepository = {
     validData(data) {
         if (!data || typeof data !== 'object') return false;
         const c = data.club, l = data.league;
-        return !!(c && typeof c.nome === 'string' && c.nome.length <= 160
-            && Array.isArray(c.elenco) && c.elenco.length <= 200
+        // B39: nome com marcação não entra nem por import — o escape do render é a 2ª linha.
+        const nomeOk = s => typeof s === 'string' && s.length > 0 && s.length <= 160 && !/[<>]/.test(s);
+        const elencoOk = arr => Array.isArray(arr) && arr.length <= 200
+            && arr.every(p => p && nomeOk(p.nome));
+        return !!(c && nomeOk(c.nome)
+            && elencoOk(c.elenco) && c.elenco.length > 0
             && Number.isFinite(c.orcamento) && l && Array.isArray(l.clubes)
             && l.clubes.length >= 2 && l.clubes.length <= 160
             && Number.isInteger(l.rodada) && l.rodada >= 1 && l.rodada <= 400
             && Array.isArray(data.marketPlayers) && data.marketPlayers.length <= 200
-            && l.clubes.every(cl => cl && typeof cl.nome === 'string' && Array.isArray(cl.elenco) && cl.elenco.length <= 200));
+            && data.marketPlayers.every(p => p && nomeOk(p.nome))
+            && l.clubes.every(cl => cl && nomeOk(cl.nome) && elencoOk(cl.elenco)));
     },
     envelope(data, slot) {
         // A cópia JSON congela a rodada: mutações posteriores não entram na transação.
@@ -12845,8 +12879,37 @@ const SaveRepository = {
         this.clock = Math.max(Date.now(), this.clock + 1);
         return { app: 'AltFootELITE', schema: this.schema, slot, savedAt: this.clock, data: snapshot, checksum: this.checksum(texto) };
     },
+    // B40 (2026-10-19): cascata de migração de schema. `verify` aceita 1..schema atual
+    // (o checksum cobre os DADOS, que não mudam na migração) e `migrar` sobe a versão.
+    // Sem isso, qualquer bump de schema tornaria saves reais ilegíveis.
+    migracoes: {
+        1: raw => {
+            if (raw && raw.data && raw.data.club) raw.data.club.saveVersion = Math.max(1, Number(raw.data.club.saveVersion) || 1);
+            return raw;
+        },
+        2: raw => {
+            if (raw && raw.data) {
+                if (raw.data.club && !Array.isArray(raw.data.club.taticas)) raw.data.club.taticas = [];
+                if (raw.data.league && raw.data.league.saveVersion == null) raw.data.league.saveVersion = 2;
+            }
+            return raw;
+        }
+    },
+    migrar(raw) {
+        if (!raw || !raw.data) return raw;
+        let versao = Number(raw.schema) || 1;
+        if (versao > this.schema) return raw; // save de versão futura: não tenta adivinhar
+        while (versao < this.schema) {
+            const fn = this.migracoes[versao];
+            if (fn) raw = fn(raw);
+            versao++;
+            raw.schema = versao;
+        }
+        return raw;
+    },
     verify(raw) {
-        if (!raw || raw.app !== 'AltFootELITE' || raw.schema !== this.schema
+        if (!raw || raw.app !== 'AltFootELITE'
+            || !Number.isInteger(raw.schema) || raw.schema < 1 || raw.schema > this.schema
             || !Number.isInteger(raw.slot) || raw.slot < 1 || raw.slot > 3
             || !Number.isFinite(raw.savedAt) || !this.validData(raw.data)
             || raw.checksum !== this.checksum(raw.data)) throw new Error('Integridade da carreira inválida.');
@@ -12859,7 +12922,8 @@ const SaveRepository = {
         try { const text = localStorage.getItem(key); if (text) local = this.verify(this.parse(text)); } catch (_) {}
         let cached = null;
         try { const raw = this.cache.get(key); if (raw) cached = this.verify(this.parse(JSON.stringify(raw))); } catch (_) {}
-        const raw = local && (!cached || local.savedAt >= cached.savedAt) ? local : (cached || null);
+        const bruto = local && (!cached || local.savedAt >= cached.savedAt) ? local : (cached || null);
+        const raw = bruto ? this.migrar(bruto) : null;
         if (raw) this.clock = Math.max(this.clock, raw.savedAt);
         return raw;
     },
@@ -12960,6 +13024,9 @@ const app = {
         if (this.hasSaveInSlot(this.slot)) {
             this.loadGame();
         } else {
+            // B32: slot vazio não pode deixar a carreira anterior em memória (o próximo
+            // saveGame gravaria essa carreira no slot novo, inclusive após cancelar).
+            this.club = null; this.league = null; this.marketPlayers = [];
             ui.showActionFeedback('Slot vazio — crie uma carreira nova.', 'info');
             this.startNewGame();
         }
@@ -13091,7 +13158,10 @@ const app = {
                 this.club = saved.club;
                 this.league = saved.league;
                 this.marketPlayers = saved.marketPlayers;
-                this.saveGame();
+                // B33: NÃO salvar aqui. Se o principal estava corrompido e o autosave
+                // respondeu, o saveGame imediato sobrescreveria o principal e destruiria
+                // a evidência do problema antes de qualquer recuperação. A próxima ação
+                // normal do jogador grava o estado migrado.
                 ui.showScreen('screen-game');
                 ui.showSubscreen('dashboard');
                 this._reabrirFimDeTemporada();
@@ -13107,6 +13177,44 @@ const app = {
 
     startNewGame() {
         ui.openClubNameModal();
+    },
+
+    // B31: ESC no modal de criação não pode prender o jogador (não havia ✕, ESC nem backdrop).
+    cancelarCriacaoClube() {
+        const m = document.getElementById('modal-club-name');
+        if (m) m.classList.add('hidden');
+        ui.showScreen('screen-menu');
+    },
+
+    // B31: fecha o modal do TOPO com a ação de fechamento correta (não só esconde).
+    fecharModalTopo() {
+        const abertos = Array.from(document.querySelectorAll('.modal:not(.hidden)'));
+        if (!abertos.length) return false;
+        const topo = abertos[abertos.length - 1];
+        const id = topo.id;
+        const acoes = {
+            'modal-jornal': () => this.fecharJornal(),
+            'modal-draft': () => this.pularDraft(),
+            'modal-substituicao': () => this.cancelarSubstituicao(),
+            'modal-cartas': () => this.fecharCartasTaticas(),
+            'modal-preparacao': () => this.cancelarPreparacao(),
+            'modal-match-result': () => this.closeMatchResult(),
+            'modal-patrocinio': () => this.fecharPatrocinio(),
+            'modal-settings': () => this.closeSettings(),
+            'modal-how-to-play': () => this.closeHowToPlay(),
+            'modal-help-guide': () => this.closeHelpModal(),
+            'modal-club-name': () => this.cancelarCriacaoClube(),
+            'modal-olheiro': () => this.pularOlheiro(),
+            'modal-sell': () => ui.closeSellModal(),
+            'player-modal': () => ui.closeModal(),
+            'modal-museu': () => ui.closeModal(),
+            'modal-conquistas': () => ui.closeModal(),
+            'modal-season-end': () => ui.showActionFeedback('Escolha "INICIAR NOVA TEMPORADA" para continuar.', 'info')
+        };
+        if (acoes[id]) { acoes[id](); return true; }
+        // Modal sem fechador próprio (evento/onboarding): esconde e libera o foco.
+        topo.classList.add('hidden');
+        return true;
     },
 
     // ---- CONFIGURAÇÕES / ACESSIBILIDADE ----
@@ -13855,6 +13963,14 @@ const app = {
             this._reabrirFimDeTemporada();
             ui.showActionFeedback("Jogo carregado!", "success");
         } else {
+            // B32: o slot selecionado não carregou — não deixa a carreira ANTERIOR presa
+            // em memória, senão o próximo saveGame gravaria essa carreira no slot novo.
+            this.club = null;
+            this.league = null;
+            this.marketPlayers = [];
+            this._resultadoPendente = false;
+            this._ultimoResumo = null;
+            this._seqJogos = []; this._seqGols = {};
             ui.showActionFeedback("Nenhum save encontrado.", "error");
         }
     },
@@ -13937,13 +14053,27 @@ const app = {
 
     // Reconstrói instâncias de classes a partir de JSON bruto (localStorage ou arquivo importado),
     // com checagens de integridade. Retorna null se o save for inválido.
+    // B41 (2026-10-19): o construtor de Player SEMPRE preenche tier/stats/valor/clubeId.
+    // Em save antigo sem esses campos, o Object.assign simples herdava os valores
+    // aleatórios do construtor (guardas `p.X == null` em normalizeNewFields nunca disparavam).
+    // Aqui a decisão é tomada pelo RAW, antes de o construtor mascarar a ausência.
+    _restaurarJogador(rawP) {
+        const bruto = (rawP && typeof rawP === 'object') ? rawP : {};
+        const p = Object.assign(new Player(), bruto);
+        if (bruto.tier == null) p.tier = bruto.raridade || p.raridade || 'Bronze';
+        if (!bruto.stats || typeof bruto.stats !== 'object') p.stats = p.gerarStatsPorPosicao(p.posicao, p.overall);
+        if (bruto.valor == null) p.valor = (p.overall || 50) * (p.overall || 50) * 100;
+        if (bruto.salario == null) p.salario = Math.floor((p.valor || 0) / 100);
+        if (bruto.clubeId == null) p.clubeId = 0;
+        return p;
+    },
     _restoreFromRaw(clubRaw, leagueRaw, marketRaw) {
         if (!clubRaw || typeof clubRaw !== 'object' || !clubRaw.nome) return null;
         if (!leagueRaw || typeof leagueRaw !== 'object' || !Array.isArray(leagueRaw.clubes) || leagueRaw.clubes.length < 2) return null;
 
         const club = Object.assign(new Club(), clubRaw);
         if (!club.formacao) club.formacao = '4-4-2';
-        club.elenco = (Array.isArray(club.elenco) ? club.elenco : []).map(p => Object.assign(new Player(), p));
+        club.elenco = (Array.isArray(club.elenco) ? club.elenco : []).map(p => this._restaurarJogador(p));
         club.taticas = (Array.isArray(club.taticas) ? club.taticas : []).map(t => Object.assign(new TaticaCard({}), t));
         this.normalizeNewFields(club);
 
@@ -13955,13 +14085,13 @@ const app = {
             if (!c || typeof c !== 'object') return null;
             const cl = Object.assign(new Club(), c);
             if (!cl.formacao) cl.formacao = '4-4-2';
-            cl.elenco = (Array.isArray(cl.elenco) ? cl.elenco : []).map(p => Object.assign(new Player(), p));
+            cl.elenco = (Array.isArray(cl.elenco) ? cl.elenco : []).map(p => this._restaurarJogador(p));
             cl.taticas = (Array.isArray(cl.taticas) ? cl.taticas : []).map(t => Object.assign(new TaticaCard({}), t));
             this.normalizeNewFields(cl);
             return cl;
         }).filter(Boolean);
 
-        const marketPlayers = (Array.isArray(marketRaw) ? marketRaw : []).map(p => Object.assign(new Player(), p));
+        const marketPlayers = (Array.isArray(marketRaw) ? marketRaw : []).map(p => this._restaurarJogador(p));
         marketPlayers.forEach(p => TransferMarket.normalizePlayer(p));
 
         if (clubRaw.difficulty) this.difficulty = clubRaw.difficulty;
@@ -13981,7 +14111,7 @@ const app = {
             if (!c || typeof c !== 'object') return null;
             const cl = Object.assign(new Club(), c);
             if (!cl.formacao) cl.formacao = '4-4-2';
-            cl.elenco = (Array.isArray(cl.elenco) ? cl.elenco : []).map(p => Object.assign(new Player(), p));
+            cl.elenco = (Array.isArray(cl.elenco) ? cl.elenco : []).map(p => this._restaurarJogador(p));
             cl.taticas = (Array.isArray(cl.taticas) ? cl.taticas : []).map(t => Object.assign(new TaticaCard({}), t));
             this.normalizeNewFields(cl);
             return cl;
@@ -13991,7 +14121,7 @@ const app = {
         if (league[key] && Array.isArray(league[key].clubes)) {
             league[key].clubes = league[key].clubes.filter(Boolean).map(raw => {
                 const cl = Object.assign(new Club(), raw);
-                cl.elenco = (Array.isArray(raw.elenco) ? raw.elenco : []).map(p => Object.assign(new Player(), p));
+                cl.elenco = (Array.isArray(raw.elenco) ? raw.elenco : []).map(p => this._restaurarJogador(p));
                 cl.taticas = (Array.isArray(raw.taticas) ? raw.taticas : []).map(t => Object.assign(new TaticaCard({}), t));
                 this.normalizeNewFields(cl);
                 return cl;
@@ -15134,8 +15264,8 @@ const app = {
             b.className = 'btn-end-turn';
             b.style.cssText = 'flex:1; min-width:118px; padding:14px 10px; font-size:0.76rem; line-height:1.35; height:auto;';
             b.innerHTML = opt.tipo === 'jogador'
-                ? `🃏 ${opt.p.posicao}<br><b>${opt.p.nome}</b><br>${opt.p.overall} OVR · ${opt.p.raridade}`
-                : `📋 TÁTICA<br><b>${opt.t.nome}</b>`;
+                ? `🃏 ${escaparHTML(opt.p.posicao)}<br><b>${escaparHTML(opt.p.nome)}</b><br>${opt.p.overall} OVR · ${escaparHTML(opt.p.raridade)}`
+                : `📋 TÁTICA<br><b>${escaparHTML(opt.t.nome)}</b>`;
             b.onclick = () => this.escolherDraft(i);
             wrap.appendChild(b);
         });
@@ -15881,7 +16011,7 @@ const app = {
             card.type = 'button';
             card.className = 'craque-card' + (this._craquePartida === p ? ' active' : '');
             card.setAttribute('aria-pressed', String(this._craquePartida === p));
-            card.innerHTML = '<span class="pos">' + p.posicao + '</span><span class="nm">' + p.nome + '</span><span class="ov">OVR ' + p.overall + '</span>';
+            card.innerHTML = '<span class="pos">' + escaparHTML(p.posicao) + '</span><span class="nm">' + escaparHTML(p.nome) + '</span><span class="ov">OVR ' + p.overall + '</span>';
             card.onclick = () => this.escolherCraque(p);
             wrap.appendChild(card);
         });

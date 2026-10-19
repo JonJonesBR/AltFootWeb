@@ -17,7 +17,7 @@ Sem build, sem login, sem dependências. O progresso fica no próprio navegador.
 - Partida estilo Brasfoot/7a0: rádio ao vivo em texto, estatísticas, decisões do técnico, substituições
 - Elenco com contratos, moral, fôlego, treinos, mercado e base
 - Vestiário com hierarquia e dilemas, diretoria, SAF e complexo empresarial
-- Cartas colecionáveis (radar de atributos) e Gazeta pós-jogo
+- Cartas de atletas com radar de atributos no verso e Gazeta pós-jogo
 
 ## Controles da partida
 

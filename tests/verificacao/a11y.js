@@ -83,6 +83,16 @@ rel.t('B22: toast de feedback é região viva (role="status")',
 rel.t('B22: modais inline usam dvh (sem vh plano em modal-content)',
     !/max-height:\s*\d+vh;\s*overflow-y:\s*auto/.test(src) && !src.includes('max-height:90vh'));
 
+// --- B31/B38: ESC nos modais e decisão do técnico com semântica ---
+rel.t('B38: decisão do técnico é dialog com rótulo e descrição',
+    /id="match-decision"[^>]*role="dialog"[^>]*aria-labelledby="match-decision-title"[^>]*aria-describedby="match-decision-desc"/.test(src));
+rel.t('B38: decisão anuncia (aria-live) e o foco entra nela',
+    src.includes('aria-live="assertive"') && codigo.includes('primeiroBtn.focus') && codigo.includes('_promptFocoAnterior'));
+rel.t('B31: ESC fecha o modal do topo antes de sair para o menu',
+    codigo.includes('fecharModalTopo') && /e\.key === 'Escape'[\s\S]{0,500}fecharModalTopo/.test(codigo));
+rel.t('B31: criação de clube ganhou saída (VOLTAR AO MENU)',
+    src.includes('app.cancelarCriacaoClube') && codigo.includes('cancelarCriacaoClube()'));
+
 // --- Guardas do projeto ---
 rel.t('nenhum backdrop-filter efetivo',
     (estilo.match(/backdrop-filter\s*:\s*([^;}]+)/g) || []).every(d => /:\s*none\s*$/.test(d.trim())));

@@ -95,4 +95,29 @@ rel.t('slot de autosave é separado do slot principal', SR.key(1, false) !== SR.
 rel.t('save antigo ganha os fios narrativos (guarda em normalizeNewFields)',
     /if \(club\.fios == null \|\| typeof club\.fios !== 'object'/.test(src));
 
+// --- B40: cascata de migração e B39: importação hostil ---
+rel.t('B40: schema antigo (2) verifica e migra até o atual', (() => {
+    const env = SR.envelope(carreira(), 1);
+    env.schema = 2;
+    return SR.verify(env) === env && SR.migrar(env).schema === SR.schema;
+})());
+rel.t('B40: schema de versão futura é recusado (não adivinha)', (() => {
+    const env = SR.envelope(carreira(), 1);
+    env.schema = SR.schema + 6;
+    try { SR.verify(env); return false; } catch (e) { return true; }
+})());
+rel.t('B39: nome de clube com marcação é recusado na importação', (() => {
+    const d = carreira();
+    d.club.nome = '<img src=x onerror=alert(1)>';
+    return SR.validData(d) === false;
+})());
+rel.t('B41: restauração decide pelo RAW (stats/clubeId não herdam o construtor)',
+    /_restaurarJogador\(rawP\)/.test(src) && /bruto\.stats/.test(src) && /bruto\.clubeId/.test(src));
+rel.t('B33: init não regrava o save logo após carregar',
+    /B33: NÃO salvar aqui/.test(src));
+rel.t('B32: loadGame limpa a carreira em memória quando o slot falha',
+    /B32: o slot selecionado não carregou/.test(src));
+rel.t('B3: recuperação de fôlego é idempotente por temporada:rodada',
+    /ultimaRecuperacaoFadiga === chave/.test(src));
+
 encerrar(rel);
