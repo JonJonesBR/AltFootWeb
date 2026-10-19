@@ -558,6 +558,73 @@ teste('o tutorial roda num clone e não toca no clube real', () => {
     ok(clone.isUser === true && clone.nome === 'Real FC', 'clone perdeu a identidade do clube');
 });
 
+// ------------------------------- B52/B53/B54/B77: economia da IA, meta e draft (2026-10-19)
+console.log('-- B52/B53/B54/B77: economia da IA, meta e draft (2026-10-19)');
+teste('a IA recebe receita, paga folha e respeita o teto (idempotente por rodada)', () => {
+    const s = novoSandbox();
+    const cl = new s.Club('Teste FC', false);
+    cl.gerarElencoInicial();
+    cl.orcamento = 500000;
+    const liga = { temporada: 1, rodada: 5, adicionarNoticia() {} };
+    const liquido = s.ClubEcosystem.afterRoundIA(cl, liga, 1);
+    ok(Number.isFinite(liquido) && liquido !== 0, 'receita líquida não calculada');
+    ok(cl.orcamento !== 500000, 'caixa da IA não mudou');
+    const caixa = cl.orcamento;
+    ok(s.ClubEcosystem.afterRoundIA(cl, liga, 1) === 0 && cl.orcamento === caixa, 'receita dobrou na mesma rodada');
+    cl.orcamento = 90000000;
+    s.ClubEcosystem.afterRoundIA(cl, { temporada: 1, rodada: 6, adicionarNoticia() {} }, 1);
+    ok(cl.orcamento <= s.ClubEcosystem.tetoCaixa(1), 'teto de caixa furado: ' + cl.orcamento);
+});
+teste('clube com caixa investe na pré-temporada; sem caixa e usuário não', () => {
+    const s = novoSandbox();
+    const rico = new s.Club('Rico FC', false); rico.gerarElencoInicial(); rico.orcamento = 2000000;
+    const antes = rico.elenco.reduce((a, p) => a + p.overall, 0);
+    const subiram = s.ClubEcosystem.investirElenco(rico, 1);
+    ok(subiram > 0 && rico.orcamento < 2000000, 'clube rico não investiu');
+    ok(rico.elenco.reduce((a, p) => a + p.overall, 0) > antes, 'investimento não subiu o elenco');
+    const pobre = new s.Club('Pobre FC', false); pobre.gerarElencoInicial(); pobre.orcamento = 10000;
+    const soma = pobre.elenco.reduce((a, p) => a + p.overall, 0);
+    ok(s.ClubEcosystem.investirElenco(pobre, 1) === 0, 'clube sem caixa investiu');
+    ok(pobre.elenco.reduce((a, p) => a + p.overall, 0) === soma, 'clube sem caixa melhorou de graça');
+    const user = new s.Club('User FC', true); user.gerarElencoInicial(); user.orcamento = 2000000;
+    ok(s.ClubEcosystem.investirElenco(user, 1) === 0, 'o investimento mexeu no clube do usuário');
+});
+teste('a meta da diretoria acompanha a divisão', () => {
+    const s = novoSandbox();
+    const metas = [1, 2, 3, 4].map(d => s.ClubEcosystem.metaTemporada(null, { divisaoUser: d }).alvo);
+    ok(metas.join(',') === '8,6,4,4', 'metas inesperadas: ' + metas.join(','));
+});
+teste('a força do rival responde à ascensão e à campanha', () => {
+    const s = novoSandbox();
+    const montar = (asc, campanha) => {
+        const casa = makeTeam('Casa', 70, { isUser: true });
+        casa.ascensaoNivel = asc;
+        const sim = new s.MatchSim(casa, makeTeam('Fora', 70), null, null, { seed: 2, modo: 'detalhado', tempoMin: 90 });
+        sim._forcaRivalCampanha = campanha;
+        return sim._poder(sim.away, false).atk;
+    };
+    ok(montar(3, 0) > montar(0, 0), 'ascensão não fortaleceu o rival');
+    ok(montar(0, 1.5) > montar(0, 0), 'campanha de líder não fortaleceu o rival');
+    ok(montar(0, -1) < montar(0, 0), 'lanterna não aliviou o rival');
+});
+teste('vender aplica a taxa pedida (55% do recém-chegado)', () => {
+    const s = novoSandbox();
+    const cl = new s.Club('Venda FC', true); cl.gerarElencoInicial(); cl.orcamento = 0;
+    const p = cl.elenco[0]; p.valor = 10000; p.direitosClube = 1;
+    cl.vender(p.id, 0.55);
+    ok(cl.orcamento === 5500, 'taxa de 55% não aplicada: ' + cl.orcamento);
+    ok(!cl.elenco.some(x => x.id === p.id), 'atleta não saiu do elenco');
+});
+teste('a mão sai da coleção de táticas do clube', () => {
+    const s = novoSandbox();
+    const casa = makeTeam('Casa', 70, { isUser: true });
+    casa.taticas = [0, 1, 2, 3].map(i => new s.TaticaCard(s.GAME_DATA.taticas[i]));
+    const sim = new s.MatchSim(casa, makeTeam('Fora', 70), null, null, { seed: 3, modo: 'detalhado', tempoMin: 90 });
+    sim._montarMao();
+    ok(sim._mao.length === 4, 'mão com ' + sim._mao.length + ' cartas');
+    ok(sim._mao.every(c => casa.taticas.some(t => t.id === c.id)), 'carta fora da coleção na mão');
+});
+
 console.log('');
 console.log('=== ' + (total - falhas) + '/' + total + ' verificações passaram' + (falhas ? ' — ' + falhas + ' FALHAS' : '') + ' ===');
 process.exit(falhas ? 1 : 0);

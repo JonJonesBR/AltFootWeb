@@ -119,4 +119,17 @@ rel.t('`reporElencoBase` é definida exatamente uma vez',
         String(lerIndex()).includes('app.salvarEFechar()'));
 }
 
+// ------------------------------------------------ B52/B77: economia da IA e janela do draft (2026-10-19)
+{
+    const saida = metodo('simulateAIMatches');
+    rel.t('a rodada fecha a economia de cada clube da IA', saida.includes('afterRoundIA('));
+    const virada = metodo('startNewSeason');
+    rel.t('a virada de temporada investe o caixa da IA no elenco', virada.includes('investirElenco('));
+    const venda = metodo('confirmSell');
+    rel.t('o recém-chegado tem janela antes de ser vendido', venda.includes('chegouEm'));
+    rel.t('quem nunca jogou sai por 55%', venda.includes('0.55'));
+    const mao = metodo('_montarMao');
+    rel.t('o baralho da partida lê a coleção do clube', mao.includes('clubeUser.taticas') || mao.includes('.taticas'));
+}
+
 encerrar(rel);

@@ -4893,6 +4893,21 @@ const ClubEcosystem = {
     if (club.safTemporadas === 0 && club.rodadasNegativo >= 3 && debt > Math.max(200000, (club.stadiumRevenue ? club.stadiumRevenue() : 40000) * 5)) club.ofertaSAF = true;
     const ganhou = (resultado.meusGols || 0) > (resultado.golsAdv || 0), perdeu = (resultado.meusGols || 0) < (resultado.golsAdv || 0);
     club.pacienciaDiretoria = Math.max(0, Math.min(100, club.pacienciaDiretoria + (ganhou ? 7 : perdeu ? -9 : 1) - (club.orcamento < 0 ? 3 : 0)));
+    // B54: a partir da rodada 30, quem está muito longe da meta perde paciência por
+    // rodada. É a pressão de fim de temporada que não existia.
+    try {
+        const meta = this.metaTemporada(club, league);
+        const tabela = league.getTabela ? league.getTabela(league.divisaoUser || 1) : null;
+        const pos = tabela ? tabela.indexOf(club) + 1 : 0;
+        if (pos > 0) {
+            club.metaPosicao = pos;
+            if ((league.rodada || 0) >= 30) {
+                const distancia = pos - meta.alvo;
+                if (distancia > 10) club.pacienciaDiretoria = Math.max(0, club.pacienciaDiretoria - 4);
+                else if (distancia > 4) club.pacienciaDiretoria = Math.max(0, club.pacienciaDiretoria - 2);
+            }
+        }
+    } catch (e) { /* meta nunca derruba a rodada */ }
     club.rodadasDiretoriaCritica = club.pacienciaDiretoria < 20 ? club.rodadasDiretoriaCritica + 1 : 0;
     if (club.rodadasDiretoriaCritica >= 3) {
       club.demitido = true;
@@ -4901,6 +4916,69 @@ const ClubEcosystem = {
     TransferMarket.afterRound(club, league);
     LockerRoom.afterRound(club, league, resultado.usados, ganhou);
     if (typeof GameState !== 'undefined') GameState.emit('clube:rodada', { club, league, parcela, demitido: !!club.demitido });
+  },
+  // B52 (2026-10-19): a IA não tinha economia. Nenhuma receita era creditada e a folha
+  // nunca era cobrada, então o caixa congelava em R$ 500 mil e os rivais paravam de
+  // contratar (medido: 83 contratações na T1 e 0-4 por temporada depois; XI da Série A
+  // 62,0 → 58,7 em 12 temporadas). Agora cada clube da IA recebe bilheteria/patrocínio
+  // por rodada e paga a própria folha, com teto por divisão para não inflacionar.
+  receitaRodada(club, div) {
+    const base = [0, 150000, 90000, 55000, 30000][div] || 30000;
+    const fans = Math.max(0, Math.min(100, Number(club && club.fans != null ? club.fans : 50)));
+    const popular = this.nivel(club, 'popular');
+    return Math.round(base * (0.8 + fans / 250) * (1 + popular * 0.06));
+  },
+  folhaRodada(club) {
+    return (club && club.elenco ? club.elenco : []).reduce((s, p) => s + (Number(p && p.salario) || 0), 0);
+  },
+  tetoCaixa(div) { return [0, 5000000, 2500000, 1200000, 600000][div] || 600000; },
+  // B52 (2026-10-19): a economia só vira dificuldade se o caixa virar elenco. Na virada
+  // de temporada, o clube da IA com caixa investe na pré-temporada: gasta orçamento e
+  // sobe um ponto nos atletas abaixo da média do XI + margem. Clube sem caixa não investe.
+  investirElenco(club, div) {
+    if (!club || club.isUser) return 0;
+    const custo = [0, 400000, 250000, 150000, 80000][div] || 80000;
+    const caixa = Number(club.orcamento) || 0;
+    if (caixa < custo * 2) return 0;
+    club.orcamento = caixa - custo;
+    const ordenado = (club.elenco || []).slice().sort((a, b) => (b.overall || 0) - (a.overall || 0));
+    const elite = ordenado.slice(0, 11);
+    const media = elite.length ? elite.reduce((s, p) => s + (p.overall || 0), 0) / elite.length : 50;
+    const margem = [0, 4, 3, 2, 1][div] || 1;
+    // Divisões de elite investem mais forte: é o que faz o rival acompanhar o usuário.
+    const passo = div <= 2 ? 2 : 1;
+    let subiram = 0;
+    (club.elenco || []).forEach(p => {
+      if ((p.overall || 0) < media + margem) {
+        p.overall = Math.min(99, (p.overall || 0) + passo);
+        subiram++;
+      }
+    });
+    return subiram;
+  },
+  // B54 (2026-10-19): meta de temporada por divisão. Antes a única cobrança era a
+  // paciência genérica (que só demitia após 8 derrotas seguidas); não havia objetivo.
+  metaTemporada(club, league) {
+    const div = Math.max(1, Math.min(4, (league && league.divisaoUser) || 1));
+    const alvo = [8, 6, 4, 4][div - 1] || 8;
+    const rotulo = div === 1 ? 'terminar entre os 8' : (div === 2 ? 'terminar entre os 6' : 'terminar entre os 4');
+    return { divisao: div, alvo, rotulo };
+  },
+  afterRoundIA(club, league, div) {
+    if (!club) return 0;
+    // Idempotente por rodada: simulateAIMatches pode rodar mais de uma vez no mesmo
+    // número de rodada (recarregar/reexecutar) e a receita não pode dobrar.
+    const chave = (league.temporada || 1) + ':' + (league.rodada || 1);
+    if (club.ultimaRodadaIA === chave) return 0;
+    club.ultimaRodadaIA = chave;
+    const receita = this.receitaRodada(club, div);
+    const folha = this.folhaRodada(club);
+    let caixa = (Number(club.orcamento) || 0) + receita - folha;
+    const teto = this.tetoCaixa(div);
+    if (caixa > teto) caixa = teto;
+    if (caixa < -300000) caixa = -300000;
+    club.orcamento = caixa;
+    return receita - folha;
   },
   newSeason(club, league) {
     this.normalize(club);
@@ -5046,8 +5124,8 @@ class Club {
 
     if (this.isUser) {
       // Give basic tactics to user
-      this.taticas.push(new TaticaCard(GAME_DATA.taticas[0]));
-      this.taticas.push(new TaticaCard(GAME_DATA.taticas[1]));
+      // B77: a mão é de 4 e o baralho agora é a coleção — a carreira começa com 4.
+      [0, 1, 2, 3].forEach(i => { if (GAME_DATA.taticas[i]) this.taticas.push(new TaticaCard(GAME_DATA.taticas[i])); });
     }
   }
 
@@ -5292,11 +5370,14 @@ class Club {
     return false;
   }
 
-  vender(id) {
+  vender(id, taxa) {
     const idx = this.elenco.findIndex(p => p.id === id);
     if (idx === -1) return false;
     const jogador = this.elenco[idx];
-    TransferMarket.liquidarVenda(this, jogador, Math.floor(TransferMarket.valor(jogador) * 0.7));
+    // B77: a taxa padrão continua 70%; quem nunca jogou sai por 55% (o passe
+    // recém-chegado não é dinheiro de graça).
+    const fator = (typeof taxa === 'number' && taxa > 0 && taxa <= 1) ? taxa : 0.7;
+    TransferMarket.liquidarVenda(this, jogador, Math.floor(TransferMarket.valor(jogador) * fator));
     return true;
   }
 }
@@ -6848,6 +6929,8 @@ class MatchSim {
         this._expulsos = [0, 0]; // G6: expulsões por lado (efeito em _poder)
         this.matchScorers = {};
         this.speed = 1;
+        // B53: força extra do rival que enfrenta o usuário, calculada pela campanha.
+        this._forcaRivalCampanha = Number(opts && opts.forcaRivalCampanha) || 0;
         this.abortado = false;
         this._timer = null;
         this._idx = 0;
@@ -7099,7 +7182,12 @@ class MatchSim {
             if (usuario) {
                 const valor = Number(usuario.difficulty && usuario.difficulty.multiplier);
                 const multiplicador = Number.isFinite(valor) && valor > 0 ? Math.max(0.75, Math.min(1.3, valor)) : 1;
-                const ajuste = (multiplicador - 1) * 24;
+                // B53 (2026-10-19): a ascensão prometia "rivais mais fortes" na notícia e
+                // não fazia nada. Cada nível vale +2 em atk/mid/def do rival (teto 10).
+                const asc = Math.max(0, Math.min(10, Number(usuario.ascensaoNivel) || 0));
+                // Campanha: líderes encaram rivais mais duros; lanternas, um pouco menos.
+                const campanha = Number(this._forcaRivalCampanha) || 0;
+                const ajuste = (multiplicador - 1) * 24 + asc * 2 + campanha;
                 a += ajuste; m += ajuste; d += ajuste;
             }
         }
@@ -7885,11 +7973,25 @@ class MatchSim {
         this._foco = 70;
         this._buffs = [];
         this._cartasUsadas = 0;
-        const pool = (typeof GAME_DATA !== 'undefined' && Array.isArray(GAME_DATA.taticas)) ? GAME_DATA.taticas : [];
-        const baralho = pool.map(t => ({
-            id: t.id, nome: t.nome, desc: t.desc, raridade: t.raridade || 'Bronze',
-            custo: t.custo || 1, efeito: t.efeito || {}
-        }));
+        // B77 (2026-10-19): o baralho da partida passa a ser a COLEÇÃO do clube. Antes,
+        // `_montarMao` usava o GAME_DATA inteiro, então a carta de tática do draft era
+        // decorativa: o jogador já tinha as 8 disponíveis desde a primeira rodada.
+        const clubeUser = (this.home && this.home.isUser) ? this.home : ((this.away && this.away.isUser) ? this.away : null);
+        const colecao = (clubeUser && Array.isArray(clubeUser.taticas)) ? clubeUser.taticas : [];
+        const unicos = new Map();
+        colecao.forEach(t => { if (t && t.id && !unicos.has(t.id)) unicos.set(t.id, t); });
+        // Save antigo sem coleção: cai no pool global para a partida nunca ficar sem carta.
+        const pool = unicos.size
+            ? Array.from(unicos.values())
+            : ((typeof GAME_DATA !== 'undefined' && Array.isArray(GAME_DATA.taticas)) ? GAME_DATA.taticas : []);
+        const baralho = pool.map(t => {
+            // TaticaCard guarda o custo em `custoEnergia`; o GAME_DATA cru usa `custo`.
+            const custo = (t.custo != null) ? t.custo : ((t.custoEnergia != null) ? t.custoEnergia : 1);
+            return {
+                id: t.id, nome: t.nome, desc: t.desc, raridade: t.raridade || 'Bronze',
+                custo: custo, efeito: t.efeito || {}
+            };
+        });
         // Embaralha o baralho completo com o RNG determinístico da partida.
         for (let i = baralho.length - 1; i > 0; i--) {
             const j = Math.floor(this.rng() * (i + 1));
@@ -8871,6 +8973,14 @@ const Engine = {
         const craque = (typeof app !== 'undefined' && app._craquePartida) ? app._craquePartida : null;
         const regra = (typeof app !== 'undefined' && app._regraPartida) ? app._regraPartida : null;
         const seed = (league.seed || 1) * 31 + (league.rodada || 1) * 7919;
+        // B53: a força do rival acompanha a campanha (top-4 pega rival mais duro; lanterna
+        // pega um pouco mais leve). Sem tabela disponível, fica neutro.
+        let forcaRivalCampanha = 0;
+        try {
+            const tabela = league.getTabela ? league.getTabela(league.divisaoUser || 1) : null;
+            const pos = tabela ? tabela.indexOf(userClub) + 1 : 0;
+            if (pos > 0) forcaRivalCampanha = pos <= 4 ? 1.5 : (pos >= 17 ? -1 : 0);
+        } catch (e) { forcaRivalCampanha = 0; }
         // Mandos alternados: o usuário pode jogar fora de casa (fixture do calendário).
         const userHome = fx ? fx.userHome : true;
         const homeTeam = userHome ? userClub : adv;
@@ -8917,7 +9027,7 @@ const Engine = {
             } catch (e) { Engine._ultimaPartida = null; }
             this.activeMatch = null;
             onFinish(ug, ag, xpBase, matchScorers);
-        }, { estilo, craque, regra, seed, condicao: (typeof app !== 'undefined' && app._condicaoJogo) ? app._condicaoJogo : 'normal', minDurMs: (typeof app !== 'undefined' && app._partidaMinDurMs) ? app._partidaMinDurMs() : 0, tempoMin: (typeof app !== 'undefined' && app._tempoPartida) ? app._tempoPartida : 90, ritmo: (typeof app !== 'undefined' && app._climaPartida) ? app._climaPartida.ritmo : 'normal', tom: (typeof app !== 'undefined' && app._climaPartida) ? app._climaPartida.tom : 'normal', tema: (typeof app !== 'undefined' && app._climaPartida) ? app._climaPartida.tema : 'brasileirao' });
+        }, { estilo, craque, regra, seed, forcaRivalCampanha, condicao: (typeof app !== 'undefined' && app._condicaoJogo) ? app._condicaoJogo : 'normal', minDurMs: (typeof app !== 'undefined' && app._partidaMinDurMs) ? app._partidaMinDurMs() : 0, tempoMin: (typeof app !== 'undefined' && app._tempoPartida) ? app._tempoPartida : 90, ritmo: (typeof app !== 'undefined' && app._climaPartida) ? app._climaPartida.ritmo : 'normal', tom: (typeof app !== 'undefined' && app._climaPartida) ? app._climaPartida.tom : 'normal', tema: (typeof app !== 'undefined' && app._climaPartida) ? app._climaPartida.tema : 'brasileirao' });
         this.activeMatch.start();
     },
 
@@ -8968,7 +9078,7 @@ const Engine = {
         // Fase 4: simula as DUAS divisões — a rodada da Série A inteira e a da Série B
         // (em cada uma, o jogo do usuário — se existir lá — é pulado).
         CompetitionSystem.ensure(league);
-        const grupos = [1,2,3,4].map(div => ({cal:league.getFixturesForRound(league.rodada,div),clubes:CompetitionSystem.clubs(league,div)}));
+        const grupos = [1,2,3,4].map(div => ({div, cal:league.getFixturesForRound(league.rodada,div), clubes:CompetitionSystem.clubs(league,div)}));
 
         grupos.forEach(g => {
             g.cal.forEach(([hi, ai]) => {
@@ -8985,6 +9095,13 @@ const Engine = {
                 // artilharia da IA reproduzível entre reloads (§20 do plano).
                 this._quickMarcar(h.elenco, res.h, res.rng);
                 this._quickMarcar(a.elenco, res.a, res.rng);
+            });
+        });
+        // B52: fecha a economia da rodada de cada clube da IA (receita − folha).
+        grupos.forEach(g => {
+            (g.clubes || []).forEach(cl => {
+                if (!cl || cl === userClub) return;
+                try { ClubEcosystem.afterRoundIA(cl, league, g.div); } catch (e) { /* economia nunca derruba a rodada */ }
             });
         });
     },
@@ -9046,6 +9163,11 @@ const Engine = {
         });
         const chave = (league.temporada || 1) + ':' + (league.rodada || 1);
         fila.sort((x, y) => (TransferMarket.hash(x.club.nome + '|' + chave) - TransferMarket.hash(y.club.nome + '|' + chave)));
+        // B52: agora que a IA tem caixa, sem teto ela compraria dezenas de atletas por
+        // rodada de um mercado de 6 e deixaria o usuário sem alvo. Teto de 2 contratações
+        // por rodada na liga e 3 rodadas de descanso por clube.
+        if (!league._compraIA || league._compraIA.chave !== chave) league._compraIA = { chave, feitas: 0 };
+        const agoraIA = (league.temporada || 1) * 1000 + (league.rodada || 1);
 
         fila.forEach(({ club: c, div }) => {
             if (c.bloqueioContratacoes || c.falencia || c.demitido) return;
@@ -9083,6 +9205,8 @@ const Engine = {
             // Compra: no máximo uma por clube por rodada, e só quando há necessidade
             // real (linha curta) ou reforço claro acima da média do XI.
             if (orcamentoLivres <= 0 || !app.marketPlayers.length) return;
+            if (league._compraIA.feitas >= 2) return; // teto da rodada
+            if (c.ultimaCompraIA && agoraIA - c.ultimaCompraIA < 3) return; // descanso do clube
             if ((TransferMarket.hash(c.nome + ':compra:' + chave) % 100) >= 55) return; // nem todo clube toda rodada
             const linhaCurta = Object.keys(necessidade.falta).filter(pos => necessidade.falta[pos] > 0);
             // Emergência: linha SEM NINGUÉM (ex.: clube sem goleiro) filtra o mercado
@@ -9112,6 +9236,8 @@ const Engine = {
             // Contratação real (mesma API do usuário): valida caixa, luvas e contrato.
             if (c.contratar(escolhido.p)) {
                 app.marketPlayers = app.marketPlayers.filter(p => p.id !== escolhido.p.id);
+                c.ultimaCompraIA = agoraIA;
+                league._compraIA.feitas++;
                 const porque = linhaCurta.indexOf(escolhido.pos) >= 0
                     ? 'fechou a linha de ' + escolhido.pos
                     : 'reforçou o elenco';
@@ -11452,6 +11578,12 @@ class UI {
       b.style.cssText = 'min-height:44px;padding:9px;margin:4px 4px 4px 0;font-size:.74rem;'; b.disabled = disabled; b.onclick = acao; box.appendChild(b); return b;
     };
     const board = panel(c.demitido ? '📋 FIM DE CARREIRA — DEMITIDO' : '📋 DIRETORIA');
+    try {
+      const metaBoard = (typeof ClubEcosystem !== 'undefined' && app.league) ? ClubEcosystem.metaTemporada(c, app.league) : null;
+      if (metaBoard && !c.demitido) {
+        texto(board, '🎯 Meta da temporada: ' + metaBoard.rotulo + ' na Série ' + CompetitionSystem.letters[metaBoard.divisao - 1] + '.' + (c.metaPosicao ? ' Hoje: ' + c.metaPosicao + 'º.' : ''));
+      }
+    } catch (e) { /* painel nunca quebra por causa da meta */ }
     texto(board, 'Paciência: ' + Math.round(c.pacienciaDiretoria) + '% · Rodadas abaixo de 20%: ' + c.rodadasDiretoriaCritica + '/3.');
     const meter = document.createElement('progress'); meter.max = 100; meter.value = c.pacienciaDiretoria; meter.setAttribute('aria-label', 'Paciência da diretoria'); meter.style.width = '100%'; board.appendChild(meter);
     texto(board, c.demitido ? 'Seu trabalho terminou. A carreira fica disponível para consulta; inicie outra no menu.' : 'Vitória +7; empate +1; derrota −9. Caixa negativo custa mais 3 pontos por rodada.');
@@ -13500,6 +13632,18 @@ const app = {
         if (club.aposentados == null) club.aposentados = 0;
         if (club.albumIds == null || !Array.isArray(club.albumIds)) club.albumIds = [];
         if (club.lastCraqueDay == null) club.lastCraqueDay = '';
+        // B77: o baralho da partida é a coleção. Carreira nova já nasce com 4; save antigo
+        // sem coleção recebe as iniciais que faltam (aditivo e idempotente).
+        if (club.isUser) {
+            if (!Array.isArray(club.taticas)) club.taticas = [];
+            const baseTat = (typeof GAME_DATA !== 'undefined' && Array.isArray(GAME_DATA.taticas)) ? GAME_DATA.taticas : [];
+            const unicosTat = new Set(club.taticas.map(t => t && t.id).filter(Boolean));
+            for (let i = 0; i < baseTat.length && unicosTat.size < 4; i++) {
+                if (unicosTat.has(baseTat[i].id)) continue;
+                club.taticas.push(new TaticaCard(baseTat[i]));
+                unicosTat.add(baseTat[i].id);
+            }
+        }
         // C1: save antigo sem patrocinio → migra para o modelo passivo (fórmula do patrimônio), zero surpresa.
         if (club.patrocinio === undefined) {
             club.patrocinio = { id: 'p_passivo', nome: 'Patrocínio do Patrimônio', tipo: 'passivo', fixo: 0, metas: [], ativo: true, legado: true };
@@ -14119,7 +14263,19 @@ const app = {
         const p = this.club.elenco.find(pl => pl.id === this.sellingPlayerId);
         if (p) {
             const val = p.valor || 0;
-            this.club.vender(p.id);
+            // B77 (2026-10-19): o draft dava um atleta 58-75 de graça e ele podia ser
+            // vendido NA MESMA RODADA por 70% (~R$ 312 mil na Série A) — 17 vitórias
+            // viravam ~R$ 5,3 M contra uma folha de R$ 1,8 M. Agora o recém-chegado tem
+            // janela de uma rodada, e quem nunca entrou em campo sai por 55%.
+            const chave = (this.league.temporada || 1) + ':' + (this.league.rodada || 1);
+            if (p.chegouEm === chave) {
+                this.sellingPlayerId = null;
+                ui.closeSellModal();
+                ui.showActionFeedback('Recém-chegado: espere uma rodada para negociar ' + p.nome + '.', 'warning');
+                return;
+            }
+            const taxa = (p.partidas || 0) === 0 ? 0.55 : 0.7;
+            this.club.vender(p.id, taxa);
             this.club.vendaMax = Math.max(this.club.vendaMax || 0, val * (p.direitosClube || 1) * .7);
             this.conquista('mercador', this.club.jogadoresVendidos >= 10);
             this.conquista('negocio', this.club.vendaMax >= 500000);
@@ -14451,6 +14607,8 @@ const app = {
         // reentrantes nunca adicionam a mesma carta duas vezes ao elenco/baralho.
         this._draftOpts = null;
         if (opt.tipo === 'jogador') {
+            // B77: janela de uma rodada antes de poder vender o recém-chegado.
+            opt.p.chegouEm = (this.league.temporada || 1) + ':' + (this.league.rodada || 1);
             this.club.elenco.push(opt.p);
             this.league.adicionarNoticia(`📋 Draft: ${opt.p.nome} (${opt.p.overall} OVR) adicionado ao elenco.`);
         } else {
@@ -15609,6 +15767,21 @@ const app = {
         const tabela = this.league.getTabela(divisao);
         const campeao = tabela[0];
         const userPos = tabela.indexOf(this.club) + 1;
+        // B54: cobrança da meta no fim da temporada (confiança da diretoria).
+        let metaTxt = '';
+        try {
+            const meta = ClubEcosystem.metaTemporada(this.club, this.league);
+            if (userPos > 0) {
+                const cumprida = userPos <= meta.alvo;
+                const longe = userPos > meta.alvo + 4;
+                this.club.pacienciaDiretoria = Math.max(0, Math.min(100,
+                    (Number(this.club.pacienciaDiretoria) || 70) + (cumprida ? 15 : (longe ? -25 : -8))));
+                metaTxt = cumprida
+                    ? '🎯 Meta cumprida (' + meta.rotulo + '): confiança +15.'
+                    : '🎯 Meta não cumprida (' + meta.rotulo + '): confiança ' + (longe ? '−25' : '−8') + '.';
+                this.league.adicionarNoticia(metaTxt);
+            }
+        } catch (e) { metaTxt = ''; }
 
         // Fase 4: prêmios por divisão (Série B paga ~1/5 da A).
         const premioPos = naB
@@ -15667,6 +15840,8 @@ const app = {
             statusExtra = `✅ ACESSO À SÉRIE ${CompetitionSystem.letters[divisao - 2]}! Terminou em ${userPos}º na Série ${letra}.`;
             this.conquista('promovido', true);
         }
+        // B54: a meta da diretoria entra no resumo da temporada.
+        if (metaTxt) statusExtra = statusExtra ? (statusExtra + ' · ' + metaTxt) : metaTxt;
 
         // Artilheiros da liga: soma Player.gols do elenco de TODOS os clubes. Empate lista os top.
         const golsPorJogador = new Map();   // playerId -> gols
@@ -15790,6 +15965,14 @@ const app = {
             cl.elenco.forEach(p => { if (typeof p.envelhecer === 'function') p.envelhecer(); });
             cl.elenco = cl.elenco.filter(p => p.idade <= 36);
             if (typeof cl.reporElencoBase === 'function') cl.reporElencoBase();
+        });
+        // B52: pré-temporada paga com o caixa acumulado (economia → dificuldade).
+        [1, 2, 3, 4].forEach(div => {
+            (CompetitionSystem.clubs(this.league, div) || []).forEach(cl => {
+                if (cl && cl !== this.club) {
+                    try { ClubEcosystem.investirElenco(cl, div); } catch (e) { /* nunca derruba a virada */ }
+                }
+            });
         });
 
         // Nova temporada: missões rotacionam — gera um conjunto novo (também atende o "CONTINUAR CARREIRA" com save antigo sem o campo).
