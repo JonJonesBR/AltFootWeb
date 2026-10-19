@@ -459,6 +459,46 @@ teste('a força da fornada acompanha o próprio elenco (não infla nem some)', (
     ok(forte < 92 && fraco > 28, 'fornada fora da faixa: ' + fraco.toFixed(1) + ' / ' + forte.toFixed(1));
 });
 
+// ------------------------------------ B47/B48/B49: ritmo, repetição e contexto (2026-10-19)
+console.log('-- B47/B48/B49: a partida dá para ler (2026-10-19)');
+const normalizaFrase = t => t.replace(/\d+/g, 'N').replace(/[A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+/g, 'J').trim();
+teste('a mesma frase não domina a partida e o texto tem contexto', () => {
+    let piorRep = 0, contexto = 0, linhas = 0, distintas = 0;
+    for (let seed = 1; seed <= 8; seed++) {
+        const logs = [];
+        runMatch({ seed, ovrH: 70, ovrA: 70, preSim: sim => {
+            const orig = sim._emit.bind(sim);
+            sim._emit = function (log, tipo, statOnly) { if (log) logs.push(log); return orig(log, tipo, statOnly); };
+        } });
+        const mapa = new Map();
+        logs.forEach(t => {
+            linhas++;
+            const temTime = ['Casa', 'Fora'].some(n => new RegExp('(^|[^\\wÀ-ÿ-])' + n + '($|[^\\wÀ-ÿ-])').test(t));
+            if (temTime || /\d+'/.test(t) || /\b\d+ a \d+\b/.test(t)) contexto++;
+            const k = normalizaFrase(t);
+            mapa.set(k, (mapa.get(k) || 0) + 1);
+        });
+        distintas += mapa.size;
+        piorRep = Math.max(piorRep, Math.max(...mapa.values()));
+    }
+    ok(piorRep <= 5, 'frase repetida ' + piorRep + 'x na MESMA partida (teto 5)');
+    ok(distintas / 8 >= 60, 'poucas frases distintas por partida: ' + (distintas / 8).toFixed(1));
+    ok(contexto / linhas >= 0.4, 'contexto em ' + (100 * contexto / linhas).toFixed(1) + '% das linhas (mínimo 40%)');
+});
+teste('a partida a 1x dura ~3 min e o piso de 60 s não segura mais o apito', () => {
+    let ms = 0, piso = null;
+    for (let seed = 1; seed <= 3; seed++) {
+        runMatch({ seed, preSim: sim => {
+            piso = sim.minDurMs;
+            const og = sim._gap.bind(sim);
+            sim._gap = function () { const g = og(); ms += g; return g; };
+        } });
+    }
+    const media = ms / 3 / 1000;
+    ok(media >= 150 && media <= 210, 'duração a 1x: ' + media.toFixed(1) + ' s (esperado 150-210)');
+    ok(piso === 0, 'piso de parede em partida comum: ' + piso + ' ms (esperado 0)');
+});
+
 console.log('');
 console.log('=== ' + (total - falhas) + '/' + total + ' verificações passaram' + (falhas ? ' — ' + falhas + ' FALHAS' : '') + ' ===');
 process.exit(falhas ? 1 : 0);

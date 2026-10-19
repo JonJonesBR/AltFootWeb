@@ -6824,7 +6824,9 @@ class MatchSim {
         this.continental = !!opts.continental;
         // A final detalhada preserva o piso da locução; o resumo instantâneo dura 4 s.
         if (this.modo === 'instantaneo') this.minDurMs = 4000;
-        else this.minDurMs = this.startMinute > 0 ? 10000 : Math.max(this.minDurMs, 60000);
+        // B47: o piso de 60 s segurava o apito em 4x/PULAR (47-53 s parados em
+        // "COMPENSANDO ACRÉSCIMO..."). Com a partida de ~3 min a 1x, o piso só vale na FINAL.
+        else this.minDurMs = this.startMinute > 0 ? 10000 : this.minDurMs;
     }
     _rnd(a, b) { return a + this.rng() * (b - a); }
     _roll(p) { return this.rng() < p; }
@@ -7180,118 +7182,294 @@ class MatchSim {
     // ---- Narração (templates estilo rádio) ----
     // nomeJ/nomeG opcionais: protagonistas JÁ escolhidos para o campo 2D —
     // texto e ficha citam SEMPRE o mesmo jogador (coerência campo × narração).
+    //
+    // B48 (2026-10-19): o sorteio era COM REPOSIÇÃO — 67 frases distintas em 10 partidas
+    // e uma mesma frase 12x na MESMA partida. Agora cada pool tem uma "sacola": as frases
+    // são embaralhadas e gastas sem repetir até esgotar.
+    // B49: as frases recebem contexto ({time}, {adv}, {min}, {placar}, {comp}) em vez de
+    // "time da casa"/"time de fora", para a rodada 3 não soar igual à final.
+    _pickSaco(nome, arr) {
+        if (!this._sacos) this._sacos = {};
+        let saco = this._sacos[nome];
+        if (!Array.isArray(saco) || !saco.length) {
+            saco = arr.slice();
+            for (let i = saco.length - 1; i > 0; i--) {
+                const j = Math.floor(this.rng() * (i + 1));
+                const t = saco[i]; saco[i] = saco[j]; saco[j] = t;
+            }
+            // O ciclo novo não começa com a frase que fechou o anterior.
+            const ultima = this._ultimaFrase && this._ultimaFrase[nome];
+            if (ultima && saco.length > 1 && saco[saco.length - 1] === ultima) {
+                const t = saco[0]; saco[0] = saco[saco.length - 1]; saco[saco.length - 1] = t;
+            }
+            this._sacos[nome] = saco;
+        }
+        const escolhida = saco.pop();
+        if (!this._ultimaFrase) this._ultimaFrase = {};
+        this._ultimaFrase[nome] = escolhida;
+        return escolhida;
+    }
+
+    // Contexto textual do lance (B49). `team` é quem ataca.
+    _ctxTexto(team) {
+        const casa = this.home;
+        const t = team || casa;
+        const outro = (t === casa) ? this.away : casa;
+        const meus = (t === casa) ? this.scoreH : this.scoreA;
+        const deles = (t === casa) ? this.scoreA : this.scoreH;
+        return {
+            time: (t && t.nome) || 'o mandante',
+            adv: (outro && outro.nome) || 'o rival',
+            min: (this.minuto || 0) + "'",
+            placar: meus + ' a ' + deles,
+            comp: this._rotuloCompeticao()
+        };
+    }
+
+    _rotuloCompeticao() {
+        if (this.regra === 'torneio') return 'o torneio';
+        if (this.regra === 'classico') return 'o clássico';
+        if (this.tom === 'final') return 'a final';
+        if (this.tom === 'amistoso') return 'o amistoso';
+        return 'a liga';
+    }
+
+    _fmt(texto, ctx) {
+        if (!texto) return '';
+        const c = ctx || this._ctxTexto(this.home);
+        return String(texto)
+            .replace(/\{j\}/g, c.j || 'o camisa 10')
+            .replace(/\{g\}/g, c.g || 'o goleiro')
+            .replace(/\{time\}/g, c.time)
+            .replace(/\{adv\}/g, c.adv)
+            .replace(/\{min\}/g, c.min)
+            .replace(/\{placar\}/g, c.placar)
+            .replace(/\{comp\}/g, c.comp);
+    }
+
     _fraseLan(team, nomeJ) {
         const j = nomeJ || (team === this.home ? this._nomeHome('MID') : this._nomeAdv('MID'));
+        const ctx = this._ctxTexto(team); ctx.j = j;
         if (this.tom === 'amistoso') {
-            return this._pick([
-                "Ritmo tranquilo, " + j + " troca passes sem pressa no meio.",
-                "Amistoso pede calma: " + j + " mantém a posse e a torcida aproveita o sol.",
-                "Jogo de coração leve, " + j + " só administra a bola.",
-                "Sem pressa no placar — " + j + " experimenta o passe longo."
-            ]);
+            return this._fmt(this._pickSaco('lan_amistoso', [
+                "Ritmo tranquilo, {j} troca passes sem pressa no meio.",
+                "Amistoso pede calma: {j} mantém a posse e a torcida aproveita o sol.",
+                "Jogo de coração leve, {j} só administra a bola.",
+                "Sem pressa no placar — {j} experimenta o passe longo.",
+                "O {time} treina o que combinou na semana: {j} comanda a posse.",
+                "Bola no chão, {j} e companhia rodando o {adv} sem agredir."
+            ]), ctx);
         }
-        // G5: o rádio descreve o perfil de quem está com a bola.
         const perfil = this._perfilDe(team);
         if (perfil === 'posse') {
-            return this._pick([
-                "O " + (team === this.home ? "mandante" : "visitante") + " segura a bola e " + j + " trabalha a posse com paciência.",
-                j + " gira o jogo e ninguém tira a bola do pé — posse sufocante.",
-                "Sequência de passes curtos do " + (team === this.home ? "time da casa" : "time de fora") + " com " + j + " no comando.",
-                "Cadência alta: " + j + " dita o ritmo e a torcida pede velocidade."
-            ]);
+            return this._fmt(this._pickSaco('lan_posse', [
+                "O {time} segura a bola e {j} trabalha a posse com paciência.",
+                "{j} gira o jogo e ninguém tira a bola do pé — posse sufocante do {time}.",
+                "Sequência de passes curtos do {time} com {j} no comando.",
+                "Cadência alta: {j} dita o ritmo e a torcida pede velocidade.",
+                "{time} tem a bola, mas o {adv} se fecha bem aos {min}.",
+                "{j} troca de lado em três toques e o {time} avança.",
+                "Paciência: o {time} roda a bola até o {adv} abrir espaço.",
+                "{j} recebe no pé, protege e devolve — aula de posse aos {min}."
+            ]), ctx);
         }
         if (perfil === 'contra_ataque') {
-            return this._pick([
-                "Bola recuperada! O " + (team === this.home ? "mandante" : "visitante") + " já sai em velocidade com " + j + ".",
-                j + " ajeita de primeira e lança o contra-ataque — perigo na área!",
-                "Transição rápida! " + j + " puxa o contra-ataque e a defesa se divide para acompanhar o " + (team === this.home ? "time da casa" : "time de fora") + ".",
-                "Recuo proposital e a resposta vem em um passe: " + j + " acelera."
-            ]);
+            return this._fmt(this._pickSaco('lan_contra', [
+                "Bola recuperada! O {time} já sai em velocidade com {j}.",
+                "{j} ajeita de primeira e lança o contra-ataque — perigo na área do {adv}!",
+                "Transição rápida! {j} puxa o contra-ataque e a defesa se divide.",
+                "Recuo proposital e a resposta vem em um passe: {j} acelera.",
+                "Três contra dois! O {time} explode no contra-ataque com {j}.",
+                "{j} dispara pela direita e o {adv} se salva no desespero.",
+                "Roubou a bola no meio e em quatro segundos o {time} chega à área.",
+                "Lançamento na medida para {j}, que sai em disparada aos {min}."
+            ]), ctx);
         }
         if (perfil === 'retranca_copeira') {
-            return this._pick([
-                "Linha baixa do " + (team === this.home ? "mandante" : "visitante") + " — " + j + " mantém a bola longe da área.",
-                j + " segura a falta e o " + (team === this.home ? "time da casa" : "time de fora") + " administra o tempo.",
-                "Bloco compacto: " + j + " fecha o espaço e não dá linha de passe.",
-                "Cera e controle: " + j + " sabe o que o " + (team === this.home ? "time da casa" : "time de fora") + " quer do jogo."
-            ]);
+            return this._fmt(this._pickSaco('lan_retranca', [
+                "Linha baixa do {time} — {j} mantém a bola longe da área.",
+                "{j} segura a falta e o {time} administra o tempo.",
+                "Bloco compacto: {j} fecha o espaço e não dá linha de passe.",
+                "Cera e controle: {j} sabe o que o {time} quer do jogo.",
+                "{time} recua as duas linhas e convida o {adv} a atacar.",
+                "{j} corta o cruzamento e ainda ganha a falta.",
+                "O {adv} insiste, mas o {time} tem sempre um corpo na frente.",
+                "Jogo travado: {j} e companhia fecham a entrada da área aos {min}."
+            ]), ctx);
         }
-        return this._pick([
-            "{j} domina no meio e procura espaço.", "{j} puxa a marcação e gira o jogo.", "Trocas de passe na intermediária com {j} conduzindo o time de " + (team === this.home ? "casa" : "fora") + ".", "{j} tenta a ligação direta... a zaga corta.", "Boa troca de passes! {j} impõe ritmo para o " + (team === this.home ? "mandante" : "visitante") + ".", "{j} cobra falta curta e encontra o companheiro livre.", "{j} aciona o contra-ataque com um lançamento longo."
-        ]).replace('{j}', j);
+        return this._fmt(this._pickSaco('lan', [
+            "{j} domina no meio e procura espaço na marcação do {adv}.",
+            "{j} puxa a marcação e gira o jogo.",
+            "Trocas de passe na intermediária com {j} conduzindo o {time}.",
+            "{j} tenta a ligação direta... a zaga do {adv} corta.",
+            "Boa troca de passes! {j} impõe ritmo para o {time}.",
+            "{j} abre o jogo na direita e o {time} sobe de bloco.",
+            "Recuperação no campo de ataque: {j} aciona o contra-ataque com um lançamento longo.",
+            "{time} gira a bola e espera o erro do {adv}.",
+            "Marcação alta do {adv} complica a saída do {time}.",
+            "{j} tenta o drible na entrada da área e ganha o fundo.",
+            "Ritmo caiu: {time} e {adv} se estudam aos {min}.",
+            "{j} aparece entre as linhas, mas o passe sai forte demais.",
+            "{j} recupera no meio e o {time} recomeça a construção.",
+            "O {adv} recua e fecha o corredor de {j}.",
+            "{j} tabela, a defesa rebate e a bola volta para o meio.",
+            "Domínio territorial do {time}, mas sem profundidade.",
+            "O {adv} tenta sair jogando, mas o {time} pressiona a saída.",
+            "{j} pede a bola na ponta e o {time} troca de lado.",
+            "Falta de ritmo: o {time} toca para trás e recomeça.",
+            "{j} faz o pivô e libera o companheiro pelo lado cego."
+        ]), ctx);
     }
+
     _fraseChance(team, nomeJ) {
         const j = nomeJ || (team === this.home ? this._nomeHome('ATT') : this._nomeAdv('ATT'));
-        return this._pick([
-            "PERIGO! {j} limpa a marcação e finaliza!",
+        const ctx = this._ctxTexto(team); ctx.j = j;
+        return this._fmt(this._pickSaco('chance', [
+            "PERIGO! {j} limpa a marcação do {adv} e finaliza!",
             "{j} chega pela ponta e cruza na área...",
             "Contra-ataque veloz! {j} ajeita e bate de primeira!",
-            "{j} cobra falta com veneno..."
-        ]).replace('{j}', j);
+            "{j} cobra falta com veneno...",
+            "{j} arrisca de fora da área e a bola passa perto!",
+            "Cruzamento na medida e {j} cabeceia contra o {adv}!",
+            "{j} corta para o meio e solta a bomba contra o {adv}!",
+            "Bola rebatida na área e {j} pega de primeira!",
+            "{j} entra na área driblando e o {adv} se atira para bloquear!",
+            "Lançamento nas costas da zaga e {j} aparece sozinho!",
+            "{j} tenta o encobrimento e o goleiro recua às pressas!",
+            "Chute forte de {j} e a zaga do {adv} afasta de qualquer jeito!",
+            "{j} aparece na entrada da área e chuta colocado!",
+            "{j} ganha a corrida e toca na saída do goleiro!",
+            "{j} arma o chute no ângulo do {adv}!",
+            "{j} recebe de costas, gira sobre a marcação do {adv} e finaliza!",
+            "Contra-ataque de três contra três e {j} assume a bola!",
+            "{j} chuta no meio da defesa e a bola sobra na área!"
+        ]), ctx);
     }
+
     _fraseDef(team, nomeG) {
         const g = nomeG || (team === this.home ? this._nomeHome('GK') : this._nomeAdv('GK'));
-        return this._pick([
-            "O goleiro " + g + " espalma pra escanteio!",
-            "Milagre! " + g + " evita o gol com a ponta dos dedos!",
-            "A zaga se atira e " + g + " completa a defesa em cima da linha!"
-        ]);
+        const ctx = this._ctxTexto(team); ctx.g = g;
+        return this._fmt(this._pickSaco('def', [
+            "O goleiro {g} espalma pra escanteio!",
+            "{g} evita o gol do {time} com a ponta dos dedos!",
+            "A zaga se atira e {g} completa a defesa em cima da linha!",
+            "{g} sai nos pés do atacante do {time} e abafa o lance!",
+            "Cabeceio firme e {g} faz a defesa do jogo!",
+            "{g} se antecipa ao cruzamento e agarra no alto.",
+            "Chutou e {g} rebateu com o punho — escanteio para o {time}.",
+            "{g} lê o lance e corta o passe da morte.",
+            "{g} voa no canto e salva o {time}!",
+            "{g} sai de carrinho fora da área e corta o lançamento!"
+        ]), ctx);
     }
+
     _fraseMiss(team, nomeJ, comTipo = false) {
         const j = nomeJ || (team === this.home ? this._nomeHome('ATT') : this._nomeAdv('ATT'));
-        const resultado = this._pick([
-            { tipo: 'fora', texto: "{j} finaliza por cima do gol..." },
-            { tipo: 'defesa', texto: "{j} chuta fraco, defesa tranquila." },
+        const ctx = this._ctxTexto(team); ctx.j = j;
+        const resultado = this._pickSaco('miss', [
+            { tipo: 'fora', texto: "{j} finaliza por cima da meta do {adv}..." },
+            { tipo: 'defesa', texto: "{j} chuta fraco e o goleiro do {adv} agradece." },
             { tipo: 'trave', texto: "A bola de {j} beija a trave e sai! Quase!" },
-            { tipo: 'fora', texto: "{j} isola a bola nas arquibancadas." }
+            { tipo: 'fora', texto: "{j} isola a bola nas arquibancadas do {adv}." },
+            { tipo: 'fora', texto: "{j} fica entre o chute e o passe e perde o tempo." },
+            { tipo: 'defesa', texto: "{j} bate de primeira, mas o goleiro estava lá." },
+            { tipo: 'trave', texto: "{j} acerta o travessão! O estádio inteiro gritou gol!" },
+            { tipo: 'fora', texto: "Cruzamento errado: {j} cabeceia pra fora." },
+            { tipo: 'defesa', texto: "{j} tenta o toque por cima e o goleiro do {adv} encaixa." },
+            { tipo: 'fora', texto: "{j} chuta em cima da zaga do {adv} e a bola sai pela linha de fundo." }
         ]);
-        const texto = resultado.texto.replace('{j}', j);
+        const texto = this._fmt(resultado.texto, ctx);
         return comTipo ? { tipo: resultado.tipo, texto } : texto;
     }
+
     _fraseFalta(team, nomeJ) {
         const j = nomeJ || (team === this.home ? this._nomeHome('MID') : this._nomeAdv('MID'));
-        return this._pick([
-            "Falta dura de " + j + " no meio-campo.",
-            "Lance disputado, " + j + " chega atrasado e o árbitro marca falta.",
-            "Joelhada de " + j + " na disputa aérea. Falta marcada."
-        ]);
+        const ctx = this._ctxTexto(team); ctx.j = j;
+        return this._fmt(this._pickSaco('falta', [
+            "Falta dura de {j} e o {adv} reclama.",
+            "Lance disputado, {j} chega atrasado e o árbitro marca falta.",
+            "Joelhada de {j} na disputa aérea. Falta marcada.",
+            "{j} segura o contragolpe com uma falta tática.",
+            "Carrinho de {j} e falta para o {adv}.",
+            "Empurrão de {j} e o jogo para.",
+            "{j} chega com o pé alto — falta e reclamação.",
+            "Disputa dura no círculo central: falta de {j}."
+        ]), ctx);
     }
+
     _fraseCartao(team, nomeJ) {
         const j = nomeJ || (team === this.home ? this._nomeHome('DEF') : this._nomeAdv('DEF'));
-        return this._pick([
-            "Cartão amarelo para " + j + "!",
-            "Travada por trás: " + j + " está no caderno do árbitro."
-        ]);
+        const ctx = this._ctxTexto(team); ctx.j = j;
+        return this._fmt(this._pickSaco('cartao', [
+            "Cartão amarelo para {j}!",
+            "Travada por trás: {j} está no caderno do árbitro.",
+            "Reincidência de {j} e o amarelo sai.",
+            "{j} protesta demais e é advertido.",
+            "Entrada dura de {j} aos {min} e cartão amarelo.",
+            "{j} segura a bola para atrasar o jogo — amarelo."
+        ]), ctx);
     }
+
     _fraseGol(team, nomeJ, nomeG) {
         const isHome = team === this.home;
         const j = nomeJ || (isHome ? this._nomeHome('ATT') : this._nomeAdv('ATT'));
         const g = nomeG || (isHome ? this._nomeAdv('GK') : this._nomeHome('GK'));
-        return this._pick([
+        const ctx = this._ctxTexto(team); ctx.j = j; ctx.g = g;
+        return this._fmt(this._pickSaco('gol', [
             "GOOOOL! {j} não perdoa e balança as redes!",
-            "GOL! {j} aparece livre e manda pra dentro, sem chances para " + g + "!",
-            "GOLAÇO! {j} acerta um chute indefensável no ângulo!"
-        ]).replace('{j}', j);
+            "GOL! {j} aparece livre e manda pra dentro, sem chances para {g}!",
+            "GOLAÇO! {j} acerta um chute indefensável no ângulo!",
+            "É GOL DO {time}! {j} aparece no segundo pau e completa!",
+            "GOL! {j} antecipa o goleiro {g} e empurra para o fundo!",
+            "GOOOOL! {j} pega de primeira e a bola entra cheia de efeito!",
+            "GOLAÇO de {j} aos {min}! O {adv} fica parado olhando!",
+            "GOL! {j} dribla o goleiro e só empurra: {placar}."
+        ]), ctx);
     }
 
     _fraseVar(team, nomeJ) {
         const j = nomeJ || (team === this.home ? this._nomeHome('ATT') : this._nomeAdv('ATT'));
-        return this._pick([
+        const ctx = this._ctxTexto(team); ctx.j = j;
+        return this._fmt(this._pickSaco('var', [
             "GOOOOOL... espera! O VAR está revisando. IMPEDIMENTO! Gol anulado.",
-            "Bola na rede de " + j + "!... mas o VAR entra em ação: lance anulado!",
-            "O VAR pede revisão... toque de mão! Gol anulado."
-        ]).replace('{j}', j);
+            "Bola na rede de {j}!... mas o VAR entra em ação: lance anulado!",
+            "O VAR pede revisão... toque de mão! Gol anulado.",
+            "Gol do {time}, mas o auxiliar já levantou a bandeira.",
+            "O VAR desenha a linha e {j} estava dois dedos à frente. Anulado!",
+            "Revisão longa... e o árbitro anula o gol de {j}."
+        ]), ctx);
     }
+
     _fraseAcrescimo() {
         const minutos = Math.max(0, (this._fimSimulado || this.tempoMin) - this.tempoMin);
         return "O árbitro sinaliza " + minutos + " minutos de acréscimo!";
     }
+
     _fraseLesao(team, nomeJ) {
         const j = nomeJ || (team === this.home ? this._nomeHome('MID') : this._nomeAdv('MID'));
-        return this._pick([
-            "Atenção: " + j + " sente a coxa após a dividida forte... e continua por enquanto.",
-            j + " fica no gramado segurando o tornozelo. A comissão avalia... segue o jogo!"
-        ]);
+        const ctx = this._ctxTexto(team); ctx.j = j;
+        return this._fmt(this._pickSaco('lesao', [
+            "Atenção: {j} sente a coxa após a dividida forte... e continua por enquanto.",
+            "{j} fica no gramado segurando o tornozelo. A comissão avalia... segue o jogo!",
+            "{j} cai sozinho e faz sinal para o banco. O {time} pode perder uma peça.",
+            "Duro golpe para o {time}: {j} manca após o choque na área.",
+            "{j} pede atendimento aos {min} — o médico já entra em campo."
+        ]), ctx);
+    }
+
+    _fraseEscanteio(team, nomeJ) {
+        const j = nomeJ || (team === this.home ? this._nomeHome('MID') : this._nomeAdv('MID'));
+        const ctx = this._ctxTexto(team); ctx.j = j;
+        return this._fmt(this._pickSaco('escanteio', [
+            "Escanteio para o {time}!",
+            "A zaga do {adv} manda para escanteio.",
+            "Canto para o {time} — e a área se enche de camisas.",
+            "Escanteio! {j} já se posiciona na segunda trave.",
+            "Desvio na zaga e sai escanteio para o {time}.",
+            "Mais um canto para o {time} aos {min}.",
+            "Cobrança ensaiada do {time} e a zaga afasta de cabeça.",
+            "Escanteio para o {time}: a torcida levanta."
+        ]), ctx);
     }
 
     // ---- Bordões contextuais (Rádio do Estádio 95.3) — só texto no feed ----
@@ -7379,7 +7557,7 @@ class MatchSim {
         const usados = this._ctxUsados[ocasiao] || 0;
         if (usados >= limite) return null;
         this._ctxUsados[ocasiao] = usados + 1;
-        return this._pick(pool);
+        return this._pickSaco('ctx_' + ocasiao, pool);
     }
 
     // Lê o placar/fase e decide qual bordão soltar (se algum).
@@ -7693,7 +7871,20 @@ class MatchSim {
         if (this.modo === 'instantaneo') {
             return Math.max(0, Math.round(this._t0 + 3900 * this._idx / minutos - TempoPagina.agora()));
         }
-        return Math.floor((this.startMinute > 0 ? 30000 : 52000) / this._fimSimulado / this.speed);
+        // B47 (2026-10-19): 1x passa a durar ~3 min (eram 52 s de simulação + 60 s de piso).
+        // Cenário que começa no meio (startMinute > 0) tem metade do peso de parede.
+        const base = this.startMinute > 0 ? 120000 : 180000;
+        return Math.floor(base / this._fimSimulado / this.speed);
+    }
+    // B47: pausa de leitura nos picos (gol/cartão/VAR), proporcional à velocidade.
+    _beat(ms) {
+        const valor = Math.round((ms || 0) / Math.max(1, this.speed || 1));
+        this._pausaBeat = Math.max(this._pausaBeat || 0, valor);
+    }
+    _gapBeat() {
+        const extra = this._pausaBeat || 0;
+        this._pausaBeat = 0;
+        return this._gap() + extra;
     }
     _tick() {
         if (this.abortado || this._segurandoFim) return;
@@ -7742,7 +7933,7 @@ class MatchSim {
         }
         MatchUI.clock(this.minuto);
         clearTimeout(this._timer);
-        this._timer = setTimeout(() => this._tick(), ev.tipo === 'autoGol' ? this._gap() : this._gap());
+        this._timer = setTimeout(() => this._tick(), this._gapBeat());
     }
 
     _mostrarEtica() {
@@ -7809,7 +8000,9 @@ class MatchSim {
             const ehChance = !this._roll(0.55);
             const prot = setCtx(ehChance ? 'ATT' : 'MID', this._roll(0.4) ? 'GK' : 'DEF');
             log = ehChance ? this._fraseChance(teamAtk, prot.nomeAtk) : this._fraseLan(teamAtk, prot.nomeAtk);
-            if (log.indexOf('PERIGO') >= 0 || log.indexOf('Contra-ataque') >= 0) tipoFeed = 'warn';
+            // B48: o destaque do feed não depende mais de a frase começar com "PERIGO" —
+            // o tipo do lance é conhecido aqui e todas as 12 frases de chance merecem destaque.
+            if (ehChance) tipoFeed = 'warn';
             this._moverPressao(ev.side, ehChance ? 3.2 : 1.4);
             if (ehChance || tipoFeed === 'warn') this._registrarZona(ev.side === 0, 'chance');
         } else if (t === 'falta') {
@@ -7821,6 +8014,7 @@ class MatchSim {
         } else if (t === 'cartao') {
             const prot = setCtx('DEF', 'ATT');
             log = this._fraseCartao(teamAtk, prot.nomeAtk);
+            this._beat(900);
             this.cartoes[ev.side]++;
             if (!this._eventos) this._eventos = [];
             this._eventos.push({ min: this.minuto, tipo: 'cartao', label: prot.nomeAtk || 'Cartão' });
@@ -7848,7 +8042,7 @@ class MatchSim {
             tipoFeed = 'foul';
         } else if (t === 'escanteio') {
             const prot = setCtx('ATT', 'GK');
-            log = "Escanteio para o " + (ev.side === 0 ? "time da casa" : "visitante") + "!";
+            log = this._fraseEscanteio(teamAtk, prot.nomeAtk);
             this.escanteios[ev.side]++;
             this.chutes[ev.side]++;
             this._moverPressao(ev.side, 2.8);
@@ -7932,8 +8126,8 @@ class MatchSim {
         if (log && log.indexOf('trave') >= 0) {
             const tb = this._fraseContexto('trave');
             if (tb) {
-                const nomeProta = (this._campoCtx && this._campoCtx.atk && this._campoCtx.atk.nome) || null;
-                log = nomeProta ? (tb + ' (' + nomeProta + ')') : tb;
+                // O protagonista já é citado na frase do chute; o parêntese duplicava o nome.
+                log = tb;
             }
         }
         if (log) this._emit(log, tipoFeed);
@@ -7951,6 +8145,7 @@ class MatchSim {
     }
 
     _marcar(isHome, autor) {
+        this._beat(1400);
         if (isHome) this.scoreH++; else this.scoreA++;
         if (autor && autor.id) this.matchScorers[autor.id] = (this.matchScorers[autor.id] || 0) + 1;
         if (autor) autor.gols = (autor.gols || 0) + 1;
@@ -8261,6 +8456,7 @@ class MatchSim {
             const gol = this._roll(p);
             const revisao = gol && this._roll(this.arbitro === 'Rigoroso' ? 0.15 : 0.08);
             if (revisao) {
+                this._beat(1200);
                 const motivo = this._roll(0.65) ? 'impedimento' : 'mao';
                 this._fecharDecisao('var');
                 this._emit('📺 VAR: gol de ' + j + ' anulado por ' + (motivo === 'mao' ? 'toque de mão' : 'impedimento milimétrico') + '.', 'warn');
@@ -8312,7 +8508,7 @@ class MatchSim {
             this._fecharDecisao('erro');
         }
         clearTimeout(this._timer);
-        this._timer = setTimeout(() => this._tick(), this._gap());
+        this._timer = setTimeout(() => this._tick(), this._gapBeat());
     }
 
     setSpeed(s) {
@@ -8326,7 +8522,9 @@ class MatchSim {
         // Piso de tempo de parede (final: ≥ 72s): segura o apito até o intro de final
         // terminar — vale em 1×, 2× ou 4×.
         const decorrido = TempoPagina.agora() - (this._t0 ?? TempoPagina.agora());
-        if (this.minDurMs > 0 && decorrido < this.minDurMs) {
+        // B47: em 4x/PULAR o piso da final também não pode segurar o apito — quem pediu
+        // velocidade não quer esperar 27-50 s de tela parada.
+        if (this.minDurMs > 0 && this.speed < 4 && decorrido < this.minDurMs) {
             this._segurandoFim = true;
             MatchUI.status('COMPENSANDO ACRESCIMO...');
             this._timer = setTimeout(() => this._finalizar(), this.minDurMs - decorrido);
@@ -9184,7 +9382,8 @@ class UI {
       item.appendChild(document.createTextNode(" "));
       item.appendChild(spText);
       feed.insertBefore(item, feed.firstChild);
-      while (feed.children.length > 5) {
+      // B47: 5 linhas eram um letreiro (0,5 s por frase). 10 dão contexto de leitura.
+      while (feed.children.length > 10) {
         feed.removeChild(feed.lastChild);
       }
     }
