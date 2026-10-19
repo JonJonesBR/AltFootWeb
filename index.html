@@ -4980,6 +4980,94 @@ const ClubEcosystem = {
     club.orcamento = caixa;
     return receita - folha;
   },
+  // B64 (2026-10-19): fios narrativos da temporada — rival, promessa e jovem da base.
+  // Aditivo: `club.fios` nasce vazio em save antigo (guarda em normalizeNewFields) e é
+  // recalculado na virada de temporada. Nada aqui depende de sorteio no load.
+  atualizarFios(club, league) {
+    if (!club) return null;
+    this.normalize(club);
+    if (!club.fios || typeof club.fios !== 'object' || Array.isArray(club.fios)) club.fios = {};
+    const f = club.fios;
+    const temporada = (league && league.temporada) || f.temporada || 1;
+    if (f.temporada !== temporada) {
+      f.temporada = temporada;
+      f.rivalPlacar = { v: 0, e: 0, d: 0 };
+      f.promessa = (league && this.metaTemporada) ? this.metaTemporada(club, league) : null;
+      const elenco = (club.elenco || []).filter(Boolean);
+      const jovens = elenco.filter(p => Number(p.idade) <= 21)
+        .sort((a, b) => ((b.potencial || b.overall || 0) - (a.potencial || a.overall || 0)) || (a.idade - b.idade));
+      // Se não há sub-21, o fio pega o mais novo até 23; acima disso não é "jovem".
+      const jovem = jovens[0] || elenco.filter(p => Number(p.idade) <= 23).sort((a, b) => a.idade - b.idade)[0] || null;
+      f.jovem = jovem ? {
+        id: jovem.id, nome: jovem.nome,
+        basePartidas: jovem.partidas || 0, baseGols: jovem.gols || 0,
+        metaGols: 4
+      } : null;
+      f.avaliadaTemporada = null;
+      f.ultimaAvaliacao = null;
+    }
+    const rival = (typeof rivalHistorico === 'function') ? rivalHistorico(club, league) : null;
+    if (rival && rival.nome) f.rivalNome = rival.nome;
+    return f;
+  },
+  registrarRival(club, advNome, h, a, league) {
+    if (!club) return false;
+    // Garante que o fio exista mesmo se o pós-jogo acontecer antes de abrir a tela Clube.
+    if (!club.fios || !club.fios.rivalNome) this.atualizarFios(club, league || null);
+    const f = club.fios;
+    if (!f || !f.rivalNome || !advNome || advNome !== f.rivalNome) return false;
+    const p = f.rivalPlacar || (f.rivalPlacar = { v: 0, e: 0, d: 0 });
+    if (h > a) p.v = (p.v || 0) + 1;
+    else if (h === a) p.e = (p.e || 0) + 1;
+    else p.d = (p.d || 0) + 1;
+    return true;
+  },
+  avaliarFios(club, league) {
+    const f = this.atualizarFios(club, league);
+    if (!f) return null;
+    const jovem = (f.jovem && (club.elenco || []).find(p => p.id === f.jovem.id)) || null;
+    const partidas = jovem ? Math.max(0, (jovem.partidas || 0) - (f.jovem.basePartidas || 0)) : 0;
+    const gols = jovem ? Math.max(0, (jovem.gols || 0) - (f.jovem.baseGols || 0)) : 0;
+    const p = f.rivalPlacar || { v: 0, e: 0, d: 0 };
+    const rivalOk = (p.v || 0) > (p.d || 0);
+    const jovemOk = !!jovem && partidas >= 12 && gols >= (f.jovem.metaGols || 4);
+    // Idempotente por temporada: reabrir o fim de temporada não paga o bônus de novo.
+    if (f.avaliadaTemporada !== f.temporada) {
+      f.avaliadaTemporada = f.temporada;
+      if (jovemOk && jovem) {
+        if (typeof jovem.ganharXP === 'function') jovem.ganharXP(60);
+        club.moral = Math.max(0, Math.min(100, (Number(club.moral) || 70) + 3));
+        club.fans = Math.max(0, Math.min(100, (Number(club.fans) || 50) + 4));
+        if (league && league.adicionarNoticia) {
+          league.adicionarNoticia('🌟 ' + jovem.nome + ' fechou a temporada com ' + partidas + ' jogos e ' + gols + ' gols — a base deu resposta.');
+        }
+      }
+      if (rivalOk) {
+        club.fans = Math.max(0, Math.min(100, (Number(club.fans) || 50) + 3));
+        if (league && league.adicionarNoticia) {
+          league.adicionarNoticia('🔥 Dérbi da temporada: ' + (f.rivalNome || 'o rival') + ' — ' + (p.v || 0) + 'V ' + (p.e || 0) + 'E ' + (p.d || 0) + 'D para o seu lado.');
+        }
+      }
+      f.ultimaAvaliacao = {
+        temporada: f.temporada, jovemOk, rivalOk, partidas, gols,
+        rivalNome: f.rivalNome || null,
+        rivalPlacar: { v: p.v || 0, e: p.e || 0, d: p.d || 0 }
+      };
+    }
+    const u = f.ultimaAvaliacao || {};
+    return {
+      temporada: f.temporada,
+      rivalNome: f.rivalNome || null,
+      rivalPlacar: f.rivalPlacar || { v: 0, e: 0, d: 0 },
+      promessa: f.promessa || null,
+      jovemNome: jovem ? jovem.nome : (f.jovem ? f.jovem.nome : null),
+      jovemPartidas: u.partidas != null ? u.partidas : partidas,
+      jovemGols: u.gols != null ? u.gols : gols,
+      metaGols: f.jovem ? f.jovem.metaGols : 0,
+      jovemOk: !!u.jovemOk,
+      rivalOk: !!u.rivalOk
+    };
+  },
   newSeason(club, league) {
     this.normalize(club);
     if (club.ultimaTemporadaEconomica === league.temporada) return;
@@ -5071,6 +5159,8 @@ class Club {
     this.consecSemSofrerGol = 0; // sequência de jogos sem sofrer gol
     // C1: contrato de patrocínio (null = ainda não escolheu; legado usa fórmula do patrimônio).
     this.patrocinio = null;
+    // B64: fios narrativos da temporada (rival, promessa, jovem) — preenchidos por ClubEcosystem.
+    this.fios = {};
 
     if (nome) this.gerarElencoInicial();
   }
@@ -6992,7 +7082,16 @@ class MatchSim {
         this._mao = [];     // mão efêmera da partida (2–3 cartas)
         this._cartasUsadas = 0;
         this._emCampo = null; // ids dos 11 titulares por lado ([0]=casa, [1]=fora)
-        this._subIA = false;  // IA já fez a substituição automática no 2º tempo
+        // B68 (2026-10-19): a IA tenta trocar em até 2 marcos do 2º tempo, com limiar 85.
+        this._subIAMarcos = [46, 62, 76];
+        this._subIAMarcosIdx = 0;
+        this._subsIA = 0;
+        // B68: quem se machucou EM CAMPO e ficou sem reserva leva −3 de OVR até o apito.
+        this._machucadosEmCampo = {};
+        this._trocaLesaoPendente = null;
+        // B67: escolha do intervalo (multiplicador de criação do usuário/rival) e trava de 1x.
+        this._ajusteIntervalo = null;
+        this._intervaloFeito = false;
         // G3: quem entrou em campo nesta partida (para o drain pós-jogo não punir o banco).
         this._usados = { 0: {}, 1: {} };
         this._ctxUsados = {};     // bordões contextuais já falados (1x / ocasiao)
@@ -7170,7 +7269,9 @@ class MatchSim {
             const base = typeof p.ovrEfetivo === 'function' ? p.ovrEfetivo() : (p.overall == null ? 60 : p.overall);
             const f = p.folego == null ? 100 : p.folego;
             const pen = f < 40 ? -5 : f < 60 ? -3 : f < 75 ? -1 : 0;
-            return base + pen + (this.regra === 'classico' && (p.traits || []).includes('Craque de Clássico') ? 2 : 0);
+            // B68: sem reserva para substituir, o lesionado segue em campo com −3 de OVR.
+            const machucado = (this._machucadosEmCampo && this._machucadosEmCampo[p.id]) ? -3 : 0;
+            return base + pen + machucado + (this.regra === 'classico' && (p.traits || []).includes('Craque de Clássico') ? 2 : 0);
         };
         const gk = [], def = [], mid = [], atk = [];
         el.forEach(p => {
@@ -7321,7 +7422,7 @@ class MatchSim {
         const impedimentoRival = buffsRival.some(b => b.id === 't_impedimento') ? 0.8 : 1;
         const atacantes = linha.filter(j => j.posicao === 'ATT');
         const melhor = atacantes.reduce((m,j) => Math.max(m,j.overall || 50),50);
-        const ceraRival = buffsRival.some(b => b.id === 't_cera');
+        const ceraRival = buffsRival.some(b => b.id === 't_cera') ? 0.5 : 1; // B69: 25 Foco não zera mais o rival
         // Retranca do usuário corta a criação rival, mas não em 40% (era 0,6 —
         // mediação de 2026-10-06: junto com o volumeEstilo abaixo, a retranca rendia
         // +45% de saldo de gols e virava escolha dominante). 0,75 mantém o fechamento
@@ -7344,19 +7445,37 @@ class MatchSim {
         // de futebol que o jogo desenha (meta ~3,1). Também corrige o viés do integral
         // antigo (4×criacao) que superestimava chances em criação alta; o quickSim
         // agora usa 1-(1-criacao)^4, igual à geração de lances do _eventoMinuto.
+        // B67 (2026-10-19): curva de tensão. A criação era plana do 1' ao 95'; agora a reta
+        // final (>= 75' em jogo de 90) empurra os dois lados e quem precisa do resultado
+        // empurra mais — sem mexer na conversão. O intervalo (45') soma um multiplicador
+        // escolhido pelo técnico do usuário (pressão × segurança).
+        const minutoAgora = this.minuto || 1;
+        const minutoFinal = minutoAgora >= Math.round((this.tempoMin || 90) * 0.83);
+        const diffGols = side === 0 ? (this.scoreH || 0) - (this.scoreA || 0) : (this.scoreA || 0) - (this.scoreH || 0);
+        const urgencia = minutoFinal ? (diffGols < 0 ? 1.38 : diffGols === 0 ? 1.26 : 1.14) : 1;
+        const ajusteInt = this._ajusteIntervalo;
+        const volumeInt = ajusteInt ? (side === this._userSide() ? ajusteInt.atk : ajusteInt.def) : 1;
         const criacao = Math.max(0.015, Math.min(0.14, 0.033 * Math.exp((p.mid - d.mid) / 70)))
             * (0.65 + folego / 285) * this._contratatica(side) * momentum * pressao * retrancaRival * volumeEstilo
             * tikiAtk * tikiDef * muralhaRival * impedimentoRival
-            * (side === 0 ? casaMul : 1);
+            * (side === 0 ? casaMul : 1) * urgencia * volumeInt;
         const qualidade = Math.max(0.04, Math.min(0.48, 0.135 * Math.exp((p.atk - d.def) / 55) * clima
             * (side === 0 ? casaQ : 1)
             * (cruzar ? 0.8 + melhor / 160 : 1)
             * contra));
-        return { criacao: ceraRival ? 0 : criacao * (cruzar ? 1.25 : 1), qualidade };
+        return { criacao: criacao * ceraRival * (cruzar ? 1.25 : 1), qualidade };
     }
 
     _eventoMinuto() {
         if (this.minuto === this._eticaMin) return { min: this.minuto, tipo: 'etica', side: this._userSide() };
+        // B67: intervalo no meio do jogo — uma pausa de decisão que só existe em partidas
+        // completas (cenários que começam no meio não ganham intervalo). Fica depois da
+        // ética para não engolir o dilema quando os dois caem no mesmo minuto.
+        const meio = Math.round((this.tempoMin || 90) / 2);
+        if (this.startMinute === 0 && !this._intervaloFeito && this.minuto >= meio && this.minuto <= meio + 1) {
+            this._intervaloFeito = true;
+            return { min: this.minuto, tipo: 'intervalo', side: this._userSide() };
+        }
         if (this.minuto === this.tempoMin) return { min: this.minuto, tipo: 'acrescimo', side: 0 };
         // Quatro subticks: cada um sorteia disputa e chance, sem placar predeterminado.
         for (let sub = 0; sub < 4; sub++) {
@@ -8105,7 +8224,10 @@ class MatchSim {
                 ? (this.estilo === 'ofensivo' ? 1.15 : this.estilo === 'retranca' ? 0.75 : 0.95)
                 : 1;
             const deltaMin = Math.max(0, this.minuto - this._ultimaFadigaMin);
-            const porEvento = 0.24 * deltaMin * estilo * campo;
+            // B68 (2026-10-19): 0,24/min deixava o XI em 74-81 e a gestão em campo era
+            // decorativa (só no fim valia −1). 0,32/min faz o time chegar ao fim perto de
+            // 68-72, atravessando os limiares de −1/−3 de OVR — agora rodar o elenco importa.
+            const porEvento = 0.32 * deltaMin * estilo * campo;
             if (!this._usados[side]) this._usados[side] = {};
             team.elenco.forEach(p => {
                 if (em.indexOf(p.id) < 0) return;
@@ -8279,6 +8401,7 @@ class MatchSim {
             MatchUI._aposReplay = () => { this._timer = setTimeout(() => this._tick(), 0); };
             return;
         }
+        if (this._trocaLesaoPendente) this._trocarLesionado();
         if (this._idx >= this.roteiro.length) { this._finalizar(); return; }
         let ev = this.roteiro[this._idx++];
         this.minuto = ev.min;
@@ -8293,15 +8416,21 @@ class MatchSim {
             this._derbiEmitidos++;
             this._emit(this._fraseDerbi(), 'info');
         }
-        // Fase 7: IA mexe no time uma vez no 2º tempo (com reservas).
-        if (this._emCampo && this.minuto >= 46 && !this._subIA) {
-            this._subIA = true;
-            const ladoRival = this._userSide() ^ 1;
-            const rival = ladoRival === 0 ? this.home : this.away;
-            if (!rival.isUser) this._processarSubstituicao(ladoRival === 0);
+        // Fase 7 + B68 (2026-10-19): a IA tenta trocar em até 2 dos 3 marcos do 2º tempo.
+        // Antes ela tentava 1 vez aos 46' e desistia se o mais cansado estivesse >= 80
+        // (medido: 0,04 substituições por partida). Limiar agora é 85 e há 3 chances.
+        if (this._emCampo && this._subsIA < 2 && this._subIAMarcosIdx < this._subIAMarcos.length) {
+            const marco = this._subIAMarcos[this._subIAMarcosIdx];
+            if (this.minuto >= marco) {
+                this._subIAMarcosIdx++;
+                const ladoRival = this._userSide() ^ 1;
+                const rival = ladoRival === 0 ? this.home : this.away;
+                if (!rival.isUser && this._processarSubstituicao(ladoRival === 0)) this._subsIA++;
+            }
         }
         if (ev.tipo === 'minuto') ev = this._eventoMinuto();
         if (ev.tipo === 'etica') { this._mostrarEtica(); return; }
+        if (ev.tipo === 'intervalo') { this._mostrarIntervalo(); return; }
         if (ev.tipo === 'chanceXG') { this._resolverChance(ev.side === 0, this._chanceXG); return; }
         try {
             this._aplicar(ev);
@@ -8322,6 +8451,35 @@ class MatchSim {
         MatchUI.clock(this.minuto);
         clearTimeout(this._timer);
         this._timer = setTimeout(() => this._tick(), this._gapBeat());
+    }
+
+    // B67 (2026-10-19): intervalo com três posturas. O default é "manter o plano" para
+    // não punir quem só quer seguir; a pressão compra criação ao preço de fôlego e de
+    // expor a defesa; segurar fecha o jogo (menos criação dos dois lados).
+    _mostrarIntervalo() {
+        const opcoes = [
+            { label: '🔥 Aumentar a pressão', hint: '+15% criação, mas expõe a defesa e gasta fôlego' },
+            { label: '⚖️ Manter o plano', hint: 'sem mudanças: o time segue como está' },
+            { label: '🧱 Segurar o resultado', hint: '−12% criação e fecha o meio-campo' }
+        ];
+        const aplicar = i => {
+            if (this.abortado) return;
+            const mapa = { 0: { atk: 1.15, def: 1.12 }, 1: { atk: 1, def: 1 }, 2: { atk: 0.88, def: 0.84 } };
+            this._ajusteIntervalo = mapa[i] || mapa[1];
+            if (i === 0) {
+                const team = this._userSide() === 0 ? this.home : this.away;
+                const ids = this._emCampo[this._userSide()] || [];
+                team.elenco.filter(p => ids.includes(p.id)).forEach(p => { p.folego = Math.max(5, (p.folego ?? 100) - 4); });
+            }
+            const rotulo = i === 0 ? 'o time volta pressionando alto' : (i === 2 ? 'o time volta fechado, esperando o contra-ataque' : 'o plano segue o mesmo');
+            this._emit('⏸️ INTERVALO: ' + rotulo + '.', 'info');
+            MatchUI.clock(this.minuto);
+            clearTimeout(this._timer);
+            this._timer = setTimeout(() => this._tick(), this._gapBeat());
+        };
+        if (this.modo === 'instantaneo' || this.speed >= 8) { aplicar(1); return; }
+        MatchUI.prompt('INTERVALO — ' + (this.scoreH || 0) + ' a ' + (this.scoreA || 0) + '. Como o time volta do vestiário?',
+            opcoes, aplicar, Math.max(3000, Math.round(12000 / Math.max(1, this.speed))), 1);
     }
 
     _mostrarEtica() {
@@ -8506,11 +8664,13 @@ class MatchSim {
                 lesionado.rodadasRecuperacao = Math.max(1, Number(lesionado.rodadasRecuperacao) || 0, duracao);
                 foraRodadas = Math.max(1, lesionado.rodadasRecuperacao - 1);
                 lesionado.folego = Math.max(5,(lesionado.folego ?? 100)-8);
+                // B68 (2026-10-19): a lesão tira o atleta AGORA. Antes ele "seguia em campo"
+                // e só perdia as rodadas seguintes — a gestão em campo não existia.
+                this._trocaLesaoPendente = { side: ev.side, id: lesionado.id };
             }
             log = this._fraseLesao(teamAtk, lesionado ? lesionado.nome : prot.nomeAtk);
-            // Segue em campo nesta partida (não existe substituição automática), mas
-            // fica fora das próximas: o Rádio anuncia o prazo em vez de deixar o
-            // jogador descobrir sozinho na escalação da rodada seguinte.
+            // O Rádio anuncia o prazo e, no fim do lance, o MatchSim troca quem saiu
+            // machucado (ou mantém em campo com −3 se não houver reserva).
             if (foraRodadas) log += ' 🏥 Fora por ' + foraRodadas + (foraRodadas > 1 ? ' rodadas.' : ' rodada.');
             tipoFeed = 'warn';
         }
@@ -8770,42 +8930,62 @@ class MatchSim {
     }
 
     _processarSubstituicao(isHome) {
-        // Fase 7: troca o titular mais cansado pelo melhor reserva da mesma posição.
+        // Fase 7 + B68 (2026-10-19): troca o titular mais cansado (limiar 85) pelo melhor
+        // reserva da mesma posição. Retorna true quando trocou e NÃO re-agenda o relógio —
+        // quem chama (o _tick) segue o fluxo normal, sem dois timers concorrentes.
         const team = isHome ? this.home : this.away;
         const elenco = team.elenco || [];
         const em = (this._emCampo && this._emCampo[isHome ? 0 : 1]) || [];
-        if (elenco.length <= 11 || !em.length) {
-            this._emit("Banco vazio — sem reservas suficientes para substituição.", 'info');
-            return;
-        }
+        if (elenco.length <= 11 || !em.length) return false;
         const xi = elenco.filter(p => em.indexOf(p.id) >= 0);
         let sai = null, saiF = 101;
         xi.forEach(p => {
             const f = p.folego == null ? 100 : p.folego;
             if (f < saiF) { saiF = f; sai = p; }
         });
-        if (!sai) { this._emit("Sem jogador para substituir.", 'info'); return; }
-        if (saiF >= 80) { this._emit("Time inteiro — ninguém precisa sair agora.", 'info'); return; }
+        if (!sai || saiF >= 85) return false;
         const pos = sai.posicao || 'MID';
         const banco = elenco.filter(p => em.indexOf(p.id) < 0 && !(p.machucado > 0) && !((p.afastadoAte || 0) > (team.partidasTotais || 0)) && !((this._amarelosJogador || {})[(isHome ? 0 : 1) + ':' + p.id] >= 2));
         let entra = banco.filter(p => (p.posicao || 'MID') === pos).sort((a, b) => (b.overall || 0) - (a.overall || 0))[0];
         if (!entra) entra = banco.sort((a, b) => (b.overall || 0) - (a.overall || 0))[0];
-        if (!entra) { this._emit("Sem reservas disponíveis.", 'info'); return; }
+        if (!entra) return false;
         em[em.indexOf(sai.id)] = entra.id;
         if (!this._usados[isHome ? 0 : 1]) this._usados[isHome ? 0 : 1] = {};
         this._usados[isHome ? 0 : 1][entra.id] = true;
         this._rebindCampo();
         this._emit('⚤ Substituição: sai ' + sai.nome + ' (fôlego ' + Math.round(saiF) + '%), entra ' + entra.nome + '.', 'info');
-        // Recalcula forças — efeito imediato nas próximas chances e decisões.
-        const pH = this._poder(this.home, true);
-        const pA = this._poder(this.away, false);
-        this._difA = pH.atk - pA.def;
-        this._difD = pA.atk - pH.def;
-        // Re-agenda o roteiro (sem isso a partida congelaria após a troca).
-        MatchUI.clock(this.minuto);
-        MatchUI.status('BOLA ROLANDO...');
-        clearTimeout(this._timer);
-        this._timer = setTimeout(() => this._tick(), this._gap());
+        this._recalcDifs();
+        return true;
+    }
+
+    // B68: lesão em campo força a troca. Sem reserva disponível, o atleta segue com −3 de
+    // OVR (registrado em `_machucadosEmCampo`, que não é persistido) até o apito.
+    _trocarLesionado() {
+        const pend = this._trocaLesaoPendente || {};
+        this._trocaLesaoPendente = null;
+        const side = pend.side;
+        if (side == null || !this._emCampo) return;
+        const team = side === 0 ? this.home : this.away;
+        const em = this._emCampo[side] || [];
+        const idx = em.indexOf(pend.id);
+        if (idx < 0) return;
+        const sai = (team.elenco || []).find(p => p.id === pend.id);
+        if (!sai) return;
+        const banco = (team.elenco || []).filter(p => em.indexOf(p.id) < 0 && !(p.machucado > 0));
+        let entra = banco.filter(p => (p.posicao || 'MID') === (sai.posicao || 'MID')).sort((a, b) => (b.overall || 0) - (a.overall || 0))[0];
+        if (!entra) entra = banco.sort((a, b) => (b.overall || 0) - (a.overall || 0))[0];
+        if (!entra) {
+            this._machucadosEmCampo[sai.id] = true;
+            this._emit('🚑 ' + sai.nome + ' não tem substituto e segue em campo no sacrifício (−3 de rendimento).', 'warn');
+            return;
+        }
+        em[idx] = entra.id;
+        if (!this._usados[side]) this._usados[side] = {};
+        this._usados[side][entra.id] = true;
+        delete this._machucadosEmCampo[sai.id];
+        this._rebindCampo();
+        this._emit('⚤ Lesão força a troca: sai ' + sai.nome + ', entra ' + entra.nome + '.', 'info');
+        this._recalcDifs();
     }
     _userSide() {
         if (this.home && this.home.isUser) return 0;
@@ -10635,6 +10815,18 @@ class UI {
     if (data.statusExtra) html += `<div style="margin-top:6px; font-size:0.72rem; font-weight:900; color:var(--danger); line-height:1.4;">${data.statusExtra}</div>`;
     html += `</div>`;
 
+    // B64: fecho dos fios narrativos (rival, promessa e jovem da base).
+    if (data.fios) {
+        const f = data.fios;
+        const rp = f.rivalPlacar || { v: 0, e: 0, d: 0 };
+        html += `<div style="font-size:0.72rem; font-weight:900; letter-spacing:2px; color:var(--accent); margin:12px 0 4px;">FIOS DA TEMPORADA</div>`;
+        html += `<div class="glass-ui" style="padding:10px 12px; font-size:0.78rem; text-align:left;">`;
+        html += row('Rival do ano', `<b>${f.rivalNome || '—'}</b> · ${rp.v || 0}V ${rp.e || 0}E ${rp.d || 0}D`);
+        if (f.jovemNome) html += row('Jovem da base', `<b>${f.jovemNome}</b> · ${f.jovemPartidas || 0} jogos, ${f.jovemGols || 0} gols`);
+        if (f.promessa) html += row('Promessa da diretoria', `<b>${f.promessa.rotulo}</b>`);
+        html += `</div>`;
+    }
+
     html += `<div style="font-size:0.72rem; font-weight:900; letter-spacing:2px; color:var(--accent); margin:12px 0 4px;">ARTILHARIA DA LIGA</div>`;
     if (data.artilheiros && data.artilheiros.length) {
         html += `<div class="glass-ui" style="padding:10px 12px; font-size:0.78rem; text-align:left;">`;
@@ -11688,6 +11880,22 @@ class UI {
     const meter = document.createElement('progress'); meter.max = 100; meter.value = c.pacienciaDiretoria; meter.setAttribute('aria-label', 'Paciência da diretoria'); meter.style.width = '100%'; board.appendChild(meter);
     texto(board, c.demitido ? 'Seu trabalho terminou. A carreira fica disponível para consulta; inicie outra no menu.' : 'Vitória +7; empate +1; derrota −9. Caixa negativo custa mais 3 pontos por rodada.');
     if (c.demitido) botao(board, 'VOLTAR AO MENU', () => ui.showScreen('screen-menu'));
+    // B64: fios da temporada — rival, promessa da diretoria e jovem da base.
+    try {
+      const fios = ClubEcosystem.atualizarFios(c, app.league);
+      if (fios) {
+        const fbox = panel('🧵 FIOS DA TEMPORADA');
+        const rp = fios.rivalPlacar || { v: 0, e: 0, d: 0 };
+        texto(fbox, '🔥 Rival do ano: ' + (fios.rivalNome || 'a definir') + ' · ' + (rp.v || 0) + 'V ' + (rp.e || 0) + 'E ' + (rp.d || 0) + 'D neste ano.');
+        if (fios.promessa) texto(fbox, '🎯 Promessa: ' + fios.promessa.rotulo + (c.metaPosicao ? ' · hoje ' + c.metaPosicao + 'º' : '') + '.');
+        const jovem = fios.jovem ? (c.elenco || []).find(p => p.id === fios.jovem.id) : null;
+        if (jovem) {
+          const jp = Math.max(0, (jovem.partidas || 0) - (fios.jovem.basePartidas || 0));
+          const jg = Math.max(0, (jovem.gols || 0) - (fios.jovem.baseGols || 0));
+          texto(fbox, '🌟 Jovem da base: ' + jovem.nome + ' (' + jovem.idade + ' anos) · ' + jp + ' jogos, ' + jg + ' gols (meta ' + fios.jovem.metaGols + ').');
+        }
+      }
+    } catch (e) { /* painel nunca quebra por causa dos fios */ }
     const fin = panel('🏦 BANCO & SAF');
     texto(fin, 'Caixa: ' + app.fmtMoney(c.orcamento) + ' · Rodadas negativas: ' + c.rodadasNegativo + '/5' + (c.bloqueioContratacoes ? ' · CONTRATAÇÕES BLOQUEADAS' : '') + (c.falencia ? ' · FALÊNCIA: aceite a SAF para reestruturar.' : ''));
     texto(fin, 'Empréstimos em 12 rodadas, com 2,5% de juros por rodada sobre o saldo restante; até dois contratos simultâneos.');
@@ -12813,6 +13021,8 @@ const app = {
         this.refreshMarket(true);
         // Já começa a carreira com um conjunto rotacionável de missões (não o fixo do construtor).
         if (this.club && typeof this.club.gerarMissoes === 'function') this.club.gerarMissoes(3);
+        // B64: nasce com os fios da temporada 1 (rival, promessa e jovem da base).
+        try { ClubEcosystem.atualizarFios(this.club, this.league); } catch (e) { /* nunca trava a criação */ }
         this.saveGame();
         ui.showScreen('screen-game');
         ui.showSubscreen('dashboard');
@@ -13150,6 +13360,17 @@ const app = {
             const penalidade = f < 40 ? 5 : f < 60 ? 3 : f < 75 ? 1 : 0;
             fadiga.title = 'Fôlego ' + Math.round(f) + '%' + (penalidade ? ' · Rendimento −' + penalidade + ' por cansaço' : ' · Sem penalidade de cansaço');
             btn.appendChild(fadiga);
+            // B68: quem já levou amarelo aparece marcado — trocar (ou manter) é decisão.
+            const sim = (typeof Engine !== 'undefined') ? Engine.activeMatch : null;
+            const amarelos = (sim && sim._amarelosJogador)
+                ? (sim._amarelosJogador[sim._userSide() + ':' + p.id] || 0) : 0;
+            if (amarelos >= 1) {
+                const cartao = document.createElement('span');
+                cartao.className = 'fleg';
+                cartao.textContent = '🟨';
+                cartao.title = 'Já tem cartão amarelo: outra falta pode expulsar';
+                btn.appendChild(cartao);
+            }
             btn.onclick = () => this._subSelecionar(lado, p.id);
             box.appendChild(btn);
         });
@@ -13181,10 +13402,12 @@ const app = {
         if (!sai || !entra) return;
         const f = Math.round(entra.folego == null ? 100 : entra.folego);
         const foraPosicao = (sai.posicao || 'MID') !== (entra.posicao || 'MID');
+        const amarelo = !!(sim._amarelosJogador && sim._amarelosJogador[sim._userSide() + ':' + sai.id] >= 1);
         resumo.textContent = 'Sai ' + sai.nome + ' (' + this.subPosLabel(sai) + '), entra ' + entra.nome + ' (' + this.subPosLabel(entra) + ') · Fôlego do reserva: ' + f + '%.'
             + (foraPosicao ? ' Posições diferentes: revise a composição do time.' : '')
-            + (f < 60 ? ' O reserva também está cansado.' : '');
-        resumo.classList.toggle('alerta', foraPosicao || f < 60);
+            + (f < 60 ? ' O reserva também está cansado.' : '')
+            + (amarelo ? ' 🟨 O jogador que sai já tinha amarelo.' : '');
+        resumo.classList.toggle('alerta', foraPosicao || f < 60 || amarelo);
     },
 
     cancelarSubstituicao() {
@@ -13421,6 +13644,8 @@ const app = {
             this.club = saved.club;
             this.league = saved.league;
             this.marketPlayers = saved.marketPlayers;
+            // B64: save antigo ganha os fios da temporada ao carregar (aditivo).
+            try { ClubEcosystem.atualizarFios(this.club, this.league); } catch (e) { /* nunca bloqueia o load */ }
             ui.showScreen('screen-game');
             ui.showSubscreen('dashboard');
             this._reabrirFimDeTemporada();
@@ -13723,6 +13948,8 @@ const app = {
         if (club.formaRecente == null || !Array.isArray(club.formaRecente)) club.formaRecente = [];
         if (club.staminaGlobal == null) club.staminaGlobal = 100;
         if (club.ultimaRecuperacaoFadiga == null) club.ultimaRecuperacaoFadiga = '';
+        // B64: fios narrativos (rival, promessa, jovem) — save antigo ganha o objeto vazio.
+        if (club.fios == null || typeof club.fios !== 'object' || Array.isArray(club.fios)) club.fios = {};
         if (club.packPity == null) club.packPity = 0;
         if (club.lastPlayDay == null) club.lastPlayDay = 0;
         if (club.sessionStreak == null) club.sessionStreak = 0;
@@ -15345,6 +15572,10 @@ const app = {
                 this._ultimoResumo = summary;
                 this._ultimoAdv = adv && adv.nome ? adv.nome : (typeof this.getNextOpponent === 'function' ? this.getNextOpponent().nome : 'Adversário');
                 this._registrarSequencia(h, a, scorers || {});
+                // B64: o confronto com o rival do ano alimenta o fio narrativo.
+                try {
+                    if (typeof ClubEcosystem !== 'undefined') ClubEcosystem.registrarRival(this.club, this._ultimoAdv, h, a, this.league);
+                } catch (e) { /* fio narrativo nunca derruba o pós-jogo */ }
             };
         // Partidas de desafio passam o adversário (simulateFriendly aceita adv);
         // rodada normal: simulateRound calcula o adversário internamente.
@@ -15910,6 +16141,9 @@ const app = {
                 this.league.adicionarNoticia(metaTxt);
             }
         } catch (e) { metaTxt = ''; }
+        // B64: fecha os fios narrativos da temporada (rival e jovem da base), idempotente.
+        let fiosTxt = null;
+        try { fiosTxt = ClubEcosystem.avaliarFios(this.club, this.league); } catch (e) { fiosTxt = null; }
 
         // Fase 4: prêmios por divisão (Série B paga ~1/5 da A).
         const premioPos = naB
@@ -16038,6 +16272,7 @@ const app = {
             },
             artilheiros
         };
+        resumoTemporada.fios = fiosTxt;
         this.league.resumoTemporada = resumoTemporada;
         this.saveGame();
         ui.showSeasonEndModal(resumoTemporada);
@@ -16119,6 +16354,9 @@ const app = {
         this.league.rodada = 1;
         this.league.torneio = null; // Torneio: nova chave só na próxima temporada
         this.league.noticias = [`Temporada ${this.league.temporada} começa!`, ...(this.league.noticias || []).slice(0, 3)];
+
+        // B64: nova temporada → novos fios narrativos (rival, promessa e jovem da base).
+        try { ClubEcosystem.atualizarFios(this.club, this.league); } catch (e) { /* nunca derruba a virada */ }
 
         this.saveGame();
 

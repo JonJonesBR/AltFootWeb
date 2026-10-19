@@ -631,8 +631,9 @@ teste('a mão sai da coleção de táticas do clube', () => {
 console.log('-- B51/B66: decisão sem gabarito e relógio que respeita o modal (2026-10-19)');
 teste('a decisão do técnico descreve o trade-off e nunca imprime a chance', () => {
     const r = runMatch({ seed: 909 });
-    // O fair play também abre prompt, mas com 2 opções e sem dicas — o alvo aqui é a decisão de 3.
-    const calls = r.sb.MatchUI.promptCalls.filter(c => c.opts.length === 3);
+    // O fair play (2 opções) e o intervalo (3 opções, com bônus em %) não são a decisão de
+    // finalização/postura — o alvo aqui é o prompt de contexto do lance.
+    const calls = r.sb.MatchUI.promptCalls.filter(c => /Como orientar|Qual postura/.test(c.desc));
     ok(calls.length >= 3, 'decisões de menos: ' + calls.length);
     calls.forEach((c, i) => {
         ok(c.hints.length === 3, 'decisão ' + i + ' sem 3 dicas');
@@ -658,10 +659,15 @@ teste('a partida tem até 4 janelas de decisão, uma por quarto', () => {
 teste('o timer da decisão cai com a velocidade (B66)', () => {
     const normal = runMatch({ seed: 313 });
     const rapido = runMatch({ seed: 313, preSim: sim => sim.setSpeed(4) });
-    ok(normal.sb.MatchUI.promptCalls.length > 0, 'sem decisões a 1×');
-    ok(normal.sb.MatchUI.promptCalls.every(c => c.ms === 8000), '1× não usa 8 s: ' + normal.sb.MatchUI.promptCalls.map(c => c.ms).join(','));
-    ok(rapido.sb.MatchUI.promptCalls.length > 0, 'sem decisões a 4×');
-    ok(rapido.sb.MatchUI.promptCalls.every(c => c.ms === 2000), '4× não usa 2 s: ' + rapido.sb.MatchUI.promptCalls.map(c => c.ms).join(','));
+    const decisoes = r => r.sb.MatchUI.promptCalls.filter(c => /Como orientar|Qual postura/.test(c.desc));
+    ok(decisoes(normal).length > 0, 'sem decisões a 1×');
+    ok(decisoes(normal).every(c => c.ms === 8000), '1× não usa 8 s: ' + decisoes(normal).map(c => c.ms).join(','));
+    ok(decisoes(rapido).length > 0, 'sem decisões a 4×');
+    ok(decisoes(rapido).every(c => c.ms === 2000), '4× não usa 2 s: ' + decisoes(rapido).map(c => c.ms).join(','));
+    // B67: o intervalo tem prazo próprio (12 s a 1×, 3 s a 4×) e também escala.
+    const intervalos = r => r.sb.MatchUI.promptCalls.filter(c => /INTERVALO/.test(c.desc));
+    ok(intervalos(normal).length === 1 && intervalos(normal)[0].ms === 12000, 'intervalo a 1× não usa 12 s');
+    ok(intervalos(rapido).length === 1 && intervalos(rapido)[0].ms === 3000, 'intervalo a 4× não usa 3 s');
 });
 teste('o relógio da partida para enquanto o modal de cartas está aberto (B66)', () => {
     const modal = { classList: { contains: c => c !== 'hidden' } };
@@ -733,6 +739,124 @@ teste('o rival do ano é fixo, não é o próprio clube e acompanha a divisão (
     const comDerbi = new a.MatchSim(casa, fora, null, null, { seed: 8, derbi: true, tempoMin: 90 });
     const semDerbi = new b.MatchSim(casa, fora, null, null, { seed: 8, derbi: false, tempoMin: 90 });
     ok(comDerbi._poder(fora, false).atk === semDerbi._poder(fora, false).atk, 'dérbi mexeu na força do rival');
+});
+
+// -------------------------------------------------- B67/B68/B69: tensão, campo e cartas (2026-10-19)
+console.log('-- B67/B68/B69: reta final, intervalo, gestão em campo e Cera (2026-10-19)');
+teste('a criação cresce na reta final e quem está atrás empurra mais (B67)', () => {
+    const s = novoSandbox();
+    const casa = makeTeam('Casa', 70, { isUser: true }), fora = makeTeam('Fora', 70);
+    const sim = new s.MatchSim(casa, fora, null, null, { seed: 11, modo: 'detalhado', tempoMin: 90 });
+    const medir = (min, sh, sa, side) => { sim.minuto = min; sim.scoreH = sh; sim.scoreA = sa; return sim._modeloXG(side).criacao; };
+    const inicio = medir(10, 0, 0, 0);
+    const finalEmpate = medir(85, 0, 0, 0);
+    const finalAtras = medir(85, 0, 1, 0);
+    const finalFrente = medir(85, 1, 0, 0);
+    ok(finalEmpate > inicio * 1.15, 'reta final não aumentou a criação: ' + inicio.toFixed(4) + ' → ' + finalEmpate.toFixed(4));
+    ok(finalAtras > finalEmpate, 'quem está atrás não empurrou mais');
+    ok(finalFrente < finalEmpate, 'quem está na frente não recuou');
+});
+teste('o intervalo existe, tem 3 posturas e muda a criação do 2º tempo (B67)', () => {
+    const neutro = runMatch({ seed: 222 });
+    ok(neutro.sim._intervaloFeito === true, 'intervalo não aconteceu');
+    ok(neutro.sim._ajusteIntervalo && neutro.sim._ajusteIntervalo.atk === 1, 'default do intervalo não é neutro');
+    const pressao = runMatch({ seed: 222, decisao: p => (/INTERVALO/.test(p.desc) ? 0 : 1) });
+    ok(pressao.sim._ajusteIntervalo && pressao.sim._ajusteIntervalo.atk > 1, 'pressão não aplicada');
+    ok(pressao.sim._ajusteIntervalo.def > 1, 'pressão não expôs a defesa');
+    const segurar = runMatch({ seed: 222, decisao: p => (/INTERVALO/.test(p.desc) ? 2 : 1) });
+    ok(segurar.sim._ajusteIntervalo.atk < 1 && segurar.sim._ajusteIntervalo.def < 1, 'segurar não fechou o jogo');
+    const opcoes = neutro.sb.MatchUI.promptCalls.filter(c => /INTERVALO/.test(c.desc));
+    ok(opcoes.length === 1 && opcoes[0].opts.length === 3, 'intervalo sem 3 opções');
+});
+teste('o desgaste chega ao fim do jogo e a IA troca de verdade (B68)', () => {
+    const r = runMatch({ seed: 404 });
+    const part = r.sim.participacaoUsuario();
+    const xi = new Set(part.titulares.map(String));
+    const emCampo = r.home.elenco.filter(p => xi.has(String(p.id)));
+    const media = emCampo.reduce((s, p) => s + (p.folego == null ? 100 : p.folego), 0) / emCampo.length;
+    ok(media < 75, 'o XI termina descansado demais: ' + media.toFixed(1));
+    ok(emCampo.some(p => (p.folego || 0) < 70), 'nenhum titular chegou perto do limite');
+    ok(r.sim._subsIA >= 1, 'a IA não fez nenhuma substituição');
+    ok(r.sim._subsIA <= 2, 'a IA fez substituições demais: ' + r.sim._subsIA);
+});
+teste('lesão em campo força a troca e, sem reserva, deixa −3 de OVR (B68)', () => {
+    const s = novoSandbox();
+    const casa = makeTeam('Casa', 70, { isUser: true }), fora = makeTeam('Fora', 70);
+    const sim = new s.MatchSim(casa, fora, null, null, { seed: 12, modo: 'detalhado', tempoMin: 90 });
+    sim._emCampo = [sim._xiDoTime(casa), sim._xiDoTime(fora)];
+    sim._usados = { 0: {}, 1: {} };
+    sim.minuto = 30;
+    const titular = casa.elenco.find(p => sim._emCampo[0].includes(p.id));
+    sim._aplicar({ tipo: 'lesao', side: 0, atleta: titular, min: 30 });
+    sim._trocarLesionado();
+    ok(sim._emCampo[0].indexOf(titular.id) < 0, 'o lesionado continuou em campo');
+    // Sem banco, o atleta fica e leva −3 de rendimento.
+    const s2 = novoSandbox();
+    const semBanco = makeTeam('SemBanco', 70, { isUser: true });
+    semBanco.elenco = semBanco.elenco.slice(0, 11);
+    const sim2 = new s2.MatchSim(semBanco, makeTeam('Fora', 70), null, null, { seed: 13, modo: 'detalhado', tempoMin: 90 });
+    sim2._emCampo = [sim2._xiDoTime(semBanco), sim2._xiDoTime(makeTeam('Fora', 70))];
+    sim2._usados = { 0: {}, 1: {} };
+    sim2.minuto = 30;
+    const antes = sim2._poder(semBanco, true).atk;
+    const titular2 = semBanco.elenco.find(p => sim2._emCampo[0].includes(p.id));
+    sim2._aplicar({ tipo: 'lesao', side: 0, atleta: titular2, min: 30 });
+    sim2._trocarLesionado();
+    ok(sim2._machucadosEmCampo[titular2.id] === true, 'não marcou o lesionado sem reserva');
+    ok(sim2._poder(semBanco, true).atk < antes, 'o lesionado em campo não perdeu rendimento');
+});
+teste('Cera reduz a criação rival, mas não zera mais o jogo (B69)', () => {
+    const s = novoSandbox();
+    const casa = makeTeam('Casa', 70, { isUser: true }), fora = makeTeam('Fora', 70);
+    const sim = new s.MatchSim(casa, fora, null, null, { seed: 14, modo: 'detalhado', tempoMin: 90 });
+    sim._emCampo = [sim._xiDoTime(casa), sim._xiDoTime(fora)];
+    sim.minuto = 30;
+    const antes = sim._modeloXG(1).criacao;
+    sim._buffs = [{ id: 't_cera', nome: 'Cera', fimMin: 40 }];
+    const depois = sim._modeloXG(1).criacao;
+    ok(depois > 0, 'Cera ainda zera a criação rival');
+    perto(depois / antes, 0.5, 0.02, 'redução da Cera fora do esperado');
+});
+
+// -------------------------------------------------- B64: fios narrativos (2026-10-19)
+console.log('-- B64: fios narrativos da temporada (2026-10-19)');
+teste('os fios nascem com rival, promessa e jovem, e o rival é contado à parte (B64)', () => {
+    const s = novoSandbox();
+    const liga = new League();
+    liga.inicializar();
+    liga.divisaoUser = 1;
+    const clube = liga.clubes[0];
+    clube.isUser = true;
+    const f = s.ClubEcosystem.atualizarFios(clube, liga);
+    ok(f && f.rivalNome, 'sem rival no fio');
+    ok(f.promessa && f.promessa.alvo >= 4, 'sem promessa da diretoria');
+    ok(f.jovem && f.jovem.id, 'sem jovem da base');
+    ok(s.ClubEcosystem.atualizarFios(clube, liga) === f, 'atualizarFios não é idempotente na temporada');
+    ok(s.ClubEcosystem.registrarRival(clube, f.rivalNome, 2, 0) === true, 'não contou o rival');
+    ok(f.rivalPlacar.v === 1, 'placar do rival não subiu');
+    ok(s.ClubEcosystem.registrarRival(clube, 'Outro FC', 2, 0) === false, 'contou um jogo que não é dérbi');
+    ok(f.rivalPlacar.v === 1 && f.rivalPlacar.d === 0, 'placar do rival contaminado');
+});
+teste('a avaliação dos fios paga uma vez e a virada de temporada renova (B64)', () => {
+    const s = novoSandbox();
+    const liga = new League();
+    liga.inicializar();
+    liga.divisaoUser = 1;
+    const clube = liga.clubes[0];
+    clube.isUser = true;
+    const f = s.ClubEcosystem.atualizarFios(clube, liga);
+    const jovem = clube.elenco.find(p => p.id === f.jovem.id);
+    jovem.partidas = f.jovem.basePartidas + 14;
+    jovem.gols = f.jovem.baseGols + 5;
+    s.ClubEcosystem.registrarRival(clube, f.rivalNome, 1, 0);
+    const av = s.ClubEcosystem.avaliarFios(clube, liga);
+    ok(av.jovemOk && av.rivalOk, 'fios cumpridos não foram reconhecidos');
+    const moral = clube.moral;
+    s.ClubEcosystem.avaliarFios(clube, liga);
+    ok(clube.moral === moral, 'a avaliação pagou o bônus duas vezes');
+    liga.temporada = 2;
+    const f2 = s.ClubEcosystem.atualizarFios(clube, liga);
+    ok(f2.rivalPlacar.v === 0 && f2.avaliadaTemporada == null, 'nova temporada não renovou os fios');
 });
 
 console.log('');

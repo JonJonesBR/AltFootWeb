@@ -91,4 +91,8 @@ rel.t('round-trip grava e lê pelo storage', (() => {
 rel.t('slot de autosave é separado do slot principal', SR.key(1, false) !== SR.key(1, true),
     SR.key(1, false) + ' vs ' + SR.key(1, true));
 
+// B64: campo novo aditivo precisa de guarda para save antigo (sem bump de schema).
+rel.t('save antigo ganha os fios narrativos (guarda em normalizeNewFields)',
+    /if \(club\.fios == null \|\| typeof club\.fios !== 'object'/.test(src));
+
 encerrar(rel);
