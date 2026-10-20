@@ -48,8 +48,8 @@ rel.t('as três animações novas caem no bloco de movimento reduzido',
 
 // ---------------------------------------------------------------- B57: campo completo
 rel.t('o campo é desenhado por SVG (função única)', js.includes('function campoSvg()'));
-rel.t('as DUAS renderizações usam o mesmo SVG', ocorrencias(js, 'campo.innerHTML = campoSvg();') === 2,
-    ocorrencias(js, 'campo.innerHTML = campoSvg();') + ' usos');
+rel.t('as DUAS renderizações usam o mesmo SVG', ocorrencias(js, 'campoSvg();') === 2,
+    ocorrencias(js, 'campoSvg();') + ' usos');
 rel.t('o SVG tem gol/rede (retângulo fora da linha e linhas de rede)',
     js.includes('x="0.6" y="40"') && js.includes('width="2.4" height="10"'));
 rel.t('o SVG tem marca do pênalti, meia-lua e arcos de canto',
@@ -101,5 +101,42 @@ rel.t('B36: o tutorial aponta para o estilo (não para o seletor de modo)',
     js.includes("targetSel: '[data-estilo]'"));
 rel.t('B42: measureFrames só roda em modo debug (?debug-fps)',
     js.includes('debug-fps') && js.includes('__ALTFOOT_FPS'));
+
+// ---------------------------------------------------------------- Rodada gráfica (Arena 95.3)
+// A partida deixou de ser um diagrama de bolinhas: câmera, jogadores com
+// silhueta, traçado de chute, rede, pressão e placar pulsante. O harness
+// protege a fiação (as regras/classes existem e são usadas), não o gosto.
+rel.t('o campo da partida tem plano de câmera e HUD separados',
+    js.includes("camera.className = 'campo-camera'")
+    && js.includes("hud.className = 'campo-hud'")
+    && js.includes('_campoPlano()') && js.includes('_campoHud()'));
+rel.t('as fichas viraram jogadores (cabeça, camisa, número e sombra)',
+    js.includes('pl-shadow') && js.includes('pl-body') && js.includes('pl-head') && js.includes('pl-num')
+    && /\.campo-chip \.pl-body \{/.test(css) && /\.campo-chip \.pl-head \{/.test(css));
+rel.t('a câmera aproxima no lance e respeita 4×/PULAR e movimento reduzido',
+    js.includes('_camFoco(') && js.includes('--cam-z')
+    && js.includes('(this._vel || 1) >= 4') && js.includes('prefereMenosMovimento'));
+rel.t('o zoom nunca abre buraco nas bordas (pan limitado)',
+    js.includes('Math.max(-lim, Math.min(lim'));
+rel.t('o chute tem traçado e a defesa não vira laser',
+    js.includes('_tracoChute(') && js.includes("if (tipo !== 'def')") && css.includes('.shot-trail'));
+rel.t('a rede balança no gol', js.includes('campo-rede') && css.includes('@keyframes redeGol'));
+rel.t('o lance tem strap de transmissão', js.includes('_eventoCampo(') && css.includes('.campo-evento {'));
+rel.t('a pressão acende a borda do lado dominante',
+    js.includes("classList.toggle('pressao-casa'") && css.includes('#campo-2d.pressao-casa .campo-pressao'));
+rel.t('o placar pulsa quando muda',
+    js.includes("classList.add('score-pop')") && css.includes('.score-big.score-pop'));
+rel.t('a reta final pulsa na moldura',
+    js.includes("classList.toggle('reta-final'") && css.includes('#campo-2d.reta-final'));
+rel.t('o desktop monta arquibancada, gramado 3:2 e placas',
+    css.includes('aspect-ratio: 3 / 2') && css.includes('#campo-2d.campo-tv::before')
+    && css.includes('#campo-2d .campo-ads') && css.includes('translateY(-50%)'));
+rel.t('a ficha antiga (::before) não duplica a camisa no campo da partida',
+    css.includes('#screen-match #campo-2d .campo-chip::before { content: none; }'));
+rel.t('as animações novas caem no bloco de movimento reduzido',
+    /#campo-2d \.campo-camera \{ transition: none !important; \}/.test(css)
+    && /#campo-2d \.shot-trail,/.test(css));
+rel.t('o campo tem selo AO VIVO e placas de publicidade acessíveis',
+    js.includes('campo-bug') && js.includes('campo-ads') && js.includes('aria-hidden="true"'));
 
 encerrar(rel);

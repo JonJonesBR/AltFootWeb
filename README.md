@@ -15,6 +15,7 @@ Sem build, sem login, sem dependências. O progresso fica no próprio navegador.
 
 - Carreira com divisões (Séries A a D), Torneio Relâmpago, Clássico da Semana, copas e continental
 - Partida estilo Brasfoot/7a0: rádio ao vivo em texto, estatísticas, decisões do técnico, substituições
+- Transmissão de campo com câmera que aproxima nos lances, jogadores com camisa e número, traçado de chute e replay
 - Elenco com contratos, moral, fôlego, treinos, mercado e base
 - Vestiário com hierarquia e dilemas, diretoria, SAF e complexo empresarial
 - Cartas de atletas com radar de atributos no verso e Gazeta pós-jogo
