@@ -89,7 +89,8 @@ function novoSandbox(opts = {}) {
         + ', Player, Club, League, TransferMarket, LockerRoom, ClubEcosystem, CompetitionSystem, GAME_DATA, TaticaCard, TutorialManager'
         + ', rivalHistorico: (typeof rivalHistorico === "function" ? rivalHistorico : null)'
         + ', mancheteDaGazeta: (typeof mancheteDaGazeta === "function" ? mancheteDaGazeta : null)'
-        + ', MetaProgress: (typeof MetaProgress !== "undefined" ? MetaProgress : null) };'
+        + ', MetaProgress: (typeof MetaProgress !== "undefined" ? MetaProgress : null)'
+        + ', PATROCINIOS: (typeof PATROCINIOS !== "undefined" ? PATROCINIOS : null) };'
     );
     const appStub = opts.app || {};
     const api = fabrica(

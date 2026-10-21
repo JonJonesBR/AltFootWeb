@@ -80,7 +80,14 @@ rel.t('o toast continua sendo região viva', toast.includes("setAttribute('role'
 
 // ---------------------------------------------------------------- B58: paleta única
 rel.t('a transmissão usa os tokens de carvão/âmbar', css.includes('--match-panel') && css.includes('--match-deep'));
-rel.t('não sobrou o azul-ardósia da partida', !css.includes('#0c1520') && !/rgba\(8, 15, 26/.test(css));
+// B58 estava incompleto: os painéis internos (rádio, estatísticas, relógio, decisão)
+// seguiam azul-ardósia e o cabeçalho tinha um `!important` azul que anulava o fundo quente.
+rel.t('não sobrou azul-ardósia nos painéis da partida',
+    ['#0c1520', '#101b2b', '#111e2c', '#1b2b40', '#17263a', '#203145', '#2c4057', '#53677d', '#40516a', '#23344b', '#09121d']
+        .every(hex => !css.toLowerCase().includes(hex))
+    && !/rgba\(6, 12, 24/.test(css) && !/rgba\(8, 15, 26/.test(css));
+rel.t('rádio, estatísticas e decisão usam o token quente (--match-deep)',
+    /#screen-match \.match-narrative-section,#screen-match \.match-stats-row,#screen-match #match-decision \{ background:var\(--match-deep\);/.test(css));
 rel.t('os !important não cresceram (restantes são funcionais)', (css.match(/!important/g) || []).length < 70);
 
 // ---------------------------------------------------------------- B60: arte com identidade
@@ -138,5 +145,43 @@ rel.t('as animações novas caem no bloco de movimento reduzido',
     && /#campo-2d \.shot-trail,/.test(css));
 rel.t('o campo tem selo AO VIVO e placas de publicidade acessíveis',
     js.includes('campo-bug') && js.includes('campo-ads') && js.includes('aria-hidden="true"'));
+
+// ---------------------------------------------------------------- B86: landscape de celular
+// Em 844×390 o gramado era uma faixa de 640×132 (4,8:1): a regra genérica `24 / 9`
+// brigava com `max-height:34vh`. Agora o landscape usa a composição de dois painéis do
+// desktop e o tamanho do campo vem do grid (nunca de uma proporção fixa).
+const blocoB86 = (() => {
+    const i = css.indexOf('@media (max-height: 480px) and (orientation: landscape) and (max-width: 1099px)');
+    if (i < 0) return '';
+    const fim = css.indexOf('#screen-match .estadio-selo', i);
+    return css.slice(i, fim > 0 ? fim + 200 : i + 4000);
+})();
+rel.t('B86: existe um layout próprio para celular deitado',
+    blocoB86.length > 0 && blocoB86.includes('"feed   field"') && blocoB86.includes('"footer footer"'));
+rel.t('B86: o gramado deixa de ser uma faixa (saiu a proporção 24/9)',
+    !css.includes('24 / 9') && !css.includes('24/9'));
+rel.t('B86: o gramado é dimensionado pelo grid, não por uma proporção fixa',
+    /#screen-match #campo-2d \{[\s\S]{0,220}height: 100%[\s\S]{0,220}aspect-ratio: auto/.test(blocoB86));
+rel.t('B86: o invólucro de rolagem vira parte do grid no landscape',
+    /#screen-match \.match-content-scroll \{ display: contents; \}/.test(blocoB86));
+rel.t('B86: a partida usa a largura toda do aparelho (o app travava em 640 px)',
+    /#screen-match \{ position: fixed; inset: 0; \}/.test(blocoB86));
+rel.t('B86: os 7 controles continuam no pé, numa linha, com 44 px',
+    /repeat\(7, minmax\(0, 1fr\)\)/.test(blocoB86)
+    && /#screen-match \.match-speed-btn, #screen-match \.match-skip-btn \{ min-height: 44px/.test(blocoB86));
+rel.t('B86: a decisão do técnico flutua (não empurra o gramado para fora da tela)',
+    /#screen-match #match-decision \{[\s\S]{0,200}position: absolute;/.test(blocoB86)
+    && /bottom: 52px/.test(blocoB86));
+rel.t('B86: o feed rola dentro do painel da esquerda',
+    /#screen-match \.match-narrative-section \{[\s\S]{0,240}grid-area: feed;/.test(blocoB86));
+rel.t('B86: as fichas e o duelo encolhem para caber no painel da direita',
+    /#campo-2d \.campo-chip \{ width: 16px; height: 20px/.test(blocoB86)
+    && /#campo-2d \.campo-duelo \.duelo-mini \.dm-pos \{ display: none; \}/.test(blocoB86));
+
+// B61/2026-10-21: o selo da competição era um `absolute` em cima do relógio no mobile
+// (medido no Chromium em 390×844: o pill "BRASILEIRÃO" cobria o "67'"). Em ≤1099 quem
+// informa a competição é o meta-row do placar.
+rel.t('o selo da competição não cobre o relógio em telas pequenas',
+    /#screen-match \.estadio-selo \{ display:none; \}/.test(css));
 
 encerrar(rel);

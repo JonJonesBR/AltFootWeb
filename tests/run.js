@@ -966,6 +966,119 @@ teste('o prestígio sobe por temporada, é idempotente e destrava a Lenda (B79)'
     ok(M.ler().museu['Foguete FC'] === 2, 'museu global não guardou a melhor posição');
 });
 
+// -------------------------------------------------- P4: clima, química, patrocínio e olheiro (2026-10-21)
+// Estes quatro sistemas existiam no código desde as rodadas G2/G4/C1/C2, mas não tinham
+// NENHUMA verificação — e continuavam listados como "ideia futura, sem compromisso" no
+// PLANO_MELHORIAS. Aqui eles viram contrato: uma regressão que os desligue aparece na hora.
+console.log('-- P4: clima, química de elenco, patrocínio com metas e olheiro (2026-10-21)');
+
+teste('o clima pesa no poder dos dois lados e na conversão (P4 / G2)', () => {
+    const s = novoSandbox();
+    const medir = (condicao) => {
+        const casa = makeTeam('Casa', 70, { isUser: true }), fora = makeTeam('Fora', 70);
+        const sim = new s.MatchSim(casa, fora, null, null, { seed: 31, modo: 'detalhado', tempoMin: 90, condicao });
+        sim._emCampo = [sim._xiDoTime(casa), sim._xiDoTime(fora)];
+        sim.minuto = 30;
+        return { xCasa: sim._modeloXG(0), xFora: sim._modeloXG(1), pCasa: sim._poder(casa, true), pFora: sim._poder(fora, false) };
+    };
+    const bom = medir('normal'), lama = medir('lama');
+    ok(s.CONDICOES_JOGO && Object.keys(s.CONDICOES_JOGO).length >= 3, 'tabela de clima sumiu');
+    ok(s.CONDICOES_JOGO.lama.lambdaMul < s.CONDICOES_JOGO.normal.lambdaMul, 'lama não converte menos que tempo bom');
+    // O ajuste de atk/def é o MESMO para os dois lados (mesma condição de campo).
+    perto(lama.pCasa.atk - bom.pCasa.atk, -1.5, 1e-9, 'atk do mandante não caiu 1,5 na lama');
+    perto(lama.pFora.atk - bom.pFora.atk, -1.5, 1e-9, 'atk do visitante não caiu o mesmo tanto (clima assimétrico)');
+    perto(lama.pCasa.def - bom.pCasa.def, 1, 1e-9, 'def do mandante não subiu 1 na lama');
+    perto(lama.pFora.def - bom.pFora.def, 1, 1e-9, 'def do visitante não subiu o mesmo tanto');
+    ok(lama.xCasa.qualidade < bom.xCasa.qualidade && lama.xFora.qualidade < bom.xFora.qualidade,
+        'lama não reduziu a conversão dos dois lados');
+});
+
+teste('a química de elenco soma sinergias, tem teto e não dispara com time incompleto (P4 / G4)', () => {
+    const s = novoSandbox();
+    ok(typeof s.bonusQuimica === 'function', 'bonusQuimica não foi extraída');
+    const base = (n, pos) => makePlayer('b' + n, pos, 70, { origem: 'base' });
+    const comTrait = (id, pos, t) => makePlayer(id, pos, 70, { traits: [t] });
+    // Menos de 3 em campo: nenhuma sinergia.
+    ok(s.bonusQuimica([]).atk === 0 && s.bonusQuimica([base(1, 'MID')]).mid === 0, 'sinergia disparou com time incompleto');
+    // 3 crias da base → meio entrosado.
+    const crias = s.bonusQuimica([base(1, 'MID'), base(2, 'DEF'), base(3, 'ATT'), makePlayer('m', 'MID', 70)]);
+    ok(crias.mid >= 0.5 && crias.chips.some(c => c.label.indexOf('crias da base') >= 0), '3 crias da base não deram entrosamento');
+    // Artilheiro + Maestro → ataque com armador.
+    const dupla = s.bonusQuimica([comTrait('a', 'ATT', 'Artilheiro'), comTrait('b', 'MID', 'Maestro'), makePlayer('c', 'DEF', 70)]);
+    ok(dupla.atk >= 1 && dupla.chips.some(c => c.label.indexOf('Artilheiro') >= 0), 'Artilheiro + Maestro não somou ataque');
+    // Muralha + 2 zagueiros → defesa compacta.
+    const muro = s.bonusQuimica([comTrait('m', 'DEF', 'Muralha'), makePlayer('d1', 'DEF', 70), makePlayer('d2', 'DEF', 70)]);
+    ok(muro.def >= 1, 'Muralha com 2 zagueiros não reforçou a defesa');
+    // Teto: nem com toda a sinergia ligada passa de ±3 por linha (o Craque vale +6).
+    const tudo = [base(1, 'DEF'), base(2, 'DEF'), base(3, 'DEF'),
+        comTrait('h1', 'DEF', 'Muralha'), comTrait('h2', 'DEF', 'Muralha'),
+        comTrait('a1', 'ATT', 'Artilheiro'), comTrait('a2', 'ATT', 'Artilheiro'),
+        comTrait('m1', 'MID', 'Maestro'), comTrait('m2', 'MID', 'Maestro')];
+    const q = s.bonusQuimica(tudo);
+    ['atk', 'mid', 'def'].forEach(k => ok(Math.abs(q[k]) <= 3, 'sinergia de ' + k + ' furou o teto: ' + q[k]));
+});
+
+teste('o patrocínio paga a meta uma vez só e só para o usuário (P4 / C1)', () => {
+    const s = novoSandbox();
+    ok(Array.isArray(s.PATROCINIOS) && s.PATROCINIOS.length >= 3, 'tabela de patrocínios sumiu');
+    const ofertas = s.PATROCINIOS.filter(p => p.tipo === 'fixo'), arrojadas = s.PATROCINIOS.filter(p => (p.metas || []).length > 0);
+    ok(ofertas.length >= 1 && arrojadas.length >= 1, 'não há escolha entre fixo garantido e arrojado');
+    ok(ofertas.every(p => !(p.metas || []).length) && arrojadas.every(p => p.fixo < ofertas[0].fixo),
+        'o arrojado deveria pagar menos fixo que o garantido');
+    const cl = new s.Club('Patrocinio FC', true);
+    const titulo = JSON.parse(JSON.stringify(s.PATROCINIOS.find(p => p.metas.some(m => m.tipo === 'titulo'))));
+    cl.patrocinio = titulo;
+    const antes = cl.orcamento;
+    const pago = cl.checkPatrocinioMetas({ tipo: 'titulo' });
+    ok(pago > 0 && cl.orcamento === antes + pago, 'meta de título não pagou (' + pago + ')');
+    ok(cl.patrocinio.metas.every(m => m.pago), 'meta não foi marcada como paga');
+    ok(cl.checkPatrocinioMetas({ tipo: 'titulo' }) === 0, 'a mesma meta pagou duas vezes');
+    // Meta de posição respeita o alvo (G4 = top 4).
+    const g4 = new s.Club('G4 FC', true);
+    g4.patrocinio = JSON.parse(JSON.stringify(s.PATROCINIOS.find(p => p.metas.some(m => m.tipo === 'posicao'))));
+    ok(g4.checkPatrocinioMetas({ tipo: 'posicao', posicao: 9 }) === 0, 'meta de G4 pagou na 9ª posição');
+    ok(g4.checkPatrocinioMetas({ tipo: 'posicao', posicao: 3 }) > 0, 'meta de G4 não pagou no 3º lugar');
+    // Clube da IA não tem contrato de patrocínio.
+    const ia = new s.Club('Rival FC', false);
+    ia.patrocinio = JSON.parse(JSON.stringify(titulo));
+    ok(ia.checkPatrocinioMetas({ tipo: 'titulo' }) === 0, 'clube da IA recebeu bônus de patrocínio');
+});
+
+teste('o olheiro esconde o OVR, cobra por relatório e revela no 3/3 (P4 / C2)', () => {
+    const s = novoSandbox();
+    const TM = s.TransferMarket;
+    const p = new s.Player('ATT');
+    p.overall = 72;
+    p.potencial = 88;
+    TM.iniciarScouting(p);
+    ok(p.potencialRevelado === false, 'o olheiro não escondeu o potencial');
+    ok(p.scouting && p.scouting.etapa === 0, 'relatório não começou em 0/3');
+    ok(/^\d+–\d+$/.test(TM.ovrVisivel(p)), 'OVR visível não é uma faixa: ' + TM.ovrVisivel(p));
+    ok(String(TM.ovrVisivel(p)).indexOf('72') < 0, 'a faixa entregou o OVR exato na etapa 0');
+    const cl = new s.Club(null, true);
+    cl.elenco = [p]; // o relatório avança pelo elenco do clube (afterRound)
+    cl.orcamento = 100000;
+    const liga = { temporada: 1, rodada: 3 };
+    const r1 = TM.avaliar(cl, p, liga);
+    ok(r1.ok && cl.orcamento === 85000, 'avaliação não cobrou R$ 15k: ' + JSON.stringify(r1));
+    ok(p.scouting.pendente, 'relatório não ficou pendente');
+    ok(TM.avaliar(cl, p, liga).ok === false, 'dá para mandar dois olheiros na mesma rodada');
+    cl.partidasTotais = (cl.partidasTotais || 0) + 1;
+    TM.afterRound(cl, { temporada: 1, rodada: 4, adicionarNoticia() { } });
+    ok(p.scouting.etapa === 1 && !p.scouting.pendente, 'o relatório não avançou após a rodada');
+    // Etapa 2 e 3: fecha em 3/3 e revela o OVR exato + o traço oculto.
+    for (let i = 0; i < 2; i++) {
+        cl.partidasTotais++;
+        TM.avaliar(cl, p, { temporada: 1, rodada: 5 + i });
+        cl.partidasTotais++;
+        TM.afterRound(cl, { temporada: 1, rodada: 6 + i, adicionarNoticia() { } });
+    }
+    ok(p.scouting.etapa === 3, 'o relatório não fechou em 3/3 (etapa ' + p.scouting.etapa + ')');
+    ok(p.potencialRevelado === true, 'o potencial não foi revelado no 3/3');
+    ok(TM.ovrVisivel(p) === '72', 'no 3/3 o OVR deveria ser exato: ' + TM.ovrVisivel(p));
+    ok((p.traits || []).some(t => (p.tracosOcultos || []).includes(t)), 'o traço oculto não entrou nos atributos');
+});
+
 console.log('');
 console.log('=== ' + (total - falhas) + '/' + total + ' verificações passaram' + (falhas ? ' — ' + falhas + ' FALHAS' : '') + ' ===');
 process.exit(falhas ? 1 : 0);

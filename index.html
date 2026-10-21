@@ -272,9 +272,12 @@ body {
     position: relative;
     z-index: 1;
 }
+/* B58 (completado em 2026-10-21): o painel da partida é carvão/âmbar, não azul-ardósia.
+   Este `rgba(6,12,24,.72) !important` sobreviveu ao B58 e anulava o fundo quente do
+   cabeçalho em TODOS os tamanhos (medido no navegador: rgb(6,12,24,.72)). */
 #screen-match .match-header-card,
 #screen-match .match-narrative-section {
-    background: rgba(6, 12, 24, 0.72) !important;
+    background: rgba(24, 16, 8, 0.82);
     backdrop-filter: none;
 }
 #screen-match .estadio-selo {
@@ -2607,9 +2610,11 @@ html, body, * {
     .match-speed-btn, .match-skip-btn { min-height: 40px; min-width: 42px; padding: 6px 10px; }
 }
 
-/* Landscape baixo (celular deitado): campo largo e feed compacto */
+/* Landscape baixo (celular deitado): campo largo e feed compacto.
+   B86 (2026-10-21): a proporção do gramado saiu daqui — era `24 / 9` + `max-height:34vh`,
+   que em 844×390 dava uma faixa de 4,8:1. O tamanho do campo agora vem do grid da
+   transmissão em dois painéis (bloco B86 no fim do <style>). */
 @media (max-height: 480px) and (orientation: landscape) {
-    .campo-2d { aspect-ratio: 24 / 9; max-height: 34vh; }
     .campo-chip .chip-label { display: none; }
     .campo-duelo { top: 38%; }
     .match-narrative-section { max-height: 28vh; min-height: 56px; }
@@ -2861,31 +2866,34 @@ body.high-contrast .btn-end-turn { border:2px solid #ffd479 !important; }
 button:focus-visible,summary:focus-visible,[role="button"]:focus-visible,[tabindex]:focus-visible { outline:3px solid #fff0bd; outline-offset:3px; }
 @media(max-width:380px) { .prep-scroll { padding:14px 12px 10px; } .prep-footer { padding-left:12px; padding-right:12px; } #prep-modos .style-btn { padding:9px; font-size:.82rem; } #prep-modos small { font-size:.69rem; } .fut-back { inset:6px; } }
 @media(max-width:340px) { body { min-width:0; } #squad-list .player-card,#market-list .player-card { width:calc(50% - 5px); min-width:0; } #squad-list .player-card:has(.fut-front) { height:320px; min-height:320px; } .fut-back { font-size:.7rem; } }
-/* Transmissão: painéis legíveis e gramado restrito à representação da partida. */
+/* Transmissão: painéis legíveis e gramado restrito à representação da partida.
+   B58 (completado em 2026-10-21): os painéis internos ainda eram azul-ardósia
+   (#101b2b/#1b2b40/#17263a/#40516a). Agora usam os tokens quentes (--match-deep/
+   --match-panel), como o cabeçalho e o rodapé. */
 #screen-match .estadio-gramado { opacity:.22; }
 #screen-match::before,#screen-match::after { opacity:.08; pointer-events:none; }
-#screen-match .match-narrative-section,#screen-match .match-stats-row,#screen-match #match-decision { background:#101b2b; border:1px solid #40516a; border-radius:12px; padding:12px; color:#f1f5f9; }
-#screen-match .stat-chip { background:#1b2b40; color:#f1f5f9; }
+#screen-match .match-narrative-section,#screen-match .match-stats-row,#screen-match #match-decision { background:var(--match-deep); border:1px solid rgba(255,176,0,0.22); border-radius:12px; padding:12px; color:#f1f5f9; }
+#screen-match .stat-chip { background:rgba(255,255,255,0.06); color:#f1f5f9; }
 #screen-match #match-log { color:#fff; line-height:1.45; }
-#screen-match .feed-item { background:#17263a; line-height:1.4; border-left:3px solid #64748b; }
+#screen-match .feed-item { background:rgba(255,255,255,0.05); line-height:1.4; border-left:3px solid rgba(255,176,0,0.45); }
 #screen-match .feed-goal { border-left-color:#4ade80; }
 #screen-match .feed-def { border-left-color:#60a5fa; }
 #screen-match .feed-red { border-left-color:#fb7185; }
 #screen-match .feed-foul { border-left-color:#facc15; }
 #screen-match .feed-var { border-left-color:#c4b5fd; }
-#screen-match .decision-btn { min-height:52px; background:#23344b; border-color:#64748b; color:#fff; }
+#screen-match .decision-btn { min-height:52px; background:rgba(255,255,255,0.06); border-color:rgba(255,176,0,0.34); color:#fff; }
 #screen-match .decision-btn:focus-visible { outline:3px solid #facc15; outline-offset:2px; }
 #screen-match .campo-2d { background:repeating-linear-gradient(90deg,#155c39 0 12.5%,#196741 12.5% 25%); border:3px solid #b9dbc6; }
 #screen-match .campo-linhas { inset:5px; border:1px solid rgba(255,255,255,.65); }
 #screen-match .campo-area { border-color:rgba(255,255,255,.65); }
 #screen-match .campo-chip.casa { border-radius:3px; }
 #screen-match .campo-chip.fora { border-radius:50%; border-style:double; }
-#screen-match .chip-label { opacity:1; background:#081624; border-radius:3px; padding:1px 3px; }
+#screen-match .chip-label { opacity:1; background:rgba(8,5,2,0.85); border-radius:3px; padding:1px 3px; }
 #modal-match-result .modal-content { display:flex; flex-direction:column; overflow:hidden!important; padding:0!important; }
 .result-scroll { overflow-y:auto; min-height:0; padding:20px; }
-.result-actions { flex:none; display:flex; gap:8px; padding:12px; border-top:1px solid #40516a; background:#101b2b; }
+.result-actions { flex:none; display:flex; gap:8px; padding:12px; border-top:1px solid rgba(255,176,0,0.22); background:var(--match-deep); }
 .result-actions button { min-height:48px; }
-.result-analysis summary { cursor:pointer; padding:14px; margin-top:12px; border:1px solid #40516a; border-radius:8px; font-weight:800; color:var(--text); }
+.result-analysis summary { cursor:pointer; padding:14px; margin-top:12px; border:1px solid rgba(255,176,0,0.22); border-radius:8px; font-weight:800; color:var(--text); }
 #modal-jornal .modal-content { display:flex; flex-direction:column; overflow:hidden!important; }
 #jornal-body { min-height:0; overflow-y:auto; }
 #modal-jornal .btn-end-turn { flex:none; min-height:48px; }
@@ -2898,14 +2906,14 @@ button:focus-visible,summary:focus-visible,[role="button"]:focus-visible,[tabind
 @media(max-width:600px) { #screen-match .match-narrative-section,#screen-match .match-stats-row,#screen-match #match-decision { padding:7px; } #screen-match .decision-btn { font-size:.7rem; padding:8px 4px; } .result-scroll { padding:14px; } }
 /* Transmissão limpa: identificação e leitura antes dos efeitos decorativos. */
 #screen-match::before,#screen-match::after { display:none; animation:none; }
-#screen-match .match-header-card { background:#111e2c; border-color:#40516a; box-shadow:none; }
+#screen-match .match-header-card { background:rgba(24,16,8,0.86); border-color:rgba(255,176,0,0.28); box-shadow:none; }
 #screen-match .team-tag { min-width:0; overflow-wrap:anywhere; letter-spacing:.3px; line-height:1.35; font-size:clamp(.78rem,2.3vw,1rem); }
-#screen-match .score-big { background:#09121d; text-shadow:none; color:#ffc04d; letter-spacing:1px; }
+#screen-match .score-big { background:rgba(10,6,2,0.86); text-shadow:none; color:#ffc04d; letter-spacing:1px; }
 #screen-match .match-clock-badge,#screen-match .feed-min,#screen-match #match-log,#screen-match #match-status,#screen-match #match-decision-title { text-shadow:none; }
 #screen-match #match-status { animation:none; letter-spacing:.5px; color:#e2e8f0; }
 #screen-match .ao-vivo-dot { animation:none; box-shadow:none; }
-#screen-match #match-log { background:#203145; border-color:#53677d; border-radius:8px; text-align:left; font-family:inherit; font-weight:700; }
-#screen-match #match-log.flash { transform:none; box-shadow:none; background:#2c4057; }
+#screen-match #match-log { background:rgba(255,176,0,0.10); border-color:rgba(255,176,0,0.32); border-radius:8px; text-align:left; font-family:inherit; font-weight:700; }
+#screen-match #match-log.flash { transform:none; box-shadow:none; background:rgba(255,176,0,0.30); }
 #screen-match .feed-item { animation:none; }
 #screen-match .campo-2d { box-shadow:none; border-width:2px; border-radius:10px; }
 #screen-match .campo-chip { width:15px; height:17px; border:1px solid #e8f2ff; border-radius:3px; box-shadow:0 2px 2px #071b12; }
@@ -2942,7 +2950,10 @@ button:focus-visible,summary:focus-visible,[role="button"]:focus-visible,[tabind
     #screen-match .match-footer-row { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:5px; padding:6px 0 max(6px,env(safe-area-inset-bottom)); background:var(--match-panel); }
     #screen-match #match-status { grid-column:1/-1; text-align:center; font-size:.75rem; line-height:1.35; }
     #screen-match .match-speed-btn,#screen-match .match-skip-btn { width:100%; min-width:0; min-height:44px; font-size:.75rem; padding:6px 3px; }
-    #screen-match .estadio-selo { top:12px; left:18px; right:auto; max-width:calc(100% - 78px); }
+    /* O selo da competição ficava em cima do relógio (o `left:18px` encostava no
+       `#match-clock`). Em telas ≤1099 quem mostra a competição é o `#match-competicao`
+       (meta-row do placar) ou, em telas baixas, a preparação/o Rádio. */
+    #screen-match .estadio-selo { display:none; }
 }
 @media (max-width:479px) {
     #screen-match .match-footer-row { grid-template-columns:repeat(3,minmax(0,1fr)); }
@@ -2952,11 +2963,6 @@ button:focus-visible,summary:focus-visible,[role="button"]:focus-visible,[tabind
     #screen-match .campo-duelo .dm-pos { display:none; }
     #screen-match .campo-duelo .duelo-mini .dm-ovr { font-size:.78rem; }
     #screen-match .campo-duelo .duelo-mini .dm-nome { font-size:.65rem; max-width:80px; margin:0; }
-}
-@media (max-height:480px) and (orientation:landscape) and (max-width:1099px) {
-    #screen-match #match-decision { max-height:45dvh; }
-    #screen-match .match-footer-row { grid-template-columns:repeat(7,minmax(0,1fr)); }
-    #screen-match #match-status { grid-column:auto; align-self:center; }
 }
  /* ===== 2026-10-19 · Bloco 3: estádio de volta, efeitos com CSS, campo completo e legibilidade =====
    Contexto: o gramado estava display:none e o board tinha fundo opaco (o estádio inteiro era
@@ -3594,6 +3600,116 @@ button:focus-visible,summary:focus-visible,[role="button"]:focus-visible,[tabind
     #campo-2d.campo-tv::after { height: 9%; }
     #campo-2d .campo-ads { height: 9%; }
     #campo-2d .campo-pressao { top: 9%; bottom: 9%; }
+}
+
+/* ========================================================================= */
+/* B86 · LANDSCAPE DE CELULAR — a transmissão em dois painéis (2026-10-21)   */
+/*                                                                           */
+/* Problema medido em 844×390 (celular deitado): `aspect-ratio: 24/9` do     */
+/* bloco genérico brigava com `max-height: 34vh` e o gramado virava uma      */
+/* faixa de 640×132 (4,8:1) — o círculo central era uma elipse, as fichas    */
+/* não tinham onde ficar e o app ainda travava na coluna de 640 px,         */
+/* desperdiçando 200 px de tela. Agora a partida usa a MESMA composição de   */
+/* dois painéis do desktop (rádio à esquerda, gramado à direita), com o      */
+/* placar numa faixa no topo e os controles inteiros no pé: o gramado fica   */
+/* entre 1,4:1 e 1,8:1 (perto de um campo real) sem rolar nada.              */
+/* A decisão do técnico passou a flutuar acima do rodapé — antes ela era     */
+/* linha do grid e empurrava o campo para fora da tela.                     */
+/* ========================================================================= */
+@media (max-height: 480px) and (orientation: landscape) and (max-width: 1099px) {
+    /* A partida é transmissão: ocupa a largura toda do aparelho. */
+    #screen-match { position: fixed; inset: 0; }
+    #screen-match .match-board {
+        display: grid;
+        grid-template-columns: minmax(0, 0.98fr) minmax(0, 1.02fr);
+        grid-template-rows: auto minmax(0, 1fr) auto auto;
+        grid-template-areas:
+            "header header"
+            "feed   field"
+            "stats  field"
+            "footer footer";
+        max-width: none;
+        height: 100%;
+        gap: 5px 8px;
+        padding: 5px;
+        overflow: hidden;
+    }
+    /* O invólucro de rolagem some: cada painel vira célula do grid. */
+    #screen-match .match-content-scroll { display: contents; }
+
+    /* Placar numa faixa: relógio + AO VIVO + COMO JOGAR e o placar na mesma linha. */
+    #screen-match .match-header-card {
+        grid-area: header;
+        display: flex; flex-wrap: wrap; align-items: center; gap: 2px 10px;
+        padding: 4px 8px;
+    }
+    #screen-match .match-top-bar { flex: none; margin: 0; }
+    #screen-match .match-top-bar .how-to-play-btn { min-height: 44px; padding: 2px 8px; font-size: .62rem; }
+    #screen-match .score-row { flex: 1 1 auto; min-width: 0; gap: 6px; }
+    #screen-match .score-big { min-width: 76px; padding: 1px 8px; font-size: 1.4rem; letter-spacing: 2px; }
+    #screen-match .team-tag { font-size: .8rem; letter-spacing: 1px; }
+    #screen-match .team-side { display: none; }
+    #screen-match .match-timeline { flex: 1 1 100%; margin-top: 2px; }
+    #screen-match .match-timeline .tl-legend { display: none; }
+
+    /* Rádio do Estádio na coluna da esquerda (o feed rola dentro dela). */
+    #screen-match .match-narrative-section {
+        grid-area: feed;
+        min-height: 0; max-height: none; height: 100%;
+        padding: 4px 7px; overflow: hidden;
+    }
+    #screen-match #match-log { min-height: 18px; margin-bottom: 4px; font-size: .7rem !important; }
+    #screen-match .feed-item { padding: 3px 6px; font-size: .68rem; }
+
+    /* Estatísticas compactas no pé da coluna (nada escondido além da barra de pressão,
+       que já aparece na borda do gramado e no duelo — e custava uma linha inteira). */
+    #screen-match .match-stats-row { grid-area: stats; gap: 4px; justify-content: flex-start; }
+    #screen-match .match-stats-row .pressao-wrap { display: none; }
+    #screen-match .match-stats-row .posse-wrap { max-width: none; padding: 2px 8px; }
+    #screen-match .match-stats-row .posse-tag { font-size: .6rem; }
+    #screen-match .match-stats-row .stat-chip { padding: 2px 8px; font-size: .66rem; }
+
+    /* Gramado preenche a coluna da direita — a área já é ~1,7:1, então o SVG
+       (preserveAspectRatio="none") não distorce mais o campo. */
+    #screen-match #campo-2d {
+        grid-area: field;
+        width: 100%; height: 100%;
+        aspect-ratio: auto; max-height: none; min-height: 0;
+        margin: 0; border-width: 3px; border-radius: 10px;
+    }
+    #screen-match #campo-2d .campo-chip { width: 16px; height: 20px; font-size: 16px; }
+    #screen-match #campo-2d .chip-label { display: none; }
+    #screen-match #campo-2d .campo-bug { display: none; }
+    #screen-match #campo-2d .campo-evento { top: 3px; font-size: .52rem; padding: 2px 7px; max-width: 80%; }
+    #screen-match #campo-2d .campo-duelo { top: 50%; gap: 4px; }
+    #screen-match #campo-2d .campo-duelo .duelo-mini { min-width: 0; padding: 2px 7px; gap: 3px; }
+    #screen-match #campo-2d .campo-duelo .duelo-mini .dm-ovr { font-size: .8rem; }
+    #screen-match #campo-2d .campo-duelo .duelo-mini .dm-nome { font-size: .6rem; max-width: 78px; }
+    #screen-match #campo-2d .campo-duelo .duelo-mini .dm-pos { display: none; }
+    #screen-match #campo-2d .campo-duelo .duelo-vs { font-size: .56rem; }
+
+    /* Controles inteiros no pé, uma linha só, alvos de 44 px. */
+    #screen-match .match-footer-row {
+        grid-area: footer;
+        grid-template-columns: repeat(7, minmax(0, 1fr));
+        gap: 4px;
+        padding: 0 0 max(2px, env(safe-area-inset-bottom));
+    }
+    #screen-match #match-status { grid-column: auto; align-self: center; font-size: .68rem; line-height: 1.2; }
+    #screen-match .match-speed-btn, #screen-match .match-skip-btn { min-height: 44px; font-size: .7rem; padding: 4px 2px; }
+
+    /* A decisão do técnico flutua acima do rodapé: não empurra o gramado,
+       não cobre os controles e mantém o cronômetro visível. */
+    #screen-match #match-decision {
+        position: absolute;
+        left: 8px; right: 8px; bottom: 52px;
+        margin: 0; z-index: 30;
+        max-height: calc(100dvh - 68px); min-height: 0;
+        overflow-y: auto;
+        padding: 8px;
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.66), 0 0 22px rgba(255, 176, 0, 0.16);
+    }
+    #screen-match #match-decision .decision-btn { min-height: 44px; font-size: .72rem; padding: 6px 4px; }
 }
 </style>
 </head>
