@@ -4497,7 +4497,7 @@ button:focus-visible,summary:focus-visible,[role="button"]:focus-visible,[tabind
  <div id="modal-club-name" class="modal hidden">
    <div class="modal-content" style="padding: 24px; width: 90%; max-width: 400px;">
      <h2 style="margin: 0 0 14px; font-weight: 900;">🏆 CRIAR SEU CLUBE</h2>
-     <input id="club-name-input" maxlength="24" placeholder="Ex: Nacional FC" style="width: 100%; padding: 12px; border-radius: 12px; border: 1.5px solid var(--border-bright); background: var(--bg-main); color: var(--text); font-size: 1rem; margin-bottom: 14px;">
+     <input id="club-name-input" maxlength="24" placeholder="Ex: Nacional FC" oninput="this.value = this.value.replace(/[<>]/g, '')" style="width: 100%; padding: 12px; border-radius: 12px; border: 1.5px solid var(--border-bright); background: var(--bg-main); color: var(--text); font-size: 1rem; margin-bottom: 14px;">
      <div style="font-size: 0.72rem; color: var(--text-muted); font-weight: 800; margin-bottom: 6px;">NÍVEL DE DIFICULDADE</div>
      <select id="difficulty-select" style="width: 100%; padding: 12px; border-radius: 12px; border: 1.5px solid var(--border-bright); background: var(--bg-main); color: var(--text); font-size: 0.9rem; margin-bottom: 18px;">
        <option value="0.75">Fácil — adversários menos eficientes</option>
@@ -4741,9 +4741,9 @@ button:focus-visible,summary:focus-visible,[role="button"]:focus-visible,[tabind
 </script>
 
 <script>
-// assets.js - Mídias embutidas em base64 (sem dependências externas)
+// assets.js - Sem arquivos de mídia: o áudio é 100% sintetizado (sem dependências externas)
 
-const AUDIO_ASSETS = Object.freeze({}); // Música e SFX sintetizados; locução humana relativa preservada.
+const AUDIO_ASSETS = Object.freeze({}); // Música e SFX sintetizados; sem locução humana (decisão de 2026-10-14).
 
 // tempo-pagina.js — prazos do jogo contam apenas enquanto a página está aberta.
 const TempoPagina = (() => {
@@ -5175,6 +5175,8 @@ class Player {
     this.traits = this.gerarTraitsAleatorios();
     // G4: 'base' (cria do clube) | 'mercado' (contratado). Save antigo → normalize para 'mercado'.
     this.origem = 'mercado';
+    // Fração do OVR ainda não aplicada (acumula treino/envelhecimento). Save antigo → 0.
+    this.ovrFracao = 0;
   }
 
   gerarTraitsAleatorios() {
@@ -5287,17 +5289,36 @@ class Player {
 
   treinarAtributo(attr) {
     if (this.trainingPoints > 0 && this.stats[attr] < 99) {
+      const antes = this._mediaStats();
       this.stats[attr]++;
       this.trainingPoints--;
-      this.recalcularOverall();
+      this.recalcularOverall(antes);
       return true;
     }
     return false;
   }
 
-  recalcularOverall() {
-    const s = this.stats;
-    this.overall = Math.floor((s.GK + s.DEF + s.MID + s.ATT + s.VEL + s.PAS + s.FIN) / 7);
+  // Média float das 7 stats (sem arredondar). Base para aplicar só a diferença no OVR.
+  _mediaStats() {
+    const s = this.stats || {};
+    const ks = ['GK', 'DEF', 'MID', 'ATT', 'VEL', 'PAS', 'FIN'];
+    return ks.reduce((a, k) => a + (Number(s[k]) || 0), 0) / ks.length;
+  }
+
+  // Com `antes` (média float das stats antes da mudança) aplica só a diferença ao OVR.
+  // Sem `antes`, o OVR fica igual (não é mais recalculado como média, que derrubava o OVR).
+  // A diferença vai para `ovrFracao`; a parte inteira vai ao OVR (trunc: vale para queda também).
+  recalcularOverall(antes) {
+    if (Number.isFinite(antes)) {
+      const depois = this._mediaStats();
+      // Encaixa no inteiro quando a soma está a 1e-6 dele (ruído de ponto flutuante em 7 treinos).
+      const bruto = (Number.isFinite(this.ovrFracao) ? this.ovrFracao : 0) + (depois - antes);
+      const inteiroMaisPerto = Math.round(bruto);
+      const acumulado = Math.abs(bruto - inteiroMaisPerto) < 1e-6 ? inteiroMaisPerto : bruto;
+      const inteiro = Math.trunc(acumulado);
+      this.ovrFracao = acumulado - inteiro;
+      this.overall = Math.max(1, Math.min(99, (this.overall || 0) + inteiro));
+    }
     this.raridade = this.calcularRaridade(this.overall);
     // C3: tier é sticky — recalcularOverall NÃO derruba a promoção por marcos.
     if (this.tier == null) this.tier = this.raridade;
@@ -5311,10 +5332,11 @@ class Player {
     if (this.idade >= 32) {
         // Declínio físico previsível; visão (MID) e passe permanecem preservados.
         const queda = Math.min(6, 2 + Math.floor((this.idade - 32) / 2));
+        const antes = this._mediaStats();
         this.stats.VEL = Math.max(10, (this.stats.VEL || 10) - queda);
         this.folegoMax = Math.max(60, (this.folegoMax == null ? 100 : this.folegoMax) - queda);
         this.folego = Math.min(this.folego == null ? 100 : this.folego, this.folegoMax);
-        this.recalcularOverall();
+        this.recalcularOverall(antes);
     }
   }
 
@@ -5633,7 +5655,10 @@ const ClubEcosystem = {
         }
     } catch (e) { /* meta nunca derruba a rodada */ }
     club.rodadasDiretoriaCritica = club.pacienciaDiretoria < 20 ? club.rodadasDiretoriaCritica + 1 : 0;
-    if (club.rodadasDiretoriaCritica >= 3) {
+    // Carência: sem demissão nas 10 primeiras rodadas da temporada; na Lenda, na T1, só a partir da 14ª.
+    const lenda = ((club.difficulty && club.difficulty.multiplier) || 1) >= 1.3;
+    const carencia = (lenda && (league.temporada || 1) === 1) ? 14 : 10;
+    if (club.rodadasDiretoriaCritica >= 3 && (league.rodada || 0) > carencia) {
       club.demitido = true;
       league.adicionarNoticia('📋 FIM DE CARREIRA: diretoria demitiu o treinador após três rodadas abaixo de 20% de confiança.');
     }
@@ -5884,6 +5909,8 @@ class Club {
     this.staminaGlobal = 100;
     this.estadioNivel = 1;      // infraestrutura: estádio (bilheteria)
     this.baseNivel = 1;         // infraestrutura: categorias de base
+    this.tutorialPago = false;  // Treino Guiado: bônus (R$ 50 mil + XP) pago só uma vez por carreira
+    this.olheiroGratisChave = '';  // degrau 300 de prestígio: temporada em que o relatório grátis já foi usado
     this.ofertas = [];          // propostas de compra recebidas
     this.moral = 75;            // moral geral do elenco (eventos de vestiário)
     this.fans = 50;             // aprovação da torcida 0-100 (multiplica bilheteria)
@@ -5923,6 +5950,11 @@ class Club {
     const garantido = ClubEcosystem.nivel(this, 'camarotes') * 20000;
     return Math.round((base * mult * ocupacao + patrocinio * midia) * fansMult * eticaMult + garantido);
   }
+  // Manutenção por rodada: R$ 45 mil por nível acima de 1 em estádio e base (cada um, teto 5).
+  manutencaoInfra() {
+    const acima = (n) => Math.max(0, Math.min(5, Number(n) || 1) - 1);
+    return (acima(this.estadioNivel) + acima(this.baseNivel)) * 45000;
+  }
   stadiumCost() {
     return 200000 + (this.estadioNivel - 1) * 150000;
   }
@@ -5946,13 +5978,17 @@ class Club {
         p.staminaConsumption = Math.max(2, 12 - Math.floor(p.overall / 10));
       }
       if (clubeId != null) p.clubeId = clubeId;
+      // Elenco inicial assina contrato longo (28–38 rodadas); só afeta carreiras novas (saves guardam o valor).
+      p.contratoRodadas = 28 + Math.floor(Math.random() * 11);
       this.elenco.push(p);
     });
 
     if (this.isUser) {
       // Give basic tactics to user
       // B77: a mão é de 4 e o baralho agora é a coleção — a carreira começa com 4.
-      [0, 1, 2, 3].forEach(i => { if (GAME_DATA.taticas[i]) this.taticas.push(new TaticaCard(GAME_DATA.taticas[i])); });
+      // Degrau 150 de prestígio (3.6): +1 carta tática na mão inicial.
+      const maoInicial = (typeof MetaProgress !== 'undefined' && MetaProgress.desbloqueado('tatica')) ? 5 : 4;
+      for (let i = 0; i < maoInicial; i++) { if (GAME_DATA.taticas[i]) this.taticas.push(new TaticaCard(GAME_DATA.taticas[i])); }
     }
   }
 
@@ -6003,7 +6039,12 @@ class Club {
 
       if (m.tipo === tipo) {
           const live = this._missionProgress(m);
-          if (live != null) {
+          if (live != null && (m.tipo === 'gols' || m.tipo === 'sequencia')) {
+              // Progresso = quanto o contador andou desde a criação (base). Se o contador
+              // zerou (nova temporada / sequência quebrada), a base acompanha para não pagar de novo.
+              if (typeof m.base !== 'number' || live < m.base) m.base = live;
+              m.progresso = Math.max(m.progresso, live - m.base);
+          } else if (live != null) {
               m.progresso = Math.max(m.progresso, live);
           } else {
               m.progresso += valor;
@@ -6081,7 +6122,7 @@ class Club {
     const pool = this._poolMissoes();
     const t = pool[Math.floor(Math.random() * pool.length)];
     const meta = t.metaRange[0] + Math.floor(Math.random() * (t.metaRange[1] - t.metaRange[0] + 1));
-    return {
+    const m = {
       id: 'm' + Date.now() + Math.floor(Math.random() * 1000),
       tipo: t.tipo,
       desc: t.desc(meta),
@@ -6090,6 +6131,9 @@ class Club {
       premio: t.premio,
       concluida: false
     };
+    // Missão que espelha contador acumulado: conta só o que vier DEPOIS de criada.
+    if (t.tipo === 'gols' || t.tipo === 'sequencia') m.base = this._missionProgress(m);
+    return m;
   }
 
   // Gera um conjunto novinho de (n) missões (ex.: na virada de temporada).
@@ -6123,7 +6167,8 @@ class Club {
   // Substitui a missão concluída por uma nova, mantendo o conjunto sempre "cheio".
   _rotacionarMissao(m) {
     // Evita trocar por outra missão já ativa na tela.
-    const outros = (this.missoes || []).filter(x => x !== m && !x.concluida).map(x => x.tipo);
+    // Também não repete o tipo da própria missão que acabou de ser paga.
+    const outros = (this.missoes || []).filter(x => x !== m && !x.concluida).map(x => x.tipo).concat([m.tipo]);
     let nova = this._novaMissao();
     let guard = 0;
     while (outros.includes(nova.tipo) && guard < 20) {
@@ -6137,6 +6182,8 @@ class Club {
     if (!this.isUser) return;
     const folha = this.elenco.reduce((s, p) => s + (p.salario || 0), 0);
     this.orcamento -= folha;
+    // 3.2 (iii): manutenção de estádio/base cresce com o nível acima de 1 (teto 5).
+    this.orcamento -= this.manutencaoInfra();
     if (this.orcamento < 0) {
       if (typeof ui !== 'undefined') ui.showActionFeedback("Orçamento negativo! Venda jogadores ou reduza custos.", "error");
     }
@@ -6471,14 +6518,16 @@ const CompetitionSystem = {
         const state = this.ensure(app.league)[kind], groups = kind === 'continental' && state.etapa < 6;
         const scores = [];
         const result = (pair,h,a,pen) => { const winner = h===a ? (pen ? (pen.h>pen.a?pair[0]:pair[1]) : Math.random()<0.5?pair[0]:pair[1]) : h>a?pair[0]:pair[1]; return [...pair,h,a,groups?null:winner]; };
-        pairs.filter(pair=>pair!==userPair).forEach(pair=>{ const r=Engine.quickSim(this.find(app.league,pair[0]),this.find(app.league,pair[1])); scores.push(result(pair,r.h,r.a)); });
-        const finish = () => { const prize=this.settle(app.league,kind,scores,app.club); app.saveGame(); ui.showScreen('screen-game'); ui.updateDashboard(); this.open(); if(prize) ui.showActionFeedback('Premiação recebida: '+app.fmtMoney(prize),'success'); };
+        // Resultado gravado no índice do próprio par: settle monta a fase seguinte na ordem da chave
+        // (antes o jogo do usuário ia para o fim e embaralhava a árvore).
+        pairs.forEach((pair,i)=>{ if (pair===userPair) return; const r=Engine.quickSim(this.find(app.league,pair[0]),this.find(app.league,pair[1])); scores[i]=result(pair,r.h,r.a); });
+        const finish = () => { const prize=this.settle(app.league,kind,scores.filter(Boolean),app.club); app.saveGame(); ui.showScreen('screen-game'); ui.updateDashboard(); this.open(); if(prize) ui.showActionFeedback('Premiação recebida: '+app.fmtMoney(prize),'success'); };
         if (!userPair) { finish(); return; }
         document.getElementById('modal-competitions').classList.add('hidden');
         const home=this.find(app.league,userPair[0]), away=this.find(app.league,userPair[1]), userHome=home===app.club;
         ui.showScreen('screen-match'); ui.startMatchRender();
         MatchUI.init(home.nome,away.nome,kind==='copa'?'COPA NACIONAL':'TAÇA CONTINENTAL'+(!userHome?' · PRESSÃO VISITANTE':''),'MATA-MATA E RÁDIO AO VIVO',null);
-        Engine.activeMatch = new MatchSim(home,away,data=>ui.updateMatchData(data), (h,a,pen)=>{ scores.push(result(userPair,h,a,pen)); Engine.activeMatch=null; finish(); }, {regra:groups?null:'torneio',userHome,continental:kind==='continental',seed:(app.league.seed||1)+state.etapa*817,tempoMin:90});
+        Engine.activeMatch = new MatchSim(home,away,data=>ui.updateMatchData(data), (h,a,pen)=>{ scores[pairs.indexOf(userPair)]=result(userPair,h,a,pen); Engine.activeMatch=null; finish(); }, {regra:groups?null:'torneio',userHome,continental:kind==='continental',seed:(app.league.seed||1)+state.etapa*817,tempoMin:90});
         Engine.activeMatch.start();
     }
 };
@@ -6559,9 +6608,27 @@ const MetaProgress = {
     const m = dados || this.ler();
     return (Number(m.prestigio) || 0) >= info.min;
   },
+  // Degraus de prestígio (3.6): desbloqueios simples, lidos na hora (não alteram o save da carreira).
+  degraus() {
+    return [
+      { min: 150, id: 'tatica', texto: '+1 carta tática na mão inicial' },
+      { min: 300, id: 'olheiro', texto: '1 relatório de olheiro grátis por temporada' },
+      { min: 500, id: 'faixa', texto: 'faixa de capitão no menu' }
+    ];
+  },
+  desbloqueado(id, dados) {
+    const m = dados || this.ler();
+    const d = this.degraus().find(x => x.id === id);
+    return !!d && (Number(m.prestigio) || 0) >= d.min;
+  },
   resumo() {
     const m = this.ler();
-    return '🏅 Prestígio ' + m.prestigio + ' · ' + m.temporadas + ' temporada(s) · ' + m.titulos + ' título(s)';
+    const pr = Number(m.prestigio) || 0;
+    const ganhos = this.degraus().filter(d => pr >= d.min).map(d => d.texto);
+    const prox = this.degraus().find(d => pr < d.min);
+    return '🏅 Prestígio ' + m.prestigio + ' · ' + m.temporadas + ' temporada(s) · ' + m.titulos + ' título(s)'
+      + (ganhos.length ? ' · desbloqueado: ' + ganhos.join('; ') : '')
+      + (prox ? ' · próximo degrau ' + prox.min + ': ' + prox.texto : '');
   }
 };
 // fut-cards.js — radar vetorial leve e inspeção no verso da carta.
@@ -6673,7 +6740,7 @@ const HistoricalScenarios = {
     key() { return 'altfoot_scenarios_s'+(app.slot||1); },
     list: [
         {id:'dez-herois',nome:'Dez heróis, quinze minutos',texto:'75 minutos: perdemos por 1 × 2 e temos um expulso. Empate ou vire para conquistar um pack lendário.',minuto:75,placar:[1,2],vermelho:1},
-        {id:'milagre-final',nome:'O milagre da decisão',texto:'80 minutos: a final está 0 × 1. Busque o empate com a retranca rival e conquiste outro pack lendário.',minuto:80,placar:[0,1],vermelho:0}
+        {id:'milagre-final',nome:'O milagre da decisão',texto:'80 minutos: a final está 0 × 1. Busque o empate com a retranca rival e conquiste outro pack lendário.',minuto:80,placar:[0,1],vermelho:0,estilo:'ofensivo'}
     ],
     read() { try { const raw=JSON.parse(localStorage.getItem(this.key())||'{}'); return {wins:Array.isArray(raw.wins)?raw.wins.filter(x=>this.list.some(s=>s.id===x)):[],claimed:Array.isArray(raw.claimed)?raw.claimed:[]}; } catch(e) { return {wins:[],claimed:[]}; } },
     open() {
@@ -6689,10 +6756,14 @@ const HistoricalScenarios = {
         const data=this.read(), id=data.wins.find(x=>!data.claimed.includes(x));
         if(!id){ui.showActionFeedback('Nenhum pack lendário pendente. Vença um cenário no menu.','info');return;}
         const player=new Player('ATT',true);player.overall=92;player.stats=player.gerarStatsPorPosicao(player.posicao,92);player.raridade='Diamante';player.tier='Diamante';player.nome='Herói '+player.nome;player.contratoRodadas=38;player.valor=92*92*100;player.salario=Math.floor(player.valor/100);
-        data.claimed.push(id);try{localStorage.setItem(this.key(),JSON.stringify(data));}catch(e){ui.showActionFeedback('Sem espaço para registrar a recompensa.','error');return;}app.club.elenco.push(player);app.saveGame();ui.showActionFeedback('Pack lendário: '+player.nome+' · OVR92 contratado!','success');ui.renderSquad();
+        data.claimed.push(id);try{localStorage.setItem(this.key(),JSON.stringify(data));}catch(e){ui.showActionFeedback('Sem espaço para registrar a recompensa.','error');return;}app.club.elenco.push(app._marcarChegada(player));app.saveGame();ui.showActionFeedback('Pack lendário: '+player.nome+' · OVR92 contratado!','success');ui.renderSquad();
     },
+    // Contador de tentativas por cenário (só em memória): cada tentativa sorteia outra seed,
+    // então o cenário não repete o mesmo jogo para sempre.
+    _tentativas: {},
     start(id) {
         const scenario=this.list.find(s=>s.id===id);if(!scenario||Engine.activeMatch)return;
+        const tentativa=(this._tentativas[id]=(this._tentativas[id]||0)+1);
         const previous={club:app.club,league:app.league};
         const club=new Club('Heróis do Rádio',true),rival=new Club('Gigantes da Serra',false);
         const league=new League();league.clubes=[club,rival];league.gerarCalendario();
@@ -6702,7 +6773,7 @@ const HistoricalScenarios = {
             Engine.activeMatch=null;app.club=previous.club;app.league=previous.league;ui.showScreen('screen-menu');
             const won=h>=a;const data=this.read();if(won&&!data.wins.includes(id)){data.wins.push(id);try{localStorage.setItem(this.key(),JSON.stringify(data));}catch(e){ui.showActionFeedback('Sem espaço para registrar o pack.','error');}}
             this.open();ui.showActionFeedback(h+' × '+a+' · '+(won?'Objetivo cumprido! Pack lendário desbloqueado.':'O tempo acabou. Tente novamente!'),won?'success':'warning');
-        },{startMinute:scenario.minuto,startScore:scenario.placar,startRedUser:scenario.vermelho,tempoMin:90,seed:93821+scenario.minuto,modo:'detalhado'});
+        },{startMinute:scenario.minuto,startScore:scenario.placar,startRedUser:scenario.vermelho,tempoMin:90,seed:93821+scenario.minuto+tentativa*7919,modo:'detalhado',estilo:scenario.estilo||'equilibrado'});
         Engine.activeMatch.start();
     }
 };
@@ -8435,7 +8506,7 @@ class MatchSim {
         d += mb + bonusFormacao.d;
         if (this.continental && isHome && this._userSide() === 1) { a += 0.4; m += 0.4; }
         // Mandos alternados: craque/estilo/buffs são do USUÁRIO, não do mandante.
-        const isUser = this._userSide() === (isHome ? 0 : 1);
+        const isUser = this._eUsuario(isHome ? 0 : 1);
         if (this.craque && isUser) { a += 6; m += 2.5; d += 1; }
         if (isUser) {
             // Balanceamento 2026-10-06 (bancada tests/match-stats.js): com mando e
@@ -8458,11 +8529,11 @@ class MatchSim {
                 const valor = Number(usuario.difficulty && usuario.difficulty.multiplier);
                 const multiplicador = Number.isFinite(valor) && valor > 0 ? Math.max(0.75, Math.min(1.3, valor)) : 1;
                 // B53 (2026-10-19): a ascensão prometia "rivais mais fortes" na notícia e
-                // não fazia nada. Cada nível vale +2 em atk/mid/def do rival (teto 10).
+                // não fazia nada. Cada nível vale +3 em atk/mid/def do rival (teto 10).
                 const asc = Math.max(0, Math.min(10, Number(usuario.ascensaoNivel) || 0));
                 // Campanha: líderes encaram rivais mais duros; lanternas, um pouco menos.
                 const campanha = Number(this._forcaRivalCampanha) || 0;
-                const ajuste = (multiplicador - 1) * 24 + asc * 2 + campanha;
+                const ajuste = (multiplicador - 1) * 24 + asc * 3 + campanha;
                 a += ajuste; m += ajuste; d += ajuste;
             }
         }
@@ -8517,13 +8588,13 @@ class MatchSim {
     _contratatica(side) {
         const team = side === 0 ? this.home : this.away;
         const rival = side === 0 ? this.away : this.home;
-        const estilo = side === this._userSide() ? this.estilo : team.mentalidade;
+        const estilo = this._eUsuario(side) ? this.estilo : team.mentalidade;
         const ofensivo = estilo === 'ofensivo' || estilo === 'ofensiva';
         if (team.formacao === '4-3-3' && ofensivo) {
             if (rival.formacao === '4-4-2') return 1.2;
             if (rival.formacao === '5-3-2' || rival.formacao === '3-5-2') return 0.8;
         }
-        const rivalOfensivo = side !== this._userSide() ? this.estilo === 'ofensivo' : rival.mentalidade === 'ofensiva';
+        const rivalOfensivo = this._eUsuario(side ^ 1) ? this.estilo === 'ofensivo' : rival.mentalidade === 'ofensiva';
         if ((team.formacao === '5-3-2' || team.formacao === '3-5-2') && rival.formacao === '4-3-3' && rivalOfensivo) return 1.25;
         return 1;
     }
@@ -10045,9 +10116,9 @@ class MatchSim {
             distancia: { texto: nomeAtk + ' recebe fora da área. O goleiro está encoberto pela defesa; há espaço para um chute forte, mas ninguém livre na área.', ajuste: [-0.078, 0.104, -0.019] },
             ponta: { texto: nomeAtk + ' avança pela ponta sem ângulo para chutar. Um companheiro aparece livre na área e pede o cruzamento.', ajuste: [-0.039, -0.091, 0.117] }
         } : {
-            area: { texto: nomeAtk + ' recebe na área congestionada. A zaga está posicionada: fechar a linha do chute é mais seguro que abandonar a área.', ajuste: [-0.104, -0.019, 0.098] },
-            transicao: { texto: nomeAtk + ' conduz uma transição rápida. Sua defesa ainda recompõe: manter a linha evita abrir o corredor com uma saída precipitada.', ajuste: [0.071, -0.098, 0.117] },
-            corredor: { texto: nomeAtk + ' domina de costas no corredor lateral, longe da área. Há cobertura para pressionar antes que ele gire e encontre o passe.', ajuste: [0.091, 0.032, -0.098] }
+            area: { texto: nomeAtk + ' recebe na área congestionada. A zaga está posicionada: fechar a linha do chute é mais seguro que abandonar a área.', ajuste: [-0.100, 0.020, 0.080] },
+            transicao: { texto: nomeAtk + ' conduz uma transição rápida. Sua defesa ainda recompõe: manter a linha evita abrir o corredor com uma saída precipitada.', ajuste: [0.080, -0.100, 0.020] },
+            corredor: { texto: nomeAtk + ' domina de costas no corredor lateral, longe da área. Há cobertura para pressionar antes que ele gire e encontre o passe.', ajuste: [0.020, 0.080, -0.100] }
         };
         const contextoId = Object.prototype.hasOwnProperty.call(contextos, ev.contexto) ? ev.contexto : this._pick(Object.keys(contextos));
         const contexto = contextos[contextoId];
@@ -10177,6 +10248,11 @@ class MatchSim {
         if (this.home && this.home.isUser) return 0;
         if (this.away && this.away.isUser) return 1;
         return 0;
+    }
+    // Só um lado com clube do usuário é "do usuário". Em IA×IA nenhum lado é (não herda o mandante).
+    _eUsuario(side) {
+        const t = side === 0 ? this.home : this.away;
+        return !!(t && t.isUser);
     }
 
     substituirUser(saiId, entraId) {
@@ -10385,7 +10461,11 @@ class MatchSim {
             const paresCompletos = idx % 2 === 0;
             const cincoRodadas = idx === 10;
             const decidido = paresCompletos && pen.h !== pen.a && (cincoRodadas || idx > 10);
-            if (decidido || idx >= 20) {
+            // Empate após 20 cobranças: morte súbita estendida até 60. Se ainda empatar,
+            // sorteia o vencedor (nunca devolve empate a final).
+            const empatado = pen.h === pen.a;
+            if (decidido || (idx >= 20 && (!empatado || idx >= 60))) {
+                if (pen.h === pen.a) pen[this.rng() < 0.5 ? 'h' : 'a']++;
                 if (typeof ui !== 'undefined') ui.narrate('🏁 Disputa de pênaltis encerrada: ' + pen.h + '–' + pen.a + '!', this.minuto);
                 final(pen);
                 return;
@@ -10938,8 +11018,7 @@ class UI {
   }
 
   // C6: lazy-load — os 3 BGM não são decodificados no boot; cada track vira
-  // Audio só na primeira reprodução (o base64 continua inline, mas o media
-  // decoder do browser só é acionado quando a faixa é pedida).
+  // Áudio sintetizado: só é montado na primeira reprodução (sem decodificação no boot).
   initAudio() {
     if (!this.bgm) {
       this.bgm = {};
@@ -13660,25 +13739,6 @@ const TutorialManager = {
         this._stopGlue();
         this._glue = null;
 
-        // Fecha minigame pendente (usuário saiu no meio da jogada): encerra as
-        // fases abertas e esconde o overlay para ele não flutuar sobre o dashboard.
-        try {
-            const mgC = document.getElementById('ui-minigame-container');
-            if (mgC && !mgC.classList.contains('hidden')) {
-                mgC.classList.add('hidden');
-                const cur = document.getElementById('ui-precision-cursor');
-                if (cur) { cur.style.background = 'white'; cur.style.boxShadow = 'none'; }
-                const flash = document.getElementById('ui-mg-flash');
-                if (flash) { flash.style.display = 'none'; flash.style.background = 'rgba(15,23,42,.7)'; }
-                const result = document.getElementById('ui-mg-result');
-                if (result) result.style.display = 'none';
-                // Resolve as fases pendentes em segundo plano (fase 1 e escolha de
-                // lado) para o fluxo do Engine não ficar preso esperando input.
-                try { mgC.click(); } catch (e) {}
-                setTimeout(() => { try { mgC.click(); } catch (e) {} }, 150);
-            }
-        } catch (e) {}
-
         // Restaura o elenco original do clube do usuário (desfaz substituição temporária do tutorial)
         if (this._tutUserClub && this._savedElenco) {
             this._tutUserClub.elenco = this._savedElenco;
@@ -13720,16 +13780,6 @@ const TutorialManager = {
         this._savedSeasonStats = null;
         this._savedMarket = null;
 
-        // Varredura tardia anti-overlay residual: se um minigame do Engine estava em
-        // curso (promessa pendente com hide agendado), ele pode re-exibir o container
-        // depois deste finish. Reforça o esconderijo ~1.2s após encerrar.
-        if (this._mgSweepTimer) clearTimeout(this._mgSweepTimer);
-        this._mgSweepTimer = setTimeout(() => {
-            this._mgSweepTimer = null;
-            const c = document.getElementById('ui-minigame-container');
-            if (c) c.classList.add('hidden');
-        }, 1200);
-
         // Cancela a partida tutorial para não interferir no Engine. Marcar
         // abortado também TRAVA o roteiro do MatchSim: sem isso a partida
         // seguiria rodando em segundo plano, reabriria a decisão do técnico
@@ -13745,16 +13795,22 @@ const TutorialManager = {
         const dec = document.getElementById('match-decision');
         if (dec) dec.classList.add('hidden');
 
+        // Bônus (R$ 50 mil + 150 XP no elenco) é pago UMA vez por carreira (club.tutorialPago).
+        const clubeTreino = (app && app.club) ? app.club : null;
+        const pagarBonus = !!clubeTreino && !clubeTreino.tutorialPago;
         if (typeof ui !== 'undefined') {
-            ui.showActionFeedback('🏆 Treino Concluído com Sucesso! +150 XP', 'success');
+            ui.showActionFeedback(pagarBonus ? '🏆 Treino Concluído com Sucesso! +150 XP' : '🏆 Treino concluído', 'success');
             try { ui.playSFX('sfx_contract', 0.7); ui.synthBip(784, 0.22, 0.28, 'triangle'); } catch (e) {}
         }
-        if (app && app.club) {
-            app.club.orcamento = (app.club.orcamento || 0) + 50000;
-            // Concede o XP anunciado no feedback (corrige mensagem que prometia e não dava).
-            try {
-                app.club.elenco.forEach(p => { if (p && typeof p.ganharXP === 'function') p.ganharXP(150); });
-            } catch (e) {}
+        if (clubeTreino) {
+            if (pagarBonus) {
+                clubeTreino.tutorialPago = true;
+                clubeTreino.orcamento = (clubeTreino.orcamento || 0) + 50000;
+                // Concede o XP anunciado no feedback (corrige mensagem que prometia e não dava).
+                try {
+                    clubeTreino.elenco.forEach(p => { if (p && typeof p.ganharXP === 'function') p.ganharXP(150); });
+                } catch (e) {}
+            }
             try { app.saveGame(); } catch (e) {}
         }
         setTimeout(() => {
@@ -14137,7 +14193,6 @@ const app = {
     },
 
     async init() {
-        console.log("AltFoot Elite Initializing...");
         try {
             this.initSettings();
             ui.init();
@@ -14297,7 +14352,7 @@ const app = {
         this.league = new League();
         this.league.inicializar();
         this.club = this.league.clubes[0];
-        this.club.nome = nome;
+        this.club.nome = String(nome == null ? '' : nome).replace(/[<>]/g, '').trim().slice(0, 24) || 'Nacional FC';
         const inicioDiv = Math.max(1, Math.min(4, Number(document.getElementById('division-select')?.value) || 1));
         if (inicioDiv > 1) {
             const lower = CompetitionSystem.clubs(this.league, inicioDiv);
@@ -14887,12 +14942,16 @@ const app = {
         const cand = this._candOlheiro;
         if (!cand || !this.club) return;
         if (this._candAvaliado || cand.avaliacaoInicialPaga) return;
-        const custo = 25000;
+        // Degrau 300 de prestígio (3.6): 1 relatório grátis por temporada.
+        const chaveTemp = String(this.league ? (this.league.temporada || 1) : 1);
+        const gratis = (typeof MetaProgress !== 'undefined' && MetaProgress.desbloqueado('olheiro')) && this.club.olheiroGratisChave !== chaveTemp;
+        const custo = gratis ? 0 : 25000;
         if (this.club.orcamento < custo) {
             if (typeof ui !== 'undefined') ui.showActionFeedback('Saldo insuficiente para a avaliação (' + this.fmtMoneyShort(custo) + ').', 'error');
             return;
         }
         this.club.orcamento -= custo;
+        if (gratis) this.club.olheiroGratisChave = chaveTemp;
         this._candAvaliado = true;
         TransferMarket.normalizePlayer(cand);
         cand.avaliacaoInicialPaga = true;
@@ -15061,6 +15120,7 @@ const app = {
         if (bruto.valor == null) p.valor = (p.overall || 50) * (p.overall || 50) * 100;
         if (bruto.salario == null) p.salario = Math.floor((p.valor || 0) / 100);
         if (bruto.clubeId == null) p.clubeId = 0;
+        if (!Number.isFinite(bruto.ovrFracao)) p.ovrFracao = 0; // save antigo sem o campo
         return p;
     },
     _restoreFromRaw(clubRaw, leagueRaw, marketRaw) {
@@ -15185,6 +15245,12 @@ const app = {
                 if (!SaveRepository.validData({ club: payload.club, league: payload.league, marketPlayers: payload.marketPlayers || [] })) {
                     throw new Error('Dados da carreira inválidos.');
                 }
+                // Destino = slot do próprio save (ou o atual). Não sobrescreve carreira sem confirmação.
+                const slotDestino = payload.slot ? Math.max(1, Math.min(3, parseInt(payload.slot, 10) || 1)) : (this.slot || 1);
+                if (this.hasSaveInSlot(slotDestino) && !confirm('O slot ' + slotDestino + ' já tem uma carreira. Substituir pela carreira importada? A atual será perdida.')) {
+                    ui.showActionFeedback('Importação cancelada: a carreira do slot ' + slotDestino + ' foi mantida.', 'info');
+                    return;
+                }
                 const clubRaw = (payload && (payload.club || payload.save)) || null;
                 const leagueRaw = (payload && payload.league) || null;
                 const restored = this._restoreFromRaw(clubRaw, leagueRaw, (payload && payload.marketPlayers) || []);
@@ -15272,6 +15338,10 @@ const app = {
         // B65: ética persistida (save antigo herda o neutro 50).
         if (club.etica == null || !Number.isFinite(Number(club.etica))) club.etica = 50;
         if (club.missoes == null || !Array.isArray(club.missoes)) club.missoes = [];
+        // Missões de contador (gols/sequência) de save antigo ganham a base = valor atual (não paga de novo).
+        if (Array.isArray(club.missoes) && Array.isArray(club.elenco) && typeof club._missionProgress === 'function') {
+            club.missoes.forEach(m => { if (m && (m.tipo === 'gols' || m.tipo === 'sequencia') && typeof m.base !== 'number') m.base = club._missionProgress(m); });
+        }
         if (club.fans == null) club.fans = 50;
         if (club.consecDerrotas == null) club.consecDerrotas = 0;
         if (club.eventosVistos == null || !Array.isArray(club.eventosVistos)) club.eventosVistos = [];
@@ -15299,6 +15369,8 @@ const app = {
         if (club.titulos == null) club.titulos = 0;
         if (club.diasRodada == null) club.diasRodada = 0;
         if (club.vendaMax == null) club.vendaMax = 0;
+        if (club.tutorialPago == null) club.tutorialPago = false;
+        if (club.olheiroGratisChave == null) club.olheiroGratisChave = '';
         if (club.aposentados == null) club.aposentados = 0;
         if (club.albumIds == null || !Array.isArray(club.albumIds)) club.albumIds = [];
         if (club.lastCraqueDay == null) club.lastCraqueDay = '';
@@ -15447,6 +15519,12 @@ const app = {
         if (!this.club) return;
         if (Date.now() - (this._lastInfraAt || 0) < 500) return;
         this._lastInfraAt = Date.now();
+        // 3.2 (iii): teto de nível 5 para estádio e base (saves acima de 5 só não compram mais).
+        const nivelAtual = type === 'estadio' ? this.club.estadioNivel : this.club.baseNivel;
+        if ((nivelAtual || 1) >= 5) {
+            ui.showActionFeedback('Nível máximo (5) atingido.', 'info');
+            return;
+        }
         const cost = type === 'estadio' ? this.stadiumCost() : this.baseCost();
         if (this.club.orcamento < cost) {
             ui.showActionFeedback(`Saldo insuficiente (precisa ${app.fmtMoneyShort(cost)})`, "error");
@@ -15508,7 +15586,7 @@ const app = {
     // aparece se o usuário pagar a avaliação (ou após X partidas). gerarPromessa() legado
     // continua adicionando direto (tutorial / chamadas antigas).
     gerarPromessa() {
-        const chance = 0.15 + (this.club.baseNivel - 1) * 0.12;
+        const chance = Math.min(0.45, 0.15 + (this.club.baseNivel - 1) * 0.12);
         if (Math.random() > chance) return;
         const p = new Player();
         p.idade = 16 + Math.floor(Math.random() * 3);
@@ -15524,7 +15602,7 @@ const app = {
         p.valor = p.overall * p.overall * 100;
         p.salario = Math.floor(p.valor / 100);
         TransferMarket.iniciarScouting(p);
-        this.club.elenco.push(p);
+        this.club.elenco.push(this._marcarChegada(p));
         if (typeof ui !== 'undefined') {
             ui.playSFX('sfx_notify', 0.7);
             ui.showActionFeedback(`🎓 Jovem promessa: ${p.nome} (OVR ${TransferMarket.ovrVisivel(p)}). Avalie no Clube!`, "success");
@@ -15533,7 +15611,7 @@ const app = {
 
     // C2: monta o candidato do olheiro (NÃO entra no elenco ainda).
     gerarCandidatoOlheiro() {
-        const chance = 0.15 + (this.club.baseNivel - 1) * 0.12;
+        const chance = Math.min(0.45, 0.15 + (this.club.baseNivel - 1) * 0.12);
         if (Math.random() > chance) return null;
         const p = new Player();
         p.idade = 16 + Math.floor(Math.random() * 3);
@@ -15585,7 +15663,7 @@ const app = {
         TransferMarket.normalizePlayer(p);
         if (avaliado) p.scouting.etapa = Math.max(1, p.scouting.etapa);
         p.potencialRevelado = p.scouting.etapa >= 3;
-        this.club.elenco.push(p);
+        this.club.elenco.push(this._marcarChegada(p));
         this.club.candidatoOlheiro = null;
         if (typeof ui !== 'undefined') {
             ui.playSFX('sfx_notify', 0.7);
@@ -15634,7 +15712,9 @@ const app = {
     generateOffers() {
         if (!this.club || !this.club.elenco) return;
         this.club.ofertas = [];
-        const candidates = this.club.elenco.filter(p => p.overall >= 70 && !p.machucado);
+        // Só quem já jogou e não chegou nesta rodada (mesma janela do B77 de venda).
+        const chaveAtual = (this.league.temporada || 1) + ':' + (this.league.rodada || 1);
+        const candidates = this.club.elenco.filter(p => p.overall >= 70 && !p.machucado && (p.partidas || 0) > 0 && p.chegouEm !== chaveAtual);
         const n = Math.min(2, candidates.length);
         for (let i = 0; i < n; i++) {
             if (Math.random() > 0.55) continue;
@@ -15642,9 +15722,12 @@ const app = {
             TransferMarket.normalizePlayer(p);
             if (this.club.ofertas.some(o => o.playerId === p.id)) continue;
             const multFimContrato = (p.contratoRodadas != null && p.contratoRodadas <= 3) ? 1.5 : 1;
+            // Teto: oferta de 0,9 a 1,2× o valor de mercado (cláusula do Tubarão também limitada a 1,2×).
+            const valorBase = typeof p.valorMercado === 'function' ? p.valorMercado() : p.valor;
+            const fatorOferta = Math.min(1.2, (0.9 + Math.random() * 0.3) * multFimContrato);
             this.club.ofertas.push({
                 playerId: p.id,
-                valor: p.agente === 'tubarao' ? p.clausulaRescisao : Math.round((typeof p.valorMercado === 'function' ? p.valorMercado() : p.valor) * (1.25 + Math.random() * 0.6) * multFimContrato),
+                valor: Math.round(p.agente === 'tubarao' ? Math.min(p.clausulaRescisao, valorBase * 1.2) : valorBase * fatorOferta),
                 serieA: true,
                 comprador: 'Clube da Série A'
             });
@@ -15668,6 +15751,7 @@ const app = {
         const idx = this.club.elenco.findIndex(pl => pl.id === playerId);
         if (idx === -1) { this.removeOffer(playerId); return; }
         const p = this.club.elenco[idx];
+        if (!this._sairPermitido(1)) { ui.showActionFeedback('Elenco mínimo: 11 jogadores', 'warning'); return; }
         const liquido = TransferMarket.liquidarVenda(this.club, p, o.valor);
         this.removeOffer(playerId);
         ui.playSFX('sfx_contract', 0.8);
@@ -15928,9 +16012,19 @@ const app = {
         if (p) ui.openSellModal(id);
     },
 
+    // B77: quem entra no elenco (de graça ou por contrato de base) ganha a janela de uma rodada antes de vender.
+    _marcarChegada(p) { if (p) p.chegouEm = (this.league.temporada || 1) + ':' + (this.league.rodada || 1); return p; },
+    // Elenco mínimo (11): nenhuma venda/dispensa pode deixar o elenco abaixo disso.
+    _sairPermitido(qtd) { return (this.club.elenco || []).length - qtd >= 11; },
     confirmSell() {
         if (!this._managementAvailable()) return;
         const p = this.club.elenco.find(pl => pl.id === this.sellingPlayerId);
+        if (p && !this._sairPermitido(1)) {
+            this.sellingPlayerId = null;
+            ui.closeSellModal();
+            ui.showActionFeedback('Elenco mínimo: 11 jogadores', 'warning');
+            return;
+        }
         if (p) {
             const val = p.valor || 0;
             // B77 (2026-10-19): o draft dava um atleta 58-75 de graça e ele podia ser
@@ -16005,8 +16099,9 @@ const app = {
         // Ganho principal: XP (level-up → +overall/+trainingPoints). Bônus de atributo conforme o tipo.
         const bonus = { fisico: 'VEL', tecnico: 'PAS', tatico: 'DEF' }[tipo];
         p.ganharXP(30);
+        const antesMedia = (bonus && p.stats && p.stats[bonus] < 99 && typeof p._mediaStats === 'function') ? p._mediaStats() : null;
         if (bonus && p.stats && p.stats[bonus] < 99) p.stats[bonus]++;
-        if (typeof p.recalcularOverall === 'function') p.recalcularOverall();
+        if (typeof p.recalcularOverall === 'function') p.recalcularOverall(antesMedia);
         // G3: treino físico recupera fôlego de verdade (não só XP).
         if (tipo === 'fisico') {
             p.folego = Math.min(p.folegoMax == null ? 100 : p.folegoMax, (p.folego == null ? 100 : p.folego) + 18);
@@ -16050,6 +16145,7 @@ const app = {
     },
 
     playDesafioDia() {
+        if (typeof Engine !== 'undefined' && Engine.activeMatch) { if (typeof ui !== 'undefined') ui.showActionFeedback('Partida em andamento — termine antes de outro desafio.', 'warning'); return; }
         if (!this.club || (this.club.lastDaily || 0) === this._dailyChallengeKey()) {
             ui.showActionFeedback('Rodada do Dia já foi disputada hoje!', 'info');
             return;
@@ -16070,7 +16166,7 @@ const app = {
         p.staminaConsumption = Math.max(2, 12 - Math.floor(p.overall / 10));
         p.valor = p.overall * p.overall * 100;
         p.salario = Math.floor(p.valor / 100);
-        this.club.elenco.push(p);
+        this.club.elenco.push(this._marcarChegada(p));
         this.league.adicionarNoticia(`🎁 Rodada do Dia: +R$100k e ${p.nome} (${p.overall} OVR) para o elenco!`);
         if (typeof ui !== 'undefined') ui.showActionFeedback(`🎁 Recompensa: ${p.nome} + R$100k!`, 'success');
     },
@@ -16093,6 +16189,7 @@ const app = {
     },
 
     playClassicoSemana() {
+        if (typeof Engine !== 'undefined' && Engine.activeMatch) { if (typeof ui !== 'undefined') ui.showActionFeedback('Partida em andamento — termine antes de outro desafio.', 'warning'); return; }
         if (!this.club) return;
         if (this.club.lastClassicoWeek === this._classicoKey()) {
             ui.showActionFeedback('Clássico da Semana já foi vencido esta semana!', 'info');
@@ -16119,7 +16216,7 @@ const app = {
         p.staminaConsumption = Math.max(2, 12 - Math.floor(p.overall / 10));
         p.valor = p.overall * p.overall * 100;
         p.salario = Math.floor(p.valor / 100);
-        this.club.elenco.push(p);
+        this.club.elenco.push(this._marcarChegada(p));
         this.league.adicionarNoticia(`🌆 Clássico da Semana: vitória! +R$250k e ${p.nome} (${p.overall} OVR) no elenco!`);
         if (typeof ui !== 'undefined') ui.showActionFeedback(`🌆 Vitória no Clássico! ${p.nome} + R$250k!`, 'success');
     },
@@ -16162,6 +16259,7 @@ const app = {
     },
 
     playTorneioFase() {
+        if (typeof Engine !== 'undefined' && Engine.activeMatch) { if (typeof ui !== 'undefined') ui.showActionFeedback('Partida em andamento — termine antes de outro desafio.', 'warning'); return; }
         const tor = this.league && this.league.torneio;
         if (!tor || tor.encerrado) {
             ui.showActionFeedback('Nenhuma fase de torneio ativa.', 'info');
@@ -16235,7 +16333,7 @@ const app = {
         const opts = [];
         for (let i = 0; i < 2; i++) {
             const p = new Player();
-            p.overall = Math.min(99, baseDraft + Math.floor(Math.random() * 18) + asc * 2);
+            p.overall = Math.min(99, baseDraft + Math.floor(Math.random() * 18) + Math.min(asc, 3) * 2);
             p.raridade = p.calcularRaridade(p.overall); p.tier = p.raridade;
             p.stats = p.gerarStatsPorPosicao(p.posicao, p.overall);
             p.custoEnergia = p.calcularCustoEnergia(p.raridade);
@@ -16249,9 +16347,24 @@ const app = {
         return opts;
     },
 
+    // Pior titular do XI (ou dos 11 melhores, se a escalação salva estiver incompleta).
+    _piorTitularXI() {
+        const ids = Array.isArray(this.club.escalacaoXI) ? this.club.escalacaoXI : [];
+        let xi = this.club.elenco.filter(p => ids.includes(p.id));
+        if (xi.length < 11) xi = this.club.elenco.slice().sort((a, b) => (b.overall || 0) - (a.overall || 0)).slice(0, 11);
+        return xi.length ? Math.min(...xi.map(p => p.overall || 0)) : 0;
+    },
     openDraft() {
         if (typeof ui === 'undefined') return;
         this._draftOpts = this._gerarDraft();
+        // 3.7: draft que não melhora o XI é pulado automaticamente (sem reforço relevante).
+        const piorXI = this._piorTitularXI();
+        const relevantes = this._draftOpts.filter(o => o.tipo === 'jogador' && o.p && o.p.overall > piorXI);
+        if (!relevantes.length) {
+            this._draftOpts = null;
+            ui.showActionFeedback('Sem reforço relevante', 'info');
+            return;
+        }
         const wrap = document.getElementById('draft-choices');
         if (!wrap) return;
         wrap.innerHTML = '';
@@ -16505,7 +16618,7 @@ const app = {
                 reward.valor = reward.overall * reward.overall * 100;
                 reward.staminaConsumption = Math.max(2, 12 - Math.floor(reward.overall / 10));
                 
-                this.club.elenco.push(reward);
+                this.club.elenco.push(this._marcarChegada(reward));
                 this.club.checkMissoes('raridade', reward.overall);
             }
             
@@ -16520,20 +16633,28 @@ const app = {
         }
     },
 
+    _limparFlagsDesafio() {
+        this._isDaily = false; this._isClassico = false; this._isTorneio = false; this._isDesafio = false;
+        this._regraPartida = null;
+    },
     playMatch() {
         if (!this.club || !this.league) return;
         // B74 (2026-10-19): a temporada encerrada não pode reexecutar a última rodada.
         // Sem esta guarda, recarregar na R38 e apertar ENTRAR EM CAMPO jogava a rodada
         // de novo e o simulateAIMatches duplicava pontos/gols de TODOS os clubes.
+        // Retornos antecipados não podem deixar o desafio (diário/clássico/torneio) armado para a próxima partida.
         if (this._temporadaEncerrada()) {
+            this._limparFlagsDesafio();
             this._reabrirFimDeTemporada();
             if (typeof ui !== 'undefined') ui.showActionFeedback('A temporada terminou — comece a nova temporada.', 'warning');
             return;
         }
         if (this.club.demitido || this.club.falencia) {
+            this._limparFlagsDesafio();
             ui.showActionFeedback(this.club.demitido ? 'Fim de carreira: você foi demitido. Crie uma nova carreira no menu.' : 'Clube em falência: consulte a proposta de SAF na tela Clube.', 'error');
             ui.showSubscreen('clube'); return;
         }
+        // Partida ativa: as flags pertencem a ELA (desafio em curso) — não se mexe nelas aqui.
         if (typeof Engine !== 'undefined' && Engine.activeMatch) { if (typeof ui !== 'undefined') ui.showActionFeedback('Partida em andamento — termine antes de entrar em campo.', 'warning'); return; }
         this.recuperarFadiga();
         this.autosaveNow();
@@ -17287,6 +17408,15 @@ const app = {
                 saidas.push(p);
             }
         });
+        // Elenco mínimo (11): se as saídas deixariam o elenco abaixo disso, os de maior OVR
+        // ficam com renovação grátis de 8 rodadas.
+        const faltamParaMinimo = Math.max(0, 11 - (this.club.elenco.length - saidas.length));
+        if (faltamParaMinimo > 0) {
+            saidas.sort((a, b) => (b.overall || 0) - (a.overall || 0)).splice(0, faltamParaMinimo).forEach(p => {
+                p.contratoRodadas = 8;
+                renovados.push(p);
+            });
+        }
         if (renovados.length) {
             const nomes = renovados.map(p => p.nome);
             this.league.adicionarNoticia(`✍️ ${nomes.join(', ')} renovaram nas condições de seus empresários (luvas, salário e duração do contrato).`);
@@ -17511,7 +17641,8 @@ const app = {
             if (userPos > 0) {
                 const cumprida = userPos <= meta.alvo;
                 const longe = userPos > meta.alvo + 4;
-                this.club.pacienciaDiretoria = Math.max(0, Math.min(100,
+                // Piso de 40 na virada: uma temporada ruim não demite sozinha (sem carência de salto).
+                this.club.pacienciaDiretoria = Math.max(40, Math.min(100,
                     (Number(this.club.pacienciaDiretoria) || 70) + (cumprida ? 15 : (longe ? -25 : -8))));
                 metaTxt = cumprida
                     ? '🎯 Meta cumprida (' + meta.rotulo + '): confiança +15.'
@@ -17565,7 +17696,8 @@ const app = {
             this.club.moral = Math.max(0, (this.club.moral == null ? 75 : this.club.moral) - 20);
             this.club.fans = Math.max(0, (this.club.fans == null ? 50 : this.club.fans) - 30);
             const ordenados = [...this.club.elenco].sort((a, b) => a.overall - b.overall);
-            const vendidos = ordenados.slice(0, 2);
+            // Elenco mínimo (11): o rebaixamento vende no máximo o que deixa 11 de pé.
+            const vendidos = ordenados.slice(0, Math.max(0, Math.min(2, this.club.elenco.length - 11)));
             vendidos.forEach(p => {
                 this.club.elenco = this.club.elenco.filter(x => x.id !== p.id);
                 this.club.orcamento += Math.round((typeof p.valorMercado === 'function' ? p.valorMercado() : p.valor) * 0.7);
@@ -17698,7 +17830,11 @@ const app = {
         if (this.club) {
             const antes = new Map(this.club.elenco.map(p => [p.id, p.nome]));
             this.club.elenco.forEach(p => { if (typeof p.envelhecer === 'function') p.envelhecer(); });
-            this.club.elenco = this.club.elenco.filter(p => p.idade <= 36);
+            // Elenco mínimo (11): se a aposentadoria deixaria menos, os de 36+ de maior OVR continuam.
+            const jovensOk = this.club.elenco.filter(p => p.idade <= 36);
+            const velhosFicam = this.club.elenco.filter(p => p.idade > 36)
+                .sort((a, b) => (b.overall || 0) - (a.overall || 0)).slice(0, Math.max(0, 11 - jovensOk.length));
+            this.club.elenco = jovensOk.concat(velhosFicam);
             const aposentados = [];
             this.club.elenco.forEach(p => antes.delete(p.id));
             antes.forEach(nome => aposentados.push(nome));

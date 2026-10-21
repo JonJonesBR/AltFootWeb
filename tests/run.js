@@ -1079,6 +1079,306 @@ teste('o olheiro esconde o OVR, cobra por relatório e revela no 3/3 (P4 / C2)',
     ok((p.traits || []).some(t => (p.tracosOcultos || []).includes(t)), 'o traço oculto não entrou nos atributos');
 });
 
+console.log('-- Overall por diferença, nome do clube e bônus único do tutorial (2026-10-21)');
+const fsT = require('fs'), pathT = require('path');
+
+teste('treinar atributo não derruba o OVR (ATT 85 treinado fica ≥ 85)', () => {
+    const s = novoSandbox();
+    const p = new s.Player('ATT');
+    p.stats = { GK: 30, DEF: 30, MID: 60, ATT: 85, VEL: 80, PAS: 60, FIN: 85 };
+    p.overall = 85;
+    p.trainingPoints = 3;
+    ok(p.treinarAtributo('ATT') === true, 'o treino não aconteceu');
+    ok(p.stats.ATT === 86, 'ATT deveria ser 86, veio ' + p.stats.ATT);
+    ok(p.overall === 85, 'um treino isolado não deveria mexer no OVR inteiro: ' + p.overall);
+    perto(p.ovrFracao, 1 / 7, 1e-6, 'fração deveria guardar 1/7 do treino');
+    ok(p.overall >= 85, 'OVR caiu ao treinar ATT: ' + p.overall);
+});
+
+teste('7 treinos de ATT 85 sobem o OVR para 86 (fração acumula, sem perder ponto)', () => {
+    const s = novoSandbox();
+    const p = new s.Player('ATT');
+    p.stats = { GK: 30, DEF: 30, MID: 60, ATT: 85, VEL: 80, PAS: 60, FIN: 85 };
+    p.overall = 85;
+    p.trainingPoints = 7;
+    for (let i = 0; i < 7; i++) ok(p.treinarAtributo('ATT') === true, 'treino ' + (i + 1) + ' falhou');
+    ok(p.stats.ATT === 92, 'ATT deveria ser 92, veio ' + p.stats.ATT);
+    ok(p.overall === 86, 'OVR deveria ser 86 após 7 treinos, veio ' + p.overall);
+    perto(p.ovrFracao, 0, 1e-6, 'fração deveria zerar após o ponto inteiro');
+});
+
+teste('envelhecer aos 33 anos não derruba o OVR além de 1 ponto', () => {
+    const s = novoSandbox();
+    const p = new s.Player('MID');
+    p.stats = { GK: 30, DEF: 40, MID: 80, ATT: 70, VEL: 80, PAS: 75, FIN: 60 };
+    p.overall = 80;
+    p.idade = 32;
+    p.envelhecer();
+    ok(p.idade === 33, 'idade deveria ser 33, veio ' + p.idade);
+    ok(p.stats.VEL === 78, 'VEL deveria cair para 78, veio ' + p.stats.VEL);
+    ok(p.overall === 80, 'queda de 2 em VEL (−0,29 de média) não deveria mexer no OVR inteiro: ' + p.overall);
+    perto(p.ovrFracao, -2 / 7, 1e-6, 'a queda deveria ficar na fração');
+});
+
+teste('a fração do OVR persiste no save e restaura; save antigo sem o campo vira 0', () => {
+    const s = novoSandbox();
+    const p = new s.Player('MID');
+    p.overall = 70;
+    p.ovrFracao = 0.42;
+    const salvo = JSON.parse(JSON.stringify(p));
+    const restaurado = Object.assign(new s.Player(), salvo);
+    perto(restaurado.ovrFracao, 0.42, 1e-9, 'fração não sobreviveu ao save');
+    const antigo = JSON.parse(JSON.stringify(p));
+    delete antigo.ovrFracao;
+    const legado = Object.assign(new s.Player(), antigo);
+    ok(legado.ovrFracao === 0, 'save antigo deveria cair em 0: ' + legado.ovrFracao);
+    const fonte = fsT.readFileSync(pathT.join(__dirname, '..', 'index.html'), 'utf8');
+    ok(fonte.indexOf('if (!Number.isFinite(bruto.ovrFracao)) p.ovrFracao = 0;') >= 0, '_restaurarJogador sem a guarda de ovrFracao');
+});
+
+teste('recalcularOverall() sem mudança de stat mantém o OVR', () => {
+    const s = novoSandbox();
+    const p = new s.Player('DEF');
+    p.stats = { GK: 20, DEF: 20, MID: 20, ATT: 20, VEL: 20, PAS: 20, FIN: 20 };
+    p.overall = 77;
+    p.recalcularOverall();
+    ok(p.overall === 77, 'OVR mudou sem mudança de stat: ' + p.overall);
+});
+
+teste('nome do clube com < > é sanitizado (createNewClub e input)', () => {
+    const fonte = fsT.readFileSync(pathT.join(__dirname, '..', 'index.html'), 'utf8');
+    const expr = "String(nome == null ? '' : nome).replace(/[<>]/g, '').trim().slice(0, 24) || 'Nacional FC'";
+    ok(fonte.indexOf('this.club.nome = ' + expr + ';') >= 0, 'createNewClub não usa a sanitização do nome');
+    ok(fonte.indexOf(`id="club-name-input" maxlength="24" placeholder="Ex: Nacional FC" oninput="this.value = this.value.replace(/[<>]/g, '')"`) >= 0, 'input do nome sem filtro de < >');
+    const sanitizar = new Function('nome', 'return ' + expr + ';');
+    ok(sanitizar('<b>Foo</b>') === 'bFoo/b', 'tags não saíram: ' + sanitizar('<b>Foo</b>'));
+    ok(sanitizar('  <script>x  ') === 'scriptx', 'espaços/tags mal tratados: ' + sanitizar('  <script>x  '));
+    ok(sanitizar('') === 'Nacional FC' && sanitizar(null) === 'Nacional FC', 'vazio não cai no padrão');
+    ok(sanitizar('x'.repeat(40)).length === 24, 'nome não foi limitado a 24 caracteres');
+});
+
+teste('bônus do tutorial (R$ 50 mil + XP) é pago uma só vez por carreira', () => {
+    const app = { club: null, saveGame() {} };
+    const s = novoSandbox({ app });
+    app.club = new s.Club('Teste', true);
+    app.club.elenco = [new s.Player('MID'), new s.Player('DEF')];
+    app.club.orcamento = 100000;
+    ok(app.club.tutorialPago === false, 'tutorialPago deveria nascer false');
+    s.TutorialManager.finish();
+    ok(app.club.orcamento === 150000, 'primeiro treino deveria pagar R$ 50 mil: ' + app.club.orcamento);
+    ok(app.club.tutorialPago === true, 'tutorialPago não foi marcado');
+    const xp = () => app.club.elenco.map(p => p.nivel * 100000 + p.xp);
+    const xpAntes = xp();
+    s.TutorialManager._finishing = false;
+    s.TutorialManager.finish();
+    ok(app.club.orcamento === 150000, 'segundo treino pagou de novo: ' + app.club.orcamento);
+    ok(JSON.stringify(xp()) === JSON.stringify(xpAntes), 'segundo treino concedeu XP de novo');
+});
+
+console.log('-- Lote 2: integridade de elenco, pênaltis, missões, janela, desafios, chave, cenários, IA×IA, import e limpeza (2026-10-21)');
+const FONTE_HTML = fsT.readFileSync(pathT.join(__dirname, '..', 'index.html'), 'utf8');
+// Trecho do código a partir de uma marca (verificação estática para o que vive no objeto `app`, fora do sandbox).
+const trecho = (marca, n = 900) => { const i = FONTE_HTML.indexOf(marca); if (i < 0) throw new Error('marca não achada: ' + marca.slice(0, 50)); return FONTE_HTML.slice(i, i + n); };
+
+teste('(a) elenco mínimo: venda recusa abaixo de 11 e o fim de temporada não deixa menos de 11', () => {
+    ok(trecho('    confirmSell() {').indexOf('_sairPermitido(1)') >= 0, 'confirmSell não confere o mínimo');
+    ok(trecho('    acceptOffer(playerId) {').indexOf('_sairPermitido(1)') >= 0, 'acceptOffer não confere o mínimo');
+    ok(trecho('    _sairPermitido(qtd)', 200).indexOf('>= 11') >= 0, 'o limite não é 11');
+    ok(trecho('    closeMatchResult() {', 9000).indexOf('faltamParaMinimo') >= 0, 'contratos vencendo não renovam para 11');
+    ok(trecho('    startNewSeason() {', 4000).indexOf('velhosFicam') >= 0, 'aposentadoria pode deixar o elenco abaixo de 11');
+    ok(FONTE_HTML.indexOf('Elenco mínimo: 11 jogadores') >= 0, 'falta o toast de elenco mínimo');
+});
+
+teste('(b) pênaltis: empate após 20 cobranças vai à morte súbita e nunca devolve empate', () => {
+    const s = novoSandbox();
+    const casa = makeTeam('Casa', 70), fora = makeTeam('Fora', 70);
+    const sim = new s.MatchSim(casa, fora, null, () => { }, { seed: 5, modo: 'detalhado', tempoMin: 90, minDurMs: 0 });
+    sim._emCampo = [sim._xiDoTime(casa), sim._xiDoTime(fora)];
+    sim.rng = () => 0.999; // todo mundo erra: a disputa só termina pelo teto
+    let pen = null;
+    sim._disputaPenaltis(p => { pen = p; });
+    s.drenarTimers();
+    ok(pen, 'a disputa não terminou');
+    ok(pen.h !== pen.a, 'devolveu empate: ' + pen.h + '–' + pen.a);
+    ok(pen.a === 1 && pen.h === 0, 'sorteio deveria dar o gol ao visitante neste rng: ' + pen.h + '–' + pen.a);
+});
+
+teste('(c) missões de gols contam só o que vem depois da criação e não repetem o tipo já pago', () => {
+    const s = novoSandbox();
+    const club = new s.Club('Teste', true);
+    club.golsPro = 50;
+    let m; do { m = club._novaMissao(); } while (m.tipo !== 'gols');
+    ok(m.base === 50, 'base deveria ser 50, veio ' + m.base);
+    club.missoes = [m];
+    m.meta = 2; // meta sorteada (6-12) fixada para o teste
+    club.checkMissoes('gols', 1);
+    ok(m.progresso === 0 && !m.concluida, 'gol antigo contou como progresso: ' + m.progresso);
+    club.golsPro = 51; club.checkMissoes('gols', 1);
+    ok(m.progresso === 1, 'progresso deveria ser 1, veio ' + m.progresso);
+    const premio = m.premio, orc0 = club.orcamento;
+    club.golsPro = 52; club.checkMissoes('gols', 1);
+    ok(club.orcamento === orc0 + premio, 'prêmio deveria ser pago uma vez: ' + (club.orcamento - orc0));
+    ok(m.tipo !== 'gols', 'rotação repetiu o tipo da missão paga');
+    club.checkMissoes('gols', 1);
+    ok(club.orcamento === orc0 + premio, 'prêmio foi pago de novo');
+    ok(FONTE_HTML.indexOf("typeof club._missionProgress === 'function'") >= 0 && FONTE_HTML.indexOf("typeof m.base !== 'number') m.base") >= 0, 'migração de base em normalizeNewFields sumiu');
+});
+
+teste('(d) quem entra de graça ganha a janela de uma rodada (chegouEm) em todos os pontos', () => {
+    const marcas = (FONTE_HTML.match(/_marcarChegada\(/g) || []).length;
+    ok(marcas >= 7, 'poucos pontos marcam chegada: ' + marcas);
+    ok(FONTE_HTML.indexOf('this.club.elenco.push(p);') < 0, 'ainda há push de jogador sem marcar chegada');
+    ok(FONTE_HTML.indexOf('this.club.elenco.push(reward);') < 0 && FONTE_HTML.indexOf('app.club.elenco.push(player);') < 0, 'recompensa sem marcar chegada');
+});
+
+teste('(e) retornos antecipados de playMatch limpam as flags de desafio; partida ativa não mexe nelas', () => {
+    const corpo = trecho('    playMatch() {', 2200);
+    const antesDaPartida = corpo.slice(0, corpo.indexOf('Partida em andamento'));
+    ok((antesDaPartida.match(/_limparFlagsDesafio\(\)/g) || []).length >= 2, 'temporada/demissão sem limpar flags');
+    ok(corpo.slice(corpo.indexOf('Partida em andamento'), corpo.indexOf('Partida em andamento') + 40).indexOf('_limparFlagsDesafio') < 0, 'partida ativa limpou a flag do desafio em curso');
+});
+
+teste('(f) chave da Copa/Continental: resultado gravado no índice do par (vencedor do usuário não embaralha)', () => {
+    const corpo = trecho('    play(kind) {', 3000);
+    ok(corpo.indexOf('scores[i]=result(pair,r.h,r.a)') >= 0, 'jogos da IA ainda entram por push na ordem de chegada');
+    ok(corpo.indexOf('scores[pairs.indexOf(userPair)]=result(userPair,h,a,pen)') >= 0, 'jogo do usuário ainda vai para o fim');
+    ok(corpo.indexOf('scores.filter(Boolean)') >= 0, 'settle não recebe o array sem buracos');
+});
+
+teste('(g) cenários: milagre usa estilo ofensivo, seed por tentativa e tem solução; dez heróis varia', () => {
+    ok(FONTE_HTML.indexOf("minuto:80,placar:[0,1],vermelho:0,estilo:'ofensivo'") >= 0, 'milagre sem estilo ofensivo');
+    ok(FONTE_HTML.indexOf('93821+scenario.minuto+tentativa*7919') >= 0, 'seed ainda fixa');
+    const s = novoSandbox();
+    const jogar = (minuto, placar, vermelho, estilo, t) => {
+        const casa = new s.Club('Heróis do Rádio', true), fora = new s.Club('Gigantes da Serra', false);
+        let res = null;
+        const sim = new s.MatchSim(casa, fora, null, (h, a, pen) => { res = { h, a }; }, {
+            startMinute: minuto, startScore: placar, startRedUser: vermelho, tempoMin: 90,
+            seed: 93821 + minuto + t * 7919, modo: 'detalhado', minDurMs: 0, estilo
+        });
+        sim.start(); s.drenarTimers();
+        return res;
+    };
+    let virou = 0;
+    for (let t = 1; t <= 30; t++) { const r = jogar(80, [0, 1], 0, 'ofensivo', t); if (r && r.h >= r.a) virou++; }
+    ok(virou >= 1, 'milagre sem nenhuma solução em 30 tentativas');
+    const desfechos = new Set();
+    for (let t = 1; t <= 30; t++) { const r = jogar(75, [1, 2], 1, 'equilibrado', t); if (r) desfechos.add(r.h > r.a ? 'V' : r.h === r.a ? 'E' : 'D'); }
+    ok(desfechos.size >= 2, 'dez heróis não varia: ' + [...desfechos].join(''));
+});
+
+teste('(h) IA×IA: nenhum lado é do usuário; o mandante não herda o estilo do usuário', () => {
+    const s = novoSandbox();
+    const casa = makeTeam('Casa', 70, { formacao: '4-3-3', mentalidade: 'equilibrada' });
+    const fora = makeTeam('Fora', 70, { formacao: '4-4-2', mentalidade: 'equilibrada' });
+    const sim = new s.MatchSim(casa, fora, null, () => { }, { seed: 3, modo: 'detalhado', minDurMs: 0, estilo: 'ofensivo' });
+    ok(sim._eUsuario(0) === false && sim._eUsuario(1) === false, 'IA×IA marcou um lado como usuário');
+    ok(sim._contratatica(0) === 1, 'mandante IA herdou o estilo ofensivo do usuário: ' + sim._contratatica(0));
+    const casaU = makeTeam('Casa', 70, { isUser: true, formacao: '4-3-3', mentalidade: 'equilibrada' });
+    const simU = new s.MatchSim(casaU, fora, null, () => { }, { seed: 3, modo: 'detalhado', minDurMs: 0, estilo: 'ofensivo' });
+    ok(simU._eUsuario(0) === true, 'o mandante do usuário não é reconhecido');
+    ok(simU._contratatica(0) === 1.2, 'estilo do usuário não vale no mandante do usuário: ' + simU._contratatica(0));
+});
+
+teste('(i) importar save pede confirmação quando o slot de destino já tem carreira', () => {
+    const corpo = trecho('    _handleImportFile(file) {', 3000);
+    ok(corpo.indexOf('this.hasSaveInSlot(slotDestino)') >= 0, 'não checa se o slot já tem carreira');
+    ok(corpo.indexOf("confirm('O slot ' + slotDestino") >= 0, 'não pede confirmação');
+    ok(corpo.indexOf('Importação cancelada') >= 0, 'não cancela a importação ao recusar');
+});
+
+teste('(j) limpeza: sem referências a minigame removido, sem log de boot e sem comentário de base64 obsoleto', () => {
+    ok(FONTE_HTML.indexOf('ui-minigame-container') < 0, 'ainda há referência a ui-minigame-container');
+    ok(FONTE_HTML.indexOf('_mgSweepTimer') < 0, 'ainda há _mgSweepTimer');
+    ok(FONTE_HTML.indexOf('AltFoot Elite Initializing') < 0, 'log de boot ainda existe');
+    ok(FONTE_HTML.indexOf('Mídias embutidas em base64') < 0 && FONTE_HTML.indexOf('o base64 continua inline') < 0, 'comentário obsoleto de base64 ainda existe');
+});
+
+console.log('-- Lote 3: balanceamento (decisão, prestígio, demissão, contrato, infraestrutura, ofertas, draft) (2026-10-21)');
+
+teste('3.1 decisão: vetores de defesa somam ~0 por coluna e a melhor opção muda por contexto', () => {
+    const ajusteDe = (ctx) => {
+        const i = FONTE_HTML.indexOf(ctx + ': { texto:');
+        if (i < 0) throw new Error('contexto não achado: ' + ctx);
+        const m = /ajuste: \[([^\]]+)\]/.exec(FONTE_HTML.slice(i, i + 900));
+        return m[1].split(',').map(Number);
+    };
+    const vetores = ['area', 'transicao', 'corredor'].map(ajusteDe);
+    for (let c = 0; c < 3; c++) {
+        const soma = vetores.reduce((a, v) => a + v[c], 0);
+        ok(Math.abs(soma) < 0.001, 'coluna ' + c + ' da defesa não soma ~0: ' + soma.toFixed(3));
+    }
+    const melhores = vetores.map(v => v.indexOf(Math.min(...v)));
+    ok(new Set(melhores).size === 3, 'a melhor opção defensiva não muda por contexto: ' + melhores.join(','));
+});
+
+teste('3.6 prestígio: degraus 150/300/500 desbloqueiam e o resumo mostra o próximo', () => {
+    const s = novoSandbox();
+    const MP = s.MetaProgress;
+    MP.salvar(Object.assign(MP.padrao(), { prestigio: 160 }));
+    ok(MP.desbloqueado('tatica') === true && MP.desbloqueado('olheiro') === false, 'degrau 150 não desbloqueou só a tática');
+    ok(MP.resumo().indexOf('próximo degrau 300') >= 0, 'resumo não mostra o próximo degrau');
+    MP.salvar(Object.assign(MP.padrao(), { prestigio: 500 }));
+    ok(MP.desbloqueado('faixa') === true, 'degrau 500 não desbloqueou a faixa');
+    MP.salvar(MP.padrao());
+    ok(MP.desbloqueado('tatica') === false, 'sem prestígio, degrau não deveria desbloquear');
+});
+
+teste('3.4 elenco inicial de carreira nova assina contrato de 28 a 38 rodadas', () => {
+    const s = novoSandbox();
+    const clube = new s.Club('Clube Teste', true);
+    ok(clube.elenco.length >= 11, 'elenco inicial curto');
+    clube.elenco.forEach(p => ok(p.contratoRodadas >= 28 && p.contratoRodadas <= 38, 'contrato fora de 28–38: ' + p.contratoRodadas));
+});
+
+teste('3.5 demissão: sem demissão até a rodada 10; depois da carência, a confiança baixa demite', () => {
+    const s = novoSandbox();
+    const monta = (rodada) => {
+        const lg = new s.League(); lg.inicializar();
+        const cl = lg.clubes[0]; cl.isUser = true; cl.pacienciaDiretoria = 5; cl.rodadasDiretoriaCritica = 2;
+        lg.rodada = rodada; lg.temporada = 1;
+        return { cl, lg };
+    };
+    const a = monta(5);
+    s.ClubEcosystem.afterRound(a.cl, a.lg, { meusGols: 0, golsAdv: 1, userHome: true });
+    ok(a.cl.demitido !== true, 'demitiu dentro da carência (rodada 5)');
+    const b = monta(11);
+    s.ClubEcosystem.afterRound(b.cl, b.lg, { meusGols: 0, golsAdv: 1, userHome: true });
+    ok(b.cl.demitido === true, 'não demitiu depois da carência (rodada 11) com confiança crítica');
+});
+
+teste('3.2 infraestrutura: manutenção cresce com o nível acima de 1 e para no nível 5', () => {
+    const s = novoSandbox();
+    const c = new s.Club('X', true);
+    c.estadioNivel = 1; c.baseNivel = 1;
+    ok(c.manutencaoInfra() === 0, 'nível 1 não deveria pagar manutenção');
+    c.estadioNivel = 3; c.baseNivel = 2;
+    ok(c.manutencaoInfra() === 3 * 45000, 'manutenção de nível 3/2 errada: ' + c.manutencaoInfra());
+    c.estadioNivel = 9; c.baseNivel = 9;
+    ok(c.manutencaoInfra() === 8 * 45000, 'manutenção não parou no teto de nível 5: ' + c.manutencaoInfra());
+    ok(FONTE_HTML.indexOf('Nível máximo (5) atingido.') >= 0, 'compra de infraestrutura sem teto de nível 5');
+});
+
+teste('3.2 ofertas: teto de 1,2× valor de mercado, sem oferta por jogador que chegou nesta rodada ou não jogou', () => {
+    ok(FONTE_HTML.indexOf('Math.min(1.2, (0.9 + Math.random() * 0.3) * multFimContrato)') >= 0, 'oferta sem teto de 1,2×');
+    ok(FONTE_HTML.indexOf('(p.partidas || 0) > 0 && p.chegouEm !== chaveAtual') >= 0, 'oferta sem filtro de partidas/chegada');
+});
+
+teste('3.3 dificuldade: draft limitado a 3 níveis de ascensão e rival +3 por nível', () => {
+    ok(FONTE_HTML.indexOf('Math.min(asc, 3) * 2') >= 0, 'draft sem o teto de 3 níveis');
+    ok(FONTE_HTML.indexOf('const ajuste = (multiplicador - 1) * 24 + asc * 3 + campanha;') >= 0, 'rival da ascensão não está em +3');
+});
+
+teste('3.7 draft pula quando nenhum jogador melhora o XI; olheiro com chance ≤ 0,45', () => {
+    ok(FONTE_HTML.indexOf("ui.showActionFeedback('Sem reforço relevante', 'info');") >= 0, 'draft irrelevante não pula com toast');
+    ok(FONTE_HTML.indexOf('Math.min(0.45, 0.15 + (this.club.baseNivel - 1) * 0.12)') >= 0, 'chance do olheiro sem teto 0,45');
+});
+
+teste('3.8 desafios não começam com partida ativa (diário, clássico, torneio)', () => {
+    const n = (FONTE_HTML.match(/Partida em andamento — termine antes de outro desafio\./g) || []).length;
+    ok(n === 3, 'esperava 3 guardas nos desafios, achei ' + n);
+});
+
 console.log('');
 console.log('=== ' + (total - falhas) + '/' + total + ' verificações passaram' + (falhas ? ' — ' + falhas + ' FALHAS' : '') + ' ===');
 process.exit(falhas ? 1 : 0);
