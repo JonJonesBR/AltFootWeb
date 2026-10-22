@@ -877,8 +877,8 @@ body {
     text-shadow: 0 2px 8px rgba(0,0,0,0.8);
     margin: 2px 0;
 }
-.card-name { 
-    font-size: 0.58rem; 
+.card-name {
+    font-size: 0.69rem;
     text-transform: uppercase; 
     font-weight: 800; 
     text-align: center; 
@@ -1817,7 +1817,7 @@ html, body, * {
     left: 50%;
     top: calc(100% + 2px);
     transform: translateX(-50%);
-    font-size: 0.42rem;
+    font-size: 0.5rem;
     font-weight: 800;
     letter-spacing: 0.2px;
     color: rgba(255,255,255,0.92);
@@ -2048,7 +2048,7 @@ html, body, * {
 .radio-replay .rr-text {
     flex: 1 1 auto;
     min-width: 0;
-    font-size: 0.62rem;
+    font-size: 0.69rem;
     font-weight: 700;
     color: #ffe6a8;
     letter-spacing: 0.3px;
@@ -2119,7 +2119,7 @@ html, body, * {
     text-shadow: 0 0 12px rgba(56, 189, 248, 0.7);
 }
 .var-panel .var-step {
-    font-size: 0.62rem;
+    font-size: 0.69rem;
     font-weight: 700;
     color: #e0f2fe;
     letter-spacing: 0.4px;
@@ -2179,7 +2179,7 @@ html, body, * {
 }
 .var-panel .var-juiz {
     margin-top: 6px;
-    font-size: 0.58rem;
+    font-size: 0.69rem;
     font-weight: 800;
     letter-spacing: 1px;
     color: #94a3b8;
@@ -2340,7 +2340,7 @@ html, body, * {
 }
 .challenge-card .ch-body { flex: 1 1 auto; min-width: 0; text-align: left; }
 .challenge-card .ch-title {
-    font-size: 0.68rem;
+    font-size: 0.69rem;
     font-weight: 900;
     letter-spacing: 1.2px;
     color: var(--accent);
@@ -2578,6 +2578,10 @@ html, body, * {
     height: clamp(7px, 1.8vw, 12px);
 }
 
+/* 4.9: rótulo do campo some em telas até 480px (não cabe); o resto segue a regra de 380px. */
+@media (max-width: 480px) {
+    .campo-chip .chip-label { display: none; }
+}
 /* Telas muito estreitas: esconde rótulos (fica só a ficha colorida) */
 @media (max-width: 380px) {
     .campo-chip .chip-label { display: none; }
@@ -3779,6 +3783,7 @@ button:focus-visible,summary:focus-visible,[role="button"]:focus-visible,[tabind
  <button onclick="HistoricalScenarios.open()" class="btn-secondary" style="margin-top:12px;min-height:44px">📻 CENÁRIOS HISTÓRICOS</button>
   <!-- B79: prestígio entre carreiras (localStorage), separado do save do clube. -->
   <div id="menu-meta" style="margin-top: 10px; font-size: 0.68rem; color: var(--accent); text-align: center; font-weight: 800; min-height: 16px;">🏅 Prestígio 0 · 0 temporada(s)</div>
+  <div id="menu-faixa" role="img" aria-label="Faixa de capitão desbloqueada (prestígio 500)" title="Faixa de capitão (prestígio 500)" style="display:none; margin: 6px auto 0; width: max-content; padding: 2px 10px; border-radius: 999px; border: 1px solid var(--accent); color: var(--accent); font-size: 0.69rem; font-weight: 800;">🎖️ Faixa de capitão</div>
  <div id="menu-slot-row" style="margin-top: 16px; display: flex; gap: 8px; justify-content: center;">
    <button id="slot-btn-1" onclick="app.selectSlot(1)" class="btn-secondary" style="flex:1; max-width:110px; font-size:0.68rem; padding:8px 4px;">SLOT 1</button>
    <button id="slot-btn-2" onclick="app.selectSlot(2)" class="btn-secondary" style="flex:1; max-width:110px; font-size:0.68rem; padding:8px 4px;">SLOT 2</button>
@@ -5101,10 +5106,10 @@ const GAME_DATA = {
     taticas: [
         // G1 (2026-09-24): cartas de partida — efeito em _difA/_difD por durMin simulados.
         // custo = Foco do Treinador (×25 na barra 0–100). efeito legado {atk,def} ainda é aceito por saves antigos.
-        { id: "t_pressao", nome: "Pressão Asfixiante", desc: "35 Foco · 7 min · +20% roubos no ataque · −12 de fôlego", custo: 2, raridade: "Prata",
-          efeito: { durMin: 7, difA: 0, difD: 0, flavor: "🔥 Pressão Asfixiante! +20% de recuperação ofensiva por 7 minutos; o XI perde 12 de fôlego." } },
-        { id: "t_cera", nome: "Cera / Quebrar Ritmo", desc: "25 Foco · 5 min sem chances rivais · risco de amarelo", custo: 1, raridade: "Bronze",
-          efeito: { durMin: 5, difA: 0, difD: 0, flavor: "🛡️ Cera! Cinco minutos de relógio sem chances adversárias; cuidado com o árbitro." } },
+        { id: "t_pressao", nome: "Pressão Asfixiante", desc: "35 Foco · 10 min · +35% no ataque · −6 de fôlego", custo: 2, raridade: "Prata",
+          efeito: { durMin: 10, difA: 0, difD: 0, flavor: "🔥 Pressão Asfixiante! +35% de pressão ofensiva por 10 minutos; o XI perde 6 de fôlego." } },
+        { id: "t_cera", nome: "Cera / Quebrar Ritmo", desc: "25 Foco · 8 min com chances rivais reduzidas · risco de amarelo", custo: 1, raridade: "Bronze",
+          efeito: { durMin: 8, difA: 0, difD: 0, flavor: "🛡️ Cera! Oito minutos de quebra de ritmo: as chances rivais caem; cuidado com o árbitro." } },
         { id: "t_chuveirinho", nome: "Chuveirinho / Bola na Área", desc: "30 Foco · cruzamentos diretos · OVR do centroavante decide", custo: 2, raridade: "Prata",
           efeito: { durMin: 5, difA: 0, difD: 0, flavor: "🎯 Chuveirinho! A posse defensiva vira cruzamentos para os centroavantes." } },
         { id: "t_impedimento", nome: "Linha de Impedimento", desc: "Linha alta com armadilha tática", custo: 1, raridade: "Bronze",
@@ -5112,11 +5117,11 @@ const GAME_DATA = {
         { id: "t_grito", nome: "Grito do Treinador", desc: "Acelera e reanima o grupo", custo: 2, raridade: "Prata",
           efeito: { durMin: 7, difA: 2, difD: 2, flavor: "📣 Grito do técnico! O time responde com mais intensidade." } },
         { id: "t_muralha", nome: "Muralha na Área", desc: "Estaciona o ônibus na frente do gol", custo: 2, raridade: "Prata",
-          efeito: { durMin: 8, difA: -2, difD: 5, flavor: "🧱 Muralha na área! Nada passa pela nossa defesa." } },
+          efeito: { durMin: 12, difA: -2, difD: 5, flavor: "🧱 Muralha na área! Nada passa pela nossa defesa." } },
         { id: "t_contra", nome: "Contra-Ataque Mortal", desc: "Após defender, sai em velocidade", custo: 3, raridade: "Ouro",
-          efeito: { durMin: 6, difA: 5, difD: 0, flavor: "⚡ Contra-ataque mortal! O time explode na transição." } },
+          efeito: { durMin: 10, difA: 5, difD: 0, flavor: "⚡ Contra-ataque mortal! O time explode na transição." } },
         { id: "t_tiki", nome: "Tiki-Taka", desc: "Posse sufocante e cadência de passe", custo: 3, raridade: "Ouro",
-          efeito: { durMin: 8, difA: 3, difD: 2, flavor: "✨ Tiki-taka! Posse de bola e cadência no meio-campo." } }
+          efeito: { durMin: 12, difA: 3, difD: 2, flavor: "✨ Tiki-taka! Posse de bola e cadência no meio-campo." } }
     ]
 };
 
@@ -5633,12 +5638,17 @@ const ClubEcosystem = {
     club.ultimaParcela = parcela;
     if (parcela) league.adicionarNoticia('🏦 Empréstimos: ' + Math.round(parcela).toLocaleString('pt-BR') + ' reais debitados nesta rodada.');
     club.rodadasNegativo = club.orcamento < 0 ? club.rodadasNegativo + 1 : 0;
+    // 4.1(d): rede de segurança — 3 rodadas negativas dispara empréstimo automático (R$ 300 mil) antes da falência.
+    if (club.rodadasNegativo >= 3 && club.emprestimos.length < 2 && !club.demitido && !club.falencia) {
+      const emergencia = this.emprestar(club, 300000);
+      if (emergencia.ok) league.adicionarNoticia('🏦 Empréstimo de emergência automático: R$ 300 mil para evitar a falência.');
+    }
     club.bloqueioContratacoes = club.rodadasNegativo >= 5;
     club.falencia = club.bloqueioContratacoes && club.orcamento < -500000;
     const debt = Math.max(0, -club.orcamento) + club.emprestimos.reduce((s, e) => s + e.saldo, 0);
     if (club.safTemporadas === 0 && club.rodadasNegativo >= 3 && debt > Math.max(200000, (club.stadiumRevenue ? club.stadiumRevenue() : 40000) * 5)) club.ofertaSAF = true;
     const ganhou = (resultado.meusGols || 0) > (resultado.golsAdv || 0), perdeu = (resultado.meusGols || 0) < (resultado.golsAdv || 0);
-    club.pacienciaDiretoria = Math.max(0, Math.min(100, club.pacienciaDiretoria + (ganhou ? 7 : perdeu ? -9 : 1) - (club.orcamento < 0 ? 3 : 0)));
+    club.pacienciaDiretoria = Math.max(0, Math.min(100, club.pacienciaDiretoria + (ganhou ? 7 : perdeu ? -7 : 1) - (club.orcamento < 0 ? 3 : 0)));
     // B54: a partir da rodada 30, quem está muito longe da meta perde paciência por
     // rodada. É a pressão de fim de temporada que não existia.
     try {
@@ -5656,9 +5666,11 @@ const ClubEcosystem = {
     } catch (e) { /* meta nunca derruba a rodada */ }
     club.rodadasDiretoriaCritica = club.pacienciaDiretoria < 20 ? club.rodadasDiretoriaCritica + 1 : 0;
     // Carência: sem demissão nas 10 primeiras rodadas da temporada; na Lenda, na T1, só a partir da 14ª.
-    const lenda = ((club.difficulty && club.difficulty.multiplier) || 1) >= 1.3;
-    const carencia = (lenda && (league.temporada || 1) === 1) ? 14 : 10;
-    if (club.rodadasDiretoriaCritica >= 3 && (league.rodada || 0) > carencia) {
+    // Lote 8 (P4): T1 tem carência de 14 rodadas (todas as dificuldades); as demais temporadas, 10.
+    const carencia = (league.temporada || 1) === 1 ? 14 : 10;
+    // 4.5: caixa negativo não demite antes da T4 (a rede de segurança/SAF age antes disso).
+    const caixaNaoDemite = club.orcamento < 0 && (league.temporada || 1) < 4;
+    if (club.rodadasDiretoriaCritica >= 3 && (league.rodada || 0) > carencia && !caixaNaoDemite) {
       club.demitido = true;
       league.adicionarNoticia('📋 FIM DE CARREIRA: diretoria demitiu o treinador após três rodadas abaixo de 20% de confiança.');
     }
@@ -5718,8 +5730,10 @@ const ClubEcosystem = {
   // paciência genérica (que só demitia após 8 derrotas seguidas); não havia objetivo.
   metaTemporada(club, league) {
     const div = Math.max(1, Math.min(4, (league && league.divisaoUser) || 1));
-    const alvo = [8, 6, 4, 4][div - 1] || 8;
-    const rotulo = div === 1 ? 'terminar entre os 8' : (div === 2 ? 'terminar entre os 6' : 'terminar entre os 4');
+    // Lote 8 (P4): Série A na T1 = entre os 12; a partir da T2 = entre os 8. B/C/D mantêm 6/4/4.
+    const primeiraTemp = (league && (league.temporada || 1)) === 1;
+    const alvo = div === 1 ? (primeiraTemp ? 12 : 8) : ([8, 6, 4, 4][div - 1] || 4);
+    const rotulo = 'terminar entre os ' + alvo;
     return { divisao: div, alvo, rotulo };
   },
   afterRoundIA(club, league, div) {
@@ -5911,6 +5925,7 @@ class Club {
     this.baseNivel = 1;         // infraestrutura: categorias de base
     this.tutorialPago = false;  // Treino Guiado: bônus (R$ 50 mil + XP) pago só uma vez por carreira
     this.olheiroGratisChave = '';  // degrau 300 de prestígio: temporada em que o relatório grátis já foi usado
+    this.draftTemporada = '';      // 4.3: temporada em que o draft já foi oferecido (1 por temporada)
     this.ofertas = [];          // propostas de compra recebidas
     this.moral = 75;            // moral geral do elenco (eventos de vestiário)
     this.fans = 50;             // aprovação da torcida 0-100 (multiplica bilheteria)
@@ -5978,8 +5993,8 @@ class Club {
         p.staminaConsumption = Math.max(2, 12 - Math.floor(p.overall / 10));
       }
       if (clubeId != null) p.clubeId = clubeId;
-      // Elenco inicial assina contrato longo (28–38 rodadas); só afeta carreiras novas (saves guardam o valor).
-      p.contratoRodadas = 28 + Math.floor(Math.random() * 11);
+      // Elenco inicial: contrato uniforme de 20 a 44 rodadas por jogador (não expira em massa); só carreiras novas.
+      p.contratoRodadas = 20 + Math.floor(Math.random() * 25);
       this.elenco.push(p);
     });
 
@@ -6478,7 +6493,7 @@ const CompetitionSystem = {
                 if ((home === user.nome && h > a) || (away === user.nome && a > h)) prize += 500000;
             } else {
                 winners.push(winner);
-                if (winner === user.nome) prize += kind === 'copa' ? [1000000,1500000,2000000,3500000,6000000,12000000][c.etapa] : [3000000,6000000,15000000][c.etapa - 6];
+                if (winner === user.nome) prize += kind === 'copa' ? [333000,500000,667000,1167000,2000000,4000000][c.etapa] : [1000000,2000000,5000000][c.etapa - 6];
             }
         }
         c.etapa++;
@@ -8208,12 +8223,13 @@ function calcularXPParticipacao(elenco, titularesIds, entraramIds, xpBase, foraI
 // mercado, tier (avaliarPromocaoTier) e a hierarquia do vestiário — aos 15 jogos
 // todo mundo virava "Líder de Vestiário" e o LockerRoom punia o plantão inteiro.
 // Retorna a lista de contratos expirando (para renovação automática).
-function fecharPartidaElenco(club, idsJogaram, deltaMoral) {
+function fecharPartidaElenco(club, idsJogaram, deltaMoral, desafio) {
   const expirando = [];
   const jogaram = new Set((idsJogaram || []).map(String));
   (club && club.elenco || []).forEach(p => {
     if (!p) return;
-    p.contratoRodadas = Math.max(0, (p.contratoRodadas == null ? 8 : p.contratoRodadas) - 1);
+    // Lote 8 (P5): desafio não passa a rodada, então o contrato não anda.
+    if (!desafio) p.contratoRodadas = Math.max(0, (p.contratoRodadas == null ? 8 : p.contratoRodadas) - 1);
     const jogou = jogaram.has(String(p.id));
     if (jogou) p.partidas = (p.partidas || 0) + 1;
     if (typeof p.avaliarPromocaoTier === 'function') {
@@ -8226,7 +8242,7 @@ function fecharPartidaElenco(club, idsJogaram, deltaMoral) {
     if (justo > 0 && (p.salario || 0) < justo * 0.7) d -= 1;
     if ((p.rodadasRecuperacao || 0) > 0) d -= 1;
     if (d !== 0) p.moral = Math.max(0, Math.min(100, (p.moral == null ? 70 : p.moral) + d));
-    if (p.contratoRodadas === 0) expirando.push(p);
+    if (!desafio && p.contratoRodadas === 0) expirando.push(p);
   });
   return expirando;
 }
@@ -8494,7 +8510,7 @@ class MatchSim {
         let a = atkF * 0.5 + midF * 0.32 + defF * 0.12 + gkF * 0.06;
         let d = defF * 0.5 + gkF * 0.28 + midF * 0.16 + atkF * 0.06;
         let m = midF * 0.5 + atkF * 0.25 + defF * 0.25;
-        const moral = (team.moral == null ? 75 : team.moral) + (this.continental && isHome && this._userSide() === 1 ? 2 : 0);
+        const moral = (team.moral == null ? 75 : team.moral) + (this.continental && isHome && this._eUsuario(1) ? 2 : 0);
         const mb = moral < 30 ? -3 : (moral >= 85 ? 1 : 0);
         const popular = typeof ClubEcosystem !== 'undefined' ? ClubEcosystem.nivel(team,'popular') : 0;
         const casa = ((this.regra === 'classico') ? 0.8 : 1.6) + popular * 0.4;
@@ -8504,7 +8520,7 @@ class MatchSim {
         a += mb + (isHome ? casa : 0) + bonusFormacao.a;
         m += mb + (isHome ? casa * 0.5 : 0) + bonusFormacao.m;
         d += mb + bonusFormacao.d;
-        if (this.continental && isHome && this._userSide() === 1) { a += 0.4; m += 0.4; }
+        if (this.continental && isHome && this._eUsuario(1)) { a += 0.4; m += 0.4; }
         // Mandos alternados: craque/estilo/buffs são do USUÁRIO, não do mandante.
         const isUser = this._eUsuario(isHome ? 0 : 1);
         if (this.craque && isUser) { a += 6; m += 2.5; d += 1; }
@@ -8607,29 +8623,29 @@ class MatchSim {
         const linha = (team.elenco || []).filter(j => ids.includes(j.id) && j.posicao !== 'GK');
         const folego = linha.length ? linha.reduce((s,j) => s + (j.folego ?? 100), 0) / linha.length : 100;
         const momentum = Math.max(0.75, Math.min(1.25, 1 + (side === 0 ? 1 : -1) * this._pressao / 400));
-        const buffs = side === this._userSide() ? this._buffsAtivos() : [];
-        const buffsRival = side !== this._userSide() ? this._buffsAtivos() : [];
-        const pressao = buffs.some(b => b.id === 't_pressao') ? 1.2 : 1;
+        const buffs = this._eUsuario(side) ? this._buffsAtivos() : [];
+        const buffsRival = !this._eUsuario(side) ? this._buffsAtivos() : [];
+        const pressao = buffs.some(b => b.id === 't_pressao') ? 1.35 : 1;
         const cruzar = buffs.some(b => b.id === 't_chuveirinho');
-        const tikiAtk = buffs.some(b => b.id === 't_tiki') ? 1.2 : 1;
-        const tikiDef = buffsRival.some(b => b.id === 't_tiki') ? 0.75 : 1;
-        const muralhaRival = buffsRival.some(b => b.id === 't_muralha') ? 0.65 : 1;
-        const contra = buffs.some(b => b.id === 't_contra') ? 1.3 : 1;
+        const tikiAtk = buffs.some(b => b.id === 't_tiki') ? 1.3 : 1;
+        const tikiDef = buffsRival.some(b => b.id === 't_tiki') ? 0.7 : 1;
+        const muralhaRival = buffsRival.some(b => b.id === 't_muralha') ? 0.55 : 1;
+        const contra = buffs.some(b => b.id === 't_contra') ? 1.5 : 1;
         const impedimentoRival = buffsRival.some(b => b.id === 't_impedimento') ? 0.8 : 1;
         const atacantes = linha.filter(j => j.posicao === 'ATT');
         const melhor = atacantes.reduce((m,j) => Math.max(m,j.overall || 50),50);
-        const ceraRival = buffsRival.some(b => b.id === 't_cera') ? 0.5 : 1; // B69: 25 Foco não zera mais o rival
+        const ceraRival = buffsRival.some(b => b.id === 't_cera') ? 0.45 : 1; // B69: 25 Foco não zera mais o rival
         // Retranca do usuário corta a criação rival, mas não em 40% (era 0,6 —
         // mediação de 2026-10-06: junto com o volumeEstilo abaixo, a retranca rendia
         // +45% de saldo de gols e virava escolha dominante). 0,75 mantém o fechamento
         // perceptível sem anular o adversário.
-        const retrancaRival = side !== this._userSide() && this.estilo === 'retranca' ? 0.85 : 1;
+        const retrancaRival = !this._eUsuario(side) && this.estilo === 'retranca' ? 0.85 : 1;
         // O técnico troca volume de ataque por exposição: efeito só na sua partida.
         // Ofensivo cria +25% e ainda empurra o rival para +18% (antes +12%).
         const temUsuario = this.home.isUser || this.away.isUser;
         const volumeEstilo = !temUsuario ? 1 : this.estilo === 'ofensivo'
-            ? (side === this._userSide() ? 1.22 : 1.20)
-            : this.estilo === 'retranca' && side === this._userSide() ? 0.85 : 1;
+            ? (this._eUsuario(side) ? 1.22 : 1.20)
+            : this.estilo === 'retranca' && this._eUsuario(side) ? 0.85 : 1;
         // B72 (2026-10-19): o perfil de jogo do rival deixa de ser só rótulo.
         // posse = mais volume e menos verticalidade; contra-ataque = menos volume e mais
         // conversão; retranca_copeira = fecha o próprio jogo e o jogo do adversário.
@@ -8661,7 +8677,7 @@ class MatchSim {
         const diffGols = side === 0 ? (this.scoreH || 0) - (this.scoreA || 0) : (this.scoreA || 0) - (this.scoreH || 0);
         const urgencia = minutoFinal ? (diffGols < 0 ? 1.38 : diffGols === 0 ? 1.26 : 1.14) : 1;
         const ajusteInt = this._ajusteIntervalo;
-        const volumeInt = ajusteInt ? (side === this._userSide() ? ajusteInt.atk : ajusteInt.def) : 1;
+        const volumeInt = ajusteInt ? (this._eUsuario(side) ? ajusteInt.atk : ajusteInt.def) : 1;
         const criacao = Math.max(0.015, Math.min(0.14, 0.033 * Math.exp((p.mid - d.mid) / 70)))
             * (0.65 + folego / 285) * this._contratatica(side) * momentum * pressao * retrancaRival * volumeEstilo
             * tikiAtk * tikiDef * muralhaRival * impedimentoRival
@@ -8714,7 +8730,7 @@ class MatchSim {
                 if (decisao) {
                     this._decisoesJanelas = usadas.concat(janela);
                     this._decisoesOfertadas++;
-                    contexto = this._pick(side === this._userSide() ? ['frente', 'distancia', 'ponta'] : ['area', 'transicao', 'corredor']);
+                    contexto = this._pick(this._eUsuario(side) ? ['frente', 'distancia', 'ponta'] : ['area', 'transicao', 'corredor']);
                 }
                 return { min: this.minuto, tipo: decisao ? 'decisao' : 'chanceXG', side, contexto };
             }
@@ -8726,13 +8742,13 @@ class MatchSim {
         const fragil = atleta && (atleta.traits || []).includes('Frágil a Lesões') ? 1.5 : 1;
         if (atleta && this._roll(0.0015 * medico * fragil)) return { min:this.minuto,tipo:'lesao',side,atleta };
         const rigor = this.arbitro === 'Rigoroso' ? 1.5 : this.arbitro === 'Conivente' ? 0.65 : 1;
-        const retranca = side === this._userSide() && this.estilo === 'retranca' ? 1.5 : 1;
+        const retranca = this._eUsuario(side) && this.estilo === 'retranca' ? 1.5 : 1;
         // B65: a disciplina do atleta (vestiário) pesa no risco de cartão — era só leitura de tela.
         const disc = atleta && Number.isFinite(Number(atleta.disciplina)) ? Number(atleta.disciplina) : 70;
         const fatorDisc = disc <= 30 ? 1.8 : disc <= 50 ? 1.25 : disc >= 85 ? 0.55 : 1;
         const sorte = this.rng();
         let tipo = sorte < 0.028 * rigor * retranca * fatorDisc ? 'cartao' : sorte < 0.11 ? 'falta' : sorte < 0.15 ? 'escanteio' : 'lance';
-        if (side !== this._userSide() && tipo === 'escanteio' && this._buffsAtivos().some(b => b.id === 't_cera')) tipo = 'lance';
+        if (!this._eUsuario(side) && tipo === 'escanteio' && this._buffsAtivos().some(b => b.id === 't_cera')) tipo = 'lance';
         return { min: this.minuto, tipo, side };
     }
 
@@ -9552,13 +9568,13 @@ class MatchSim {
         // Cartas novas (G1) já vêm com difA/difD prontos e valem 1:1.
         const difA = e.difA != null ? e.difA : (e.atk || 0) * 0.6;
         const difD = e.difD != null ? e.difD : (e.def || 0) * 0.6;
-        const dur = card.id === 't_pressao' ? 7 : card.id === 't_cera' ? 5 : e.durMin || 6;
+        const dur = card.id === 't_pressao' ? 10 : card.id === 't_cera' ? 8 : e.durMin || 6;
         if (card.id === 't_pressao') {
             const team = this._userSide() === 0 ? this.home : this.away;
             const ids = this._emCampo[this._userSide()] || [];
-            team.elenco.filter(p => ids.includes(p.id)).forEach(p => { p.folego = Math.max(5, (p.folego ?? 100) - 12); });
+            team.elenco.filter(p => ids.includes(p.id)).forEach(p => { p.folego = Math.max(5, (p.folego ?? 100) - 6); });
         }
-        if (card.id === 't_cera' && this._roll(this.arbitro === 'Rigoroso' ? 0.6 : 0.35)) {
+        if (card.id === 't_cera' && this._roll(this.arbitro === 'Rigoroso' ? 0.4 : 0.2)) {
             this._aplicar({ min: this.minuto, tipo: 'cartao', side: this._userSide() });
         }
         if (card.id === 't_grito') {
@@ -9746,7 +9762,8 @@ class MatchSim {
         const responder = i => {
             if (this.abortado) return;
             const valor = (v,delta) => Math.max(0,Math.min(100,(Number.isFinite(Number(v)) && v != null ? Number(v) : 50)+delta));
-            if (i === 0) {
+            // Fair play = 0; Implacável = 1 (explícito); qualquer outro índice inválido vira fair play.
+            if (i !== 1) {
                 team.fans = valor(team.fans,3); team.moral = valor(team.moral,2);
                 team.etica = valor(team.etica,3);
                 this._emit('🤝 O técnico pede a bola para fora. A torcida respeita o fair play; o ataque foi desperdiçado.', 'info');
@@ -10010,7 +10027,7 @@ class MatchSim {
         this.noAlvo[isHome ? 0 : 1]++;
         MatchUI.score(this.scoreH, this.scoreA);
         if (typeof ui !== 'undefined') {
-            const userScored = ((isHome ? 0 : 1) === this._userSide());
+            const userScored = this._eUsuario(isHome ? 0 : 1);
             // Cascata: playGolMoment (impacto→torcida→duck) + overlay visual.
             // showGoalAnimation NÃO toca mais som — evita 3 camadas no mesmo frame.
             ui.playGoalSound(userScored);
@@ -10044,7 +10061,7 @@ class MatchSim {
             let atkSide = ctx && ctx.atkSide != null ? ctx.atkSide : null;
             const isGoal = (t === 'goal');
             const isUserGoal = isGoal && (atkSide != null
-                ? atkSide === this._userSide()
+                ? this._eUsuario(atkSide)
                 : (log && log.indexOf('GOL DO RIVAL') < 0));
             const isRivalGoal = isGoal && !isUserGoal;
             if (isUserGoal) {
@@ -10101,7 +10118,7 @@ class MatchSim {
 
     _mostrarDecisao(ev) {
         const isHome = ev.side === 0;
-        const isUserAttack = (ev.side === this._userSide());
+        const isUserAttack = this._eUsuario(ev.side);
         // Protagonista da chance: escolhido AQUI e reaproveitado em _resolverChance
         // (mesmo nome no feed da decisão, no card-battle e no campo 2D).
         const jp = this._pickXI(isHome ? 0 : 1, 'ATT');
@@ -10291,7 +10308,7 @@ class MatchSim {
         const jp = this._decisaoAtk || this._pickXI(isHome ? 0 : 1, 'ATT');
         this._decisaoAtk = null;
         const j = jp ? jp.nome : (isHome ? this._nomeHome('ATT') : this._nomeAdv('ATT'));
-        const userScored = ((isHome ? 0 : 1) === this._userSide());
+        const userScored = this._eUsuario(isHome ? 0 : 1);
         // Campo 2D: protagonistas REAIS do lance (atacante × goleiro/zaga)
         const atkSide = isHome ? 0 : 1;
         const defSide = isHome ? 1 : 0;
@@ -10988,6 +11005,9 @@ class UI {
       try {
         const metaEl = document.getElementById('menu-meta');
         if (metaEl && typeof MetaProgress !== 'undefined') metaEl.innerText = MetaProgress.resumo();
+        // 4.10: faixa de capitão (degrau 500) aparece no menu, sem backdrop-filter.
+        const faixaEl = document.getElementById('menu-faixa');
+        if (faixaEl && typeof MetaProgress !== 'undefined') faixaEl.style.display = MetaProgress.desbloqueado('faixa') ? 'block' : 'none';
         const sel = document.getElementById('difficulty-select');
         if (sel && typeof MetaProgress !== 'undefined') {
           Array.from(sel.options).forEach(op => {
@@ -12474,6 +12494,7 @@ class UI {
             ${FUTCards.portrait(p, app.club)}
             <div class="card-name"></div>
             <div class="card-condition">${p.machucado > 0 ? '🏥 Lesionado' : '🫁 Fôlego ' + Math.round(p.folego ?? 100) + '%'}</div>
+            ${(p.contratoRodadas != null && p.contratoRodadas <= 3 && (app.club.escalacaoXI || []).includes(p.id)) ? `<div role="status" title="Titular com contrato acabando" style="position:absolute; top:6px; left:8px; background:#dc2626; color:#fff; font-size:0.69rem; font-weight:800; padding:2px 6px; border-radius:6px;">⚠️ Contrato ${Math.max(0, p.contratoRodadas)}R</div>` : ''}
             ${p.trainingPoints > 0 ? `<div title="Pontos de treino disponíveis" style="position:absolute; top:42px; right:8px; background:var(--accent); color:#21160d; width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:0.75rem; border:2px solid white;">${p.trainingPoints}</div>` : ''}
             <div class="card-actions">
               <button onclick="FUTCards.flip(this)" class="btn-secondary">Virar</button>
@@ -14172,7 +14193,10 @@ const app = {
                 this._trapTabA11y = true;
                 document.addEventListener('keydown', (event) => {
                     if (event.key !== 'Tab') return;
-                    const aberto = document.querySelector('.modal:not(.hidden)');
+                    // 4.9: o foco fica no modal DO TOPO (maior z-index; empate = o último no DOM), não no primeiro.
+                    const abertos = [...document.querySelectorAll('.modal:not(.hidden)')];
+                    const z = (el) => parseInt(getComputedStyle(el).zIndex, 10) || 0;
+                    const aberto = abertos.reduce((topo, el) => (!topo || z(el) >= z(topo) ? el : topo), null);
                     if (!aberto) return;
                     const focaveis = [...aberto.querySelectorAll(
                         'button:not([disabled]), [href], input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])'
@@ -15371,6 +15395,7 @@ const app = {
         if (club.vendaMax == null) club.vendaMax = 0;
         if (club.tutorialPago == null) club.tutorialPago = false;
         if (club.olheiroGratisChave == null) club.olheiroGratisChave = '';
+        if (club.draftTemporada == null) club.draftTemporada = '';
         if (club.aposentados == null) club.aposentados = 0;
         if (club.albumIds == null || !Array.isArray(club.albumIds)) club.albumIds = [];
         if (club.lastCraqueDay == null) club.lastCraqueDay = '';
@@ -15568,7 +15593,8 @@ const app = {
         if (!treino && this.club.ultimaRecuperacaoFadiga === chave) return;
         this.club.elenco.forEach(p => {
             TransferMarket.normalizePlayer(p);
-            p.folego = Math.min(p.folegoMax, (p.folego == null ? 100 : p.folego) + 32 + ClubEcosystem.nivel(this.club, 'medico') * 8);
+            // Lote 8 (P1): recuperação proporcional ao déficit (75% do que falta), não +32 fixo.
+            { const f0 = p.folego == null ? 100 : p.folego; const mx = p.folegoMax == null ? 100 : p.folegoMax; p.folego = Math.min(mx, f0 + Math.max(0, mx - f0) * 0.75 + ClubEcosystem.nivel(this.club, 'medico') * 8); }
             const risco = .3 * (ClubEcosystem.nivel(this.club, 'medico') > 0 ? .65 : 1) * ((p.traits || []).includes('Frágil a Lesões') ? 1.5 : 1);
             if (p.folego < 25 && Math.random() < risco) {
                 p.machucado = true;
@@ -15717,7 +15743,7 @@ const app = {
         const candidates = this.club.elenco.filter(p => p.overall >= 70 && !p.machucado && (p.partidas || 0) > 0 && p.chegouEm !== chaveAtual);
         const n = Math.min(2, candidates.length);
         for (let i = 0; i < n; i++) {
-            if (Math.random() > 0.55) continue;
+            if (Math.random() > 0.25) continue; // 4.3: propostas menos frequentes (era 55%)
             const p = candidates[Math.floor(Math.random() * candidates.length)];
             TransferMarket.normalizePlayer(p);
             if (this.club.ofertas.some(o => o.playerId === p.id)) continue;
@@ -16358,13 +16384,17 @@ const app = {
         if (typeof ui === 'undefined') return;
         this._draftOpts = this._gerarDraft();
         // 3.7: draft que não melhora o XI é pulado automaticamente (sem reforço relevante).
+        // 4.3: no máximo 1 reforço de draft por temporada (teto de ganho de OVR por temporada).
+        const temporadaAtual = String(this.league ? (this.league.temporada || 1) : 1);
         const piorXI = this._piorTitularXI();
         const relevantes = this._draftOpts.filter(o => o.tipo === 'jogador' && o.p && o.p.overall > piorXI);
-        if (!relevantes.length) {
+        if (!relevantes.length || this.club.draftTemporada === temporadaAtual) {
+            if (this.club.draftTemporada === temporadaAtual) { this._draftOpts = null; ui.showActionFeedback('Draft desta temporada já foi usado.', 'info'); return; }
             this._draftOpts = null;
             ui.showActionFeedback('Sem reforço relevante', 'info');
             return;
         }
+        this.club.draftTemporada = temporadaAtual; // 4.3: o draft desta temporada foi oferecido
         const wrap = document.getElementById('draft-choices');
         if (!wrap) return;
         wrap.innerHTML = '';
@@ -17375,6 +17405,52 @@ const app = {
         fn();
     },
 
+    // Lote 6 (D): modal curto "Contratos a vencer" — uma vez por rodada; RENOVAR TODOS (custo normal, respeita o caixa) ou VER ELENCO.
+    _alertaContratos(lista) {
+        const chave = (this.league.temporada || 1) + ':' + (this.league.rodada || 1);
+        if (this._alertaContratosChave === chave) return;
+        this._alertaContratosChave = chave;
+        if (typeof document === 'undefined' || !document.body || typeof document.createElement !== 'function') return;
+        this._fecharAlertaContratos();
+        const nomes = lista.map(p => escaparHTML(p.nome) + ' (' + Math.max(0, p.contratoRodadas) + ' rodada' + (p.contratoRodadas === 1 ? '' : 's') + ')').join(', ');
+        const el = document.createElement('div');
+        el.id = 'modal-contratos-vencer';
+        el.className = 'modal';
+        el.setAttribute('role', 'dialog');
+        el.setAttribute('aria-modal', 'true');
+        el.setAttribute('aria-labelledby', 'contratos-vencer-titulo');
+        el.innerHTML = '<div class="modal-content" style="max-width:420px;">'
+            + '<h2 id="contratos-vencer-titulo">Contratos a vencer</h2>'
+            + '<p style="font-size:0.9rem;line-height:1.4;">Titulares com até 3 rodadas de contrato: ' + nomes + '.</p>'
+            + '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">'
+            + '<button id="contratos-vencer-renovar" class="btn-primary" style="flex:1;min-height:44px;" onclick="app._renovarContratosVencendo(); app._fecharAlertaContratos();">RENOVAR TODOS</button>'
+            + '<button class="btn-secondary" style="flex:1;min-height:44px;" onclick="app._fecharAlertaContratos(); ui.showSubscreen(\'squad\');">VER ELENCO</button>'
+            + '</div></div>';
+        this._alertaContratosKeyDown = (ev) => { if (ev.key === 'Escape') this._fecharAlertaContratos(); };
+        document.addEventListener('keydown', this._alertaContratosKeyDown);
+        document.body.appendChild(el);
+        const primeiro = el.querySelector('button');
+        if (primeiro && typeof primeiro.focus === 'function') primeiro.focus();
+    },
+    _fecharAlertaContratos() {
+        if (typeof document === 'undefined' || typeof document.getElementById !== 'function') return;
+        if (this._alertaContratosKeyDown) { document.removeEventListener('keydown', this._alertaContratosKeyDown); this._alertaContratosKeyDown = null; }
+        const el = document.getElementById('modal-contratos-vencer');
+        if (el && el.parentNode) el.parentNode.removeChild(el);
+    },
+    // Renova, em ordem de OVR, os titulares com ≤3 rodadas que o caixa cobre (custo normal de renovação).
+    _renovarContratosVencendo() {
+        if (!this.club || !this._managementAvailable()) return;
+        const xi = this.club.escalacaoXI || [];
+        const alvos = this.club.elenco.filter(p => xi.includes(p.id) && p.contratoRodadas != null && p.contratoRodadas <= 3)
+            .sort((a, b) => (b.overall || 0) - (a.overall || 0));
+        let renovados = 0;
+        alvos.forEach(p => {
+            const q = TransferMarket.contrato(p, true);
+            if (this.club.orcamento >= q.preco + 50000) { this.renovarContrato(p.id); renovados++; }
+        });
+        if (typeof ui !== 'undefined') ui.showActionFeedback(renovados ? ('✍️ ' + renovados + ' contrato(s) renovado(s).') : 'Caixa insuficiente para renovar agora.', renovados ? 'success' : 'warning');
+    },
     closeMatchResult() {
         if (!this._resultadoPendente) return;
         this._resultadoPendente = false;
@@ -17383,6 +17459,9 @@ const app = {
 
         // Fadiga após a partida
         this.aplicarFadiga();
+        // Lote 8 (P5): partida de DESAFIO não passa a rodada — não cobra folha, contrato, bilheteria,
+        // lesões, propostas nem olheiro. Mantém fadiga, XP e resultado.
+        const desafio = !!this._isDesafio;
 
         // Fase 5: jogador de bom nível (>= 75) é renovado automaticamente com custo (12× salário,
         // igual à renovação manual) se o orçamento cobre; quem não rende sai de graça.
@@ -17397,7 +17476,7 @@ const app = {
         const part = (typeof Engine !== 'undefined' && Engine._ultimaParticipacao) ? Engine._ultimaParticipacao : null;
         const idsJogaram = part ? part.usados : (this.club.escalacaoXI || []);
         const deltaMoral = res ? (res.h > res.a ? 2 : (res.h === res.a ? 1 : -2)) : 0;
-        const expirando = fecharPartidaElenco(this.club, idsJogaram, deltaMoral);
+        const expirando = fecharPartidaElenco(this.club, idsJogaram, deltaMoral, desafio);
         const renovados = [], saidas = [];
         expirando.forEach(p => {
             const renovacao = p.overall >= 75 ? TransferMarket.assinar(this.club, p, true) : { ok: false };
@@ -17428,14 +17507,18 @@ const app = {
             this.league.adicionarNoticia(`✍️ Fim de contrato: ${nomes.join(', ')} deixaram o clube.`);
             if (typeof ui !== 'undefined') ui.showActionFeedback(`${nomes.join(', ')} saíram: fim de contrato.`, 'warning');
         }
+        // 4.4 (B108): alerta forte quando titular tem ≤3 rodadas de contrato.
+        const emRisco = (this.club.escalacaoXI || []).map(id => this.club.elenco.find(p => p.id === id))
+            .filter(p => p && p.contratoRodadas != null && p.contratoRodadas > 0 && p.contratoRodadas <= 3);
+        if (emRisco.length) this._alertaContratos(emRisco);
         if (expirando.length) this.saveGame();
 
         // Renda de bilheteria do estádio (inclui fixo do patrocínio C1) — só em jogo em casa.
         const fxRodada = (this.league && this.league.getUserFixture) ? this.league.getUserFixture(this.club) : null;
         const userHome = fxRodada ? fxRodada.userHome : true;
-        const gate = userHome ? this.stadiumRevenue() : 0;
+        const gate = (userHome && !desafio) ? this.stadiumRevenue() : 0; // P5: desafio não tem bilheteria
         // Bônus de sequência (3+ vitórias seguidas, apenas em vitória) e de dias jogados (streak sem punição).
-        const streakGateBonus = (userHome && (this.club.consecVitorias || 0) >= 3 && this.lastResult && this.lastResult.h > this.lastResult.a)
+        const streakGateBonus = (userHome && !desafio && (this.club.consecVitorias || 0) >= 3 && this.lastResult && this.lastResult.h > this.lastResult.a)
             ? Math.round(gate * 0.15) : 0;
         const diasBonus = this._streakBonus ? this._streakBonus() : 0;
         this.club.orcamento += gate + streakGateBonus + diasBonus;
@@ -17450,28 +17533,35 @@ const app = {
         }
 
         // Folha salarial da rodada
-        if (this.club && typeof this.club.pagarSalarios === 'function') this.club.pagarSalarios();
+        if (!desafio && this.club && typeof this.club.pagarSalarios === 'function') this.club.pagarSalarios();
 
         // Recuperação de lesões ao passar a rodada (função pura testável — o B28
         // vivia exatamente aqui, num laço que nunca curava ninguém).
-        recuperarLesoesRodada(this.club.elenco);
+        if (!desafio) recuperarLesoesRodada(this.club.elenco);
         // A rodada passa para todos. Sem isto, o atleta do rival que se lesionou
         // contra o usuário ficava fora do XI dele PARA SEMPRE (o mesmo B28, do outro
         // lado) — e como a reposição de base conta lesionados no mínimo de elenco, o
         // B29 vazaria por aqui.
-        if (this.league && typeof CompetitionSystem !== 'undefined') {
+        // Lote 8 (P2): a IA também recupera fôlego ao passar a rodada (mesma fórmula proporcional do usuário, 75%).
+        if (!desafio && this.league && typeof CompetitionSystem !== 'undefined') {
             CompetitionSystem.all(this.league).forEach(cl => {
-                if (cl && cl !== this.club) recuperarLesoesRodada(cl.elenco);
+                if (cl && cl !== this.club) {
+                    recuperarLesoesRodada(cl.elenco);
+                    (cl.elenco || []).forEach(p => {
+                        const f0 = p.folego == null ? 100 : p.folego;
+                        const mx = p.folegoMax == null ? 100 : p.folegoMax;
+                        p.folego = Math.min(mx, f0 + Math.max(0, mx - f0) * 0.75);
+                    });
+                }
             });
         }
 
         // Categorias de base podem revelar um jovem (C2: fluxo do olheiro)
-        this.tentarOlheiro();
+        if (!desafio) this.tentarOlheiro();
         this._revelarPotencialPorJogos();
 
         // Propostas de compra + eventos de vestiário (oportunidade)
-        this.generateOffers();
-        this.refreshMarket(true);
+        if (!desafio) { this.generateOffers(); this.refreshMarket(true); }
         if (!this._isDesafio && this.lastResult) {
             ClubEcosystem.afterRound(this.club, this.league, {
                 meusGols: this.lastResult.h, golsAdv: this.lastResult.a,
@@ -17658,8 +17748,8 @@ const app = {
         const premioPos = naB
             ? (pos) => pos === 1 ? 600000 : pos === 2 ? 400000 : pos === 3 ? 250000
                 : pos === 4 ? 120000 : pos <= 8 ? 60000 : pos <= 12 ? 30000 : pos <= 16 ? 15000 : 0
-            : (pos) => pos === 1 ? 3000000 : pos === 2 ? 2000000 : pos === 3 ? 1200000
-                : pos === 4 ? 800000 : pos <= 8 ? 400000 : pos <= 12 ? 200000 : pos <= 16 ? 100000 : 0;
+            : (pos) => pos === 1 ? 6000000 : pos === 2 ? 4000000 : pos === 3 ? 2400000
+                : pos === 4 ? 1600000 : pos <= 8 ? 800000 : pos <= 12 ? 400000 : pos <= 16 ? 200000 : 0;
         // Na A caem os 4 últimos; na B sobem os 4 primeiros (e ninguém "sai" da B por baixo).
         const premio = ClubEcosystem.premio(this.club, userPos >= 17 ? 0 : Math.round(premioPos(userPos) * (divisao === 3 ? 0.4 : divisao === 4 ? 0.15 : 1)));
         this.club.orcamento += premio;
@@ -17800,10 +17890,57 @@ const app = {
     },
 
     // Reinicia o ciclo: zera estatísticas de temporada, gera novo calendário e sobe o contador de temporada.
+    // 4.1(a): teto de folha por rodada e por divisão. Acima dele, dispensa-se o de menor OVR (mais caro primeiro).
+    _tetoFolhaRodada(div) { return ({ 1: 250000, 2: 200000, 3: 150000, 4: 120000 })[div] || 120000; },
+    // 4.1(a)+(b): poda o elenco na virada. (a) teto de folha; (b) quem fica fora do XI 2 temporadas seguidas sai.
+    // Nunca deixa o elenco abaixo de 11. Avisa o usuário.
+    _podarElenco() {
+        const c = this.club;
+        if (!c || !Array.isArray(c.elenco)) return [];
+        // Lote 5 (decisão do usuário): "fora do XI" = NÃO JOGOU nenhuma partida na temporada.
+        // partidas é acumulado; partidasInicioTemp guarda o valor da virada anterior (save antigo: 0).
+        c.elenco.forEach(p => {
+          const jogou = (Number(p.partidas) || 0) > (Number(p.partidasInicioTemp) || 0);
+          p.temporadasSemJogar = jogou ? 0 : ((Number(p.temporadasSemJogar) || 0) + 1);
+          p.partidasInicioTemp = Number(p.partidas) || 0;
+        });
+        const liberados = [];
+        // Lote 8 (9b): piso de 14 jogadores e sempre 2 goleiros (o 2º goleiro nunca é podado).
+        const PISO = 14;
+        const gks = () => c.elenco.filter(x => x.posicao === 'GK').length;
+        const sair = (p) => {
+          if (c.elenco.length <= PISO) return false;
+          if (p.posicao === 'GK' && gks() <= 2) return false;
+          c.elenco = c.elenco.filter(x => x.id !== p.id); liberados.push(p); return true;
+        };
+        // (b) fora do XI por 2 temporadas: sai (o de menor OVR primeiro).
+        c.elenco.filter(p => (p.temporadasSemJogar || 0) >= 2).sort((a, b) => (a.overall || 0) - (b.overall || 0)).forEach(sair);
+        // (a) folha por rodada acima do teto da divisão.
+        const div = (this.league && this.league.divisaoUser) || 1;
+        const teto = this._tetoFolhaRodada(div);
+        const folha = () => c.elenco.reduce((s, p) => s + (p.salario || 0), 0);
+        while (folha() > teto && c.elenco.length > PISO) {
+            const alvo = c.elenco.slice().sort((a, b) => (a.overall || 0) - (b.overall || 0) || (b.salario || 0) - (a.salario || 0))[0];
+            if (!sair(alvo)) break;
+        }
+        if (liberados.length && typeof ui !== 'undefined') {
+            ui.showActionFeedback('📋 Elenco podado (folha/fora do XI): ' + liberados.map(p => p.nome).join(', ') + '.', 'warning');
+        }
+        return liberados;
+    },
     startNewSeason() {
         if (!this.league.resumoTemporada || this.league.resumoTemporada.temporada !== this.league.temporada) return;
+        // Lote 8 (P3): pré-temporada — todo elenco começa com o fôlego máximo (sem campo novo).
+        if (typeof CompetitionSystem !== 'undefined') CompetitionSystem.all(this.league).forEach(cl => ((cl && cl.elenco) || []).forEach(p => { p.folego = p.folegoMax == null ? 100 : p.folegoMax; }));
         const modal = document.getElementById('modal-season-end');
         if (modal) modal.classList.add('hidden');
+        // 4.2: imposto progressivo — 15% do caixa acima de R$ 20 M por temporada (sink contra acúmulo).
+        if (this.club && (this.club.orcamento || 0) > 20000000) {
+            const imposto = Math.round((this.club.orcamento - 20000000) * 0.15);
+            this.club.orcamento -= imposto;
+            this.league.adicionarNoticia('🧾 Imposto sobre o caixa acima de R$ 20 M: ' + this.fmtMoneyShort(imposto) + '.');
+        }
+        try { this._podarElenco(); } catch (e) { /* poda nunca derruba a virada */ }
 
         const classificados = this.league.getTabela(1).slice(0, 16).map(c => c.nome);
         CompetitionSystem.rollover(this.league, this.club);

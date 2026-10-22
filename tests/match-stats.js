@@ -158,15 +158,21 @@ console.log('--- 8. Decisões do técnico · detalhado ×' + NDET);
 {
     // "melhor percentual" = o que um jogador atento escolhe lendo o hint
     // (ataque: maior chance de gol; defesa: menor risco de sofrer).
-    const politicaMelhor = ({ opts }) => {
-        const risco = /risco/i.test((opts && opts[0] && opts[0].hint) || '');
+    // Política só nos prompts de CHANCE (os que têm eff); os demais (ética, intervalo…) ficam no padrão.
+    // Antes a política valia para todos os prompts e isso enviesava a medida (B105 = viés da bancada).
+    const soChance = pol => q => (q.opts && q.opts[0] && q.opts[0].eff) ? (typeof pol === 'function' ? pol(q) : pol) : q.def;
+    const ehDefesa = q => /postura defensiva/i.test(q.desc || '');
+    const politicaMelhor = (q) => {
+        const opts = q.opts;
+        const risco = ehDefesa(q);
         const ps = (opts || []).map(o => Number(o.eff && o.eff.p) || 0);
         let idx = 0;
         ps.forEach((p, i) => { if (risco ? p < ps[idx] : p > ps[idx]) idx = i; });
         return idx;
     };
-    const politicaPior = ({ opts }) => {
-        const risco = /risco/i.test((opts && opts[0] && opts[0].hint) || '');
+    const politicaPior = (q) => {
+        const opts = q.opts;
+        const risco = ehDefesa(q);
         const ps = (opts || []).map(o => Number(o.eff && o.eff.p) || 0);
         let idx = 0;
         ps.forEach((p, i) => { if (risco ? p > ps[idx] : p < ps[idx]) idx = i; });
@@ -180,7 +186,7 @@ console.log('--- 8. Decisões do técnico · detalhado ×' + NDET);
         ['opção 2 sempre', 2]
     ];
     casos.forEach(([nome, pol]) => {
-        const rs = rodarDetalhado({ decisao: pol }, NDET);
+        const rs = rodarDetalhado({ decisao: soChance(pol) }, Math.max(NDET, 800));
         console.log('   ' + nome.padEnd(30) + ': ' + agregado(rs).linha
             + ' · xG usuário ' + media(rs.map(r => r.xG[0])).toFixed(2));
     });

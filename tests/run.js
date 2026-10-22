@@ -593,8 +593,11 @@ teste('clube com caixa investe na pré-temporada; sem caixa e usuário não', ()
 });
 teste('a meta da diretoria acompanha a divisão', () => {
     const s = novoSandbox();
-    const metas = [1, 2, 3, 4].map(d => s.ClubEcosystem.metaTemporada(null, { divisaoUser: d }).alvo);
-    ok(metas.join(',') === '8,6,4,4', 'metas inesperadas: ' + metas.join(','));
+    // Lote 8 (P4): T1 da Série A = entre os 12; a partir da T2 = 8. B/C/D seguem 6/4/4.
+    const metas = [1, 2, 3, 4].map(d => s.ClubEcosystem.metaTemporada(null, { divisaoUser: d, temporada: 1 }).alvo);
+    ok(metas.join(',') === '12,6,4,4', 'metas T1 inesperadas: ' + metas.join(','));
+    const m2 = s.ClubEcosystem.metaTemporada(null, { divisaoUser: 1, temporada: 2 }).alvo;
+    ok(m2 === 8, 'meta da A na T2 deveria ser 8: ' + m2);
 });
 teste('a força do rival responde à ascensão e à campanha', () => {
     const s = novoSandbox();
@@ -815,7 +818,7 @@ teste('Cera reduz a criação rival, mas não zera mais o jogo (B69)', () => {
     sim._buffs = [{ id: 't_cera', nome: 'Cera', fimMin: 40 }];
     const depois = sim._modeloXG(1).criacao;
     ok(depois > 0, 'Cera ainda zera a criação rival');
-    perto(depois / antes, 0.5, 0.02, 'redução da Cera fora do esperado');
+    perto(depois / antes, 0.45, 0.02, 'redução da Cera fora do esperado (lote 6: 0,45)');
 });
 
 // -------------------------------------------------- B64: fios narrativos (2026-10-19)
@@ -1324,11 +1327,11 @@ teste('3.6 prestígio: degraus 150/300/500 desbloqueiam e o resumo mostra o pró
     ok(MP.desbloqueado('tatica') === false, 'sem prestígio, degrau não deveria desbloquear');
 });
 
-teste('3.4 elenco inicial de carreira nova assina contrato de 28 a 38 rodadas', () => {
+teste('3.4 elenco inicial de carreira nova assina contrato de 20 a 44 rodadas (lote 5)', () => {
     const s = novoSandbox();
     const clube = new s.Club('Clube Teste', true);
     ok(clube.elenco.length >= 11, 'elenco inicial curto');
-    clube.elenco.forEach(p => ok(p.contratoRodadas >= 28 && p.contratoRodadas <= 38, 'contrato fora de 28–38: ' + p.contratoRodadas));
+    clube.elenco.forEach(p => ok(p.contratoRodadas >= 20 && p.contratoRodadas <= 44, 'contrato fora de 20–44: ' + p.contratoRodadas));
 });
 
 teste('3.5 demissão: sem demissão até a rodada 10; depois da carência, a confiança baixa demite', () => {
@@ -1343,6 +1346,7 @@ teste('3.5 demissão: sem demissão até a rodada 10; depois da carência, a con
     s.ClubEcosystem.afterRound(a.cl, a.lg, { meusGols: 0, golsAdv: 1, userHome: true });
     ok(a.cl.demitido !== true, 'demitiu dentro da carência (rodada 5)');
     const b = monta(11);
+    b.lg.temporada = 2; // carência de T2+ é 10 (na T1 é 14, lote 8/P4)
     s.ClubEcosystem.afterRound(b.cl, b.lg, { meusGols: 0, golsAdv: 1, userHome: true });
     ok(b.cl.demitido === true, 'não demitiu depois da carência (rodada 11) com confiança crítica');
 });
@@ -1377,6 +1381,129 @@ teste('3.7 draft pula quando nenhum jogador melhora o XI; olheiro com chance ≤
 teste('3.8 desafios não começam com partida ativa (diário, clássico, torneio)', () => {
     const n = (FONTE_HTML.match(/Partida em andamento — termine antes de outro desafio\./g) || []).length;
     ok(n === 3, 'esperava 3 guardas nos desafios, achei ' + n);
+});
+
+console.log('-- Lote 4: passivo/folha, copa, dificuldade, contratos, demissão, IA×IA, UX e faixa (2026-10-21)');
+
+teste('4.8 IA×IA: nenhuma comparação de lado usa o usuário fixo (_userSide) no motor de partida', () => {
+    const n = (FONTE_HTML.match(/side === this\._userSide\(\)|side !== this\._userSide\(\)/g) || []).length;
+    ok(n === 0, 'ainda há ' + n + ' comparações de lado com _userSide');
+    ok((FONTE_HTML.match(/this\._eUsuario\(/g) || []).length >= 15, 'poucos usos de _eUsuario');
+});
+
+teste('4.1 passivo: poda de elenco com teto de folha, fora do XI e mínimo de 11; empréstimo de emergência', () => {
+    ok(FONTE_HTML.indexOf('_podarElenco() {') >= 0 && FONTE_HTML.indexOf('this._podarElenco()') >= 0, 'poda não está ligada à virada');
+    ok(FONTE_HTML.indexOf('const PISO = 14;') >= 0 && FONTE_HTML.indexOf('gks() <= 2') >= 0, 'poda não respeita o piso de 14 e os 2 goleiros');
+    ok(FONTE_HTML.indexOf('Empréstimo de emergência automático') >= 0, 'falta a rede de segurança de empréstimo');
+    ok(FONTE_HTML.indexOf('pos === 1 ? 6000000 : pos === 2 ? 4000000') >= 0, 'prêmio de liga da Série A não foi subido');
+});
+
+teste('4.2 copa/continental: prêmio cortado e imposto de 15% sobre caixa acima de R$ 20 M', () => {
+    ok(FONTE_HTML.indexOf('[333000,500000,667000,1167000,2000000,4000000][c.etapa]') >= 0, 'prêmio de copa não cortado');
+    ok(FONTE_HTML.indexOf('[1000000,2000000,5000000][c.etapa - 6]') >= 0, 'prêmio continental não cortado');
+    ok(FONTE_HTML.indexOf('Imposto sobre o caixa acima de R$ 20 M') >= 0 && FONTE_HTML.indexOf('(this.club.orcamento - 20000000) * 0.15') >= 0, 'sem imposto progressivo');
+});
+
+teste('4.3 dificuldade: no máximo um draft por temporada; propostas menos frequentes', () => {
+    ok(FONTE_HTML.indexOf("this.club.draftTemporada = temporadaAtual") >= 0 && FONTE_HTML.indexOf('Draft desta temporada já foi usado.') >= 0, 'draft sem teto por temporada');
+    ok(FONTE_HTML.indexOf('if (Math.random() > 0.25) continue;') >= 0, 'ofertas ainda com 55%');
+});
+
+teste('4.4 contratos: alerta de titular com ≤3 rodadas (toast e selo vermelho no elenco)', () => {
+    ok(FONTE_HTML.indexOf('Titular com contrato acabando') >= 0, 'falta o toast de contrato acabando');
+    ok(FONTE_HTML.indexOf('⚠️ Contrato ${Math.max(0, p.contratoRodadas)}R') >= 0, 'falta o selo no elenco');
+});
+
+teste('4.5 demissão: caixa negativo não demite antes da T4; carência de 10 rodadas mantida', () => {
+    ok(FONTE_HTML.indexOf('const caixaNaoDemite = club.orcamento < 0 && (league.temporada || 1) < 4;') >= 0, 'sem a regra de caixa negativo até T4');
+    ok(FONTE_HTML.indexOf('!caixaNaoDemite') >= 0 && FONTE_HTML.indexOf('> carencia && !caixaNaoDemite') >= 0, 'regra não entra na condição de demissão');
+});
+
+teste('4.9 UX: focus-trap usa o modal do topo (maior z-index); rótulo do campo ≥0,5 rem e oculto até 480px', () => {
+    ok(FONTE_HTML.indexOf('const aberto = abertos.reduce(') >= 0, 'focus-trap ainda pega o primeiro modal do DOM');
+    ok(FONTE_HTML.indexOf('font-size: 0.42rem;') < 0, 'rótulo do campo ainda em 0,42 rem');
+    ok(/@media \(max-width: 480px\) \{\r?\n\s+\.campo-chip \.chip-label \{ display: none; \}/.test(FONTE_HTML), 'rótulo do campo não some até 480px');
+});
+
+teste('4.10 faixa de capitão (prestígio 500) aparece no menu, sem backdrop-filter nessa parte', () => {
+    ok(FONTE_HTML.indexOf('id="menu-faixa"') >= 0 && FONTE_HTML.indexOf("MetaProgress.desbloqueado('faixa')") >= 0, 'faixa não exibida no menu');
+    ok(FONTE_HTML.indexOf('menu-faixa') > -1 && FONTE_HTML.slice(FONTE_HTML.indexOf('id="menu-faixa"'), FONTE_HTML.indexOf('id="menu-faixa"') + 400).indexOf('backdrop-filter') < 0, 'faixa usa backdrop-filter');
+});
+
+console.log('-- Lote 5: harness de carreira com as funções reais do app (tests/carreira.js)');
+
+teste('carreira: o sandbox carrega o objeto app real e uma rodada de jogo roda sem erro', () => {
+    const { novoSandboxCarreira } = require('./carreira-lib.js');
+    const sb = novoSandboxCarreira();
+    const { app, Engine } = sb;
+    ok(typeof app.generateOffers === 'function' && typeof app.closeMatchResult === 'function' && typeof app.startNewSeason === 'function', 'app real não carregou');
+    app.saveGame = () => {}; app.autosaveNow = () => {}; app._registrarSessao = () => {};
+    app.createNewClub('Teste de Carreira');
+    ok(app.club && app.league && app.club.elenco.length >= 11, 'clube/liga não criados pelo fluxo real');
+    app.club.patrocinio = { id: 'p_fixo', nome: 'Teste', tipo: 'fixo', fixo: 40000, ativo: true, legado: false, metas: [] };
+    app._estiloPartida = 'equilibrado';
+    app.playMatch();
+    app.confirmarPreparacao();
+    sb.drenarTimers();
+    ok(!Engine.activeMatch && app._resultadoPendente === true, 'a partida real não terminou');
+    app.closeMatchResult();
+    ok(app.league.rodada === 2, 'a rodada não avançou pelo fluxo real: ' + app.league.rodada);
+});
+
+console.log('-- Lote 8: fadiga proporcional, IA recupera, pré-temporada, diretoria e desafio que não cobra rodada');
+
+teste('P5: desafio não passa a rodada — folhas pagas = rodadas de liga mesmo com desafios no meio', () => {
+    const { novoSandboxCarreira } = require('./carreira-lib.js');
+    const sb = novoSandboxCarreira();
+    const { app, Club } = sb;
+    let folhas = 0;
+    const orig = Club.prototype.pagarSalarios;
+    Club.prototype.pagarSalarios = function () { folhas++; return orig.call(this); };
+    app.saveGame = () => {}; app.autosaveNow = () => {}; app._registrarSessao = () => {};
+    app.createNewClub('Teste P5');
+    app.club.patrocinio = { id: 'p_fixo', nome: 'Teste', tipo: 'fixo', fixo: 40000, ativo: true, legado: false, metas: [] };
+    const rodadaLiga = () => {
+        app._estiloPartida = 'equilibrado';
+        app.playMatch(); app.confirmarPreparacao(); sb.drenarTimers();
+        if (app._resultadoPendente) { app.closeMatchResult(); sb.drenarTimers(); }
+    };
+    const desafio = () => {
+        app.lastResult = { h: 1, a: 0, adv: 'X' }; app._resultadoPendente = true; app._isDesafio = true;
+        app.closeMatchResult(); sb.drenarTimers();
+    };
+    rodadaLiga(); rodadaLiga(); rodadaLiga();
+    const ligaAntes = folhas;
+    desafio(); desafio();
+    rodadaLiga();
+    ok(ligaAntes === 3, 'folhas da liga antes dos desafios: ' + ligaAntes);
+    ok(folhas === 4, 'desafio cobrou folha: folhas=' + folhas + ' (esperado 4 = rodadas de liga)');
+    ok(app.league.rodada === 5, 'rodada da liga deveria ser 5, veio ' + app.league.rodada);
+});
+
+teste('P1: recuperação de fôlego é proporcional ao déficit (75% do que falta)', () => {
+    const { novoSandboxCarreira } = require('./carreira-lib.js');
+    const sb = novoSandboxCarreira();
+    const { app } = sb;
+    app.saveGame = () => {}; app.autosaveNow = () => {}; app._registrarSessao = () => {};
+    app.createNewClub('Teste P1');
+    app.club.elenco.forEach(p => { p.folego = 40; p.folegoMax = 100; });
+    app.club.ultimaRecuperacaoFadiga = '';
+    app.recuperarFadiga();
+    const f = app.club.elenco[0].folego;
+    ok(Math.abs(f - 85) < 0.01, 'fôlego deveria ser 40 + 60×0,75 = 85, veio ' + f);
+});
+
+teste('P3: pré-temporada devolve o fôlego máximo a todo elenco (sem campo novo)', () => {
+    ok(FONTE_HTML.indexOf('Lote 8 (P3): pré-temporada') >= 0 && FONTE_HTML.indexOf('p.folego = p.folegoMax == null ? 100 : p.folegoMax;') >= 0, 'P3 não aplicado no startNewSeason');
+});
+
+teste('P2: a IA também recupera fôlego, sem contar em desafio', () => {
+    ok(FONTE_HTML.indexOf('Lote 8 (P2): a IA também recupera') >= 0 && FONTE_HTML.indexOf('if (!desafio && this.league && typeof CompetitionSystem') >= 0, 'P2 não aplicado');
+});
+
+teste('P4 diretoria: derrota −7; carência de 14 rodadas na T1 para todas as dificuldades', () => {
+    ok(FONTE_HTML.indexOf('perdeu ? -7 : 1') >= 0, 'derrota da diretoria não é −7');
+    ok(FONTE_HTML.indexOf('const carencia = (league.temporada || 1) === 1 ? 14 : 10;') >= 0, 'carência da T1 não é 14');
 });
 
 console.log('');
