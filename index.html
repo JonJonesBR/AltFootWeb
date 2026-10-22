@@ -1035,7 +1035,7 @@ body {
 .decision-btn:active { transform: scale(0.96); }
 #match-decision-timer { height: 4px; border-radius: 2px; background: rgba(255,255,255,0.1); overflow: hidden; }
 #match-decision-timer-bar { height: 100%; width: 100%; background: #ffb000; box-shadow: 0 0 10px rgba(255,176,0,0.7); transition: width 0.12s linear; }
-.match-decision-meta { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 8px; font-size: 0.65rem; color: var(--text-muted); }
+.match-decision-meta { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 8px; font-size: 0.69rem; color: var(--text-muted); }
 #match-decision-countdown { color: var(--accent); font-weight: 900; font-variant-numeric: tabular-nums; }
 #match-decision.urgente #match-decision-countdown { color: #fca5a5; }
 #match-decision.urgente #match-decision-timer-bar { background: #f87171; }
@@ -1050,14 +1050,14 @@ body {
 .foco-bar-fill.bajo { background: linear-gradient(90deg, #f87171, #fca5a5); }
 .foco-pct { font-size: 0.78rem; font-weight: 900; color: #c4b5fd; font-family: ui-monospace, Consolas, 'Courier New', monospace; min-width: 40px; text-align: right; }
 .cartas-efeitos-ativos { margin: 0 0 10px; padding: 9px 10px; border: 1px solid rgba(167,139,250,0.38); border-radius: 12px; background: linear-gradient(135deg, rgba(167,139,250,0.12), rgba(255,176,0,0.06)); text-align: left; }
-.cartas-efeitos-cabecalho { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 6px; color: #c4b5fd; font-size: 0.66rem; font-weight: 900; letter-spacing: 0.8px; }
+.cartas-efeitos-cabecalho { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 6px; color: #c4b5fd; font-size: 0.69rem; font-weight: 900; letter-spacing: 0.8px; }
 .cartas-efeito-item + .cartas-efeito-item { margin-top: 7px; padding-top: 7px; border-top: 1px solid rgba(255,255,255,0.08); }
 .cartas-efeito-topo { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
 .cartas-efeito-nome { overflow: hidden; color: #f5f3ff; font-size: 0.76rem; font-weight: 900; text-overflow: ellipsis; white-space: nowrap; }
 .cartas-efeito-tempo { flex: none; color: #fbbf24; font: 800 0.68rem ui-monospace, Consolas, monospace; }
 .cartas-efeito-barra { height: 5px; margin-top: 5px; overflow: hidden; border-radius: 99px; background: rgba(255,255,255,0.1); }
 .cartas-efeito-progresso { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #8b5cf6, #c4b5fd); transition: width 0.25s ease; }
-.cartas-efeito-bonus { margin-top: 4px; color: var(--text-muted); font-size: 0.64rem; font-weight: 700; }
+.cartas-efeito-bonus { margin-top: 4px; color: var(--text-muted); font-size: 0.69rem; font-weight: 700; }
 .carta-mao-btn {
     width: 100%; text-align: left; padding: 10px 12px; border-radius: 12px; cursor: pointer;
     background: rgba(167, 139, 250, 0.12); border: 1px solid rgba(167, 139, 250, 0.45);
@@ -2604,7 +2604,7 @@ html, body, * {
     .meta-row { display: none; }
     .match-narrative-section { min-height: 72px; max-height: 32vh; padding: 5px 8px; }
     #match-log { min-height: 18px; margin-bottom: 4px; }
-    .feed-item { padding: 3px 6px; font-size: 0.66rem; }
+    .feed-item { padding: 3px 6px; font-size: 0.69rem; }
     .campo-2d { aspect-ratio: 21 / 9; }
     .campo-duelo .duelo-mini { min-width: 70px; padding: 5px 8px; }
     .campo-duelo .duelo-mini .dm-ovr { font-size: 0.95rem; }
@@ -2624,7 +2624,7 @@ html, body, * {
     .match-narrative-section { max-height: 28vh; min-height: 56px; }
     .match-stats-row { gap: 4px; }
     .posse-wrap { padding: 3px 8px; }
-    .radio-replay { font-size: 0.58rem; padding: 3px 8px; }
+    .radio-replay { font-size: 0.69rem; padding: 3px 8px; }
 }
 
 /* Tablet / desktop: mais ar no campo e rótulos legíveis */
@@ -5106,8 +5106,8 @@ const GAME_DATA = {
     taticas: [
         // G1 (2026-09-24): cartas de partida — efeito em _difA/_difD por durMin simulados.
         // custo = Foco do Treinador (×25 na barra 0–100). efeito legado {atk,def} ainda é aceito por saves antigos.
-        { id: "t_pressao", nome: "Pressão Asfixiante", desc: "35 Foco · 10 min · +35% no ataque · −6 de fôlego", custo: 2, raridade: "Prata",
-          efeito: { durMin: 10, difA: 0, difD: 0, flavor: "🔥 Pressão Asfixiante! +35% de pressão ofensiva por 10 minutos; o XI perde 6 de fôlego." } },
+        { id: "t_pressao", nome: "Pressão Asfixiante", desc: "35 Foco · 25 min · +60% de pressão no ataque · −2 de fôlego", custo: 2, raridade: "Prata",
+          efeito: { durMin: 25, difA: 0, difD: 0, flavor: "🔥 Pressão Asfixiante! +60% de pressão ofensiva por 25 minutos; o XI perde 2 de fôlego." } },
         { id: "t_cera", nome: "Cera / Quebrar Ritmo", desc: "25 Foco · 8 min com chances rivais reduzidas · risco de amarelo", custo: 1, raridade: "Bronze",
           efeito: { durMin: 8, difA: 0, difD: 0, flavor: "🛡️ Cera! Oito minutos de quebra de ritmo: as chances rivais caem; cuidado com o árbitro." } },
         { id: "t_chuveirinho", nome: "Chuveirinho / Bola na Área", desc: "30 Foco · cruzamentos diretos · OVR do centroavante decide", custo: 2, raridade: "Prata",
@@ -5117,9 +5117,9 @@ const GAME_DATA = {
         { id: "t_grito", nome: "Grito do Treinador", desc: "Acelera e reanima o grupo", custo: 2, raridade: "Prata",
           efeito: { durMin: 7, difA: 2, difD: 2, flavor: "📣 Grito do técnico! O time responde com mais intensidade." } },
         { id: "t_muralha", nome: "Muralha na Área", desc: "Estaciona o ônibus na frente do gol", custo: 2, raridade: "Prata",
-          efeito: { durMin: 12, difA: -2, difD: 5, flavor: "🧱 Muralha na área! Nada passa pela nossa defesa." } },
+          efeito: { durMin: 25, difA: 0, difD: 5, flavor: "🧱 Muralha na área! Nada passa pela nossa defesa." } },
         { id: "t_contra", nome: "Contra-Ataque Mortal", desc: "Após defender, sai em velocidade", custo: 3, raridade: "Ouro",
-          efeito: { durMin: 10, difA: 5, difD: 0, flavor: "⚡ Contra-ataque mortal! O time explode na transição." } },
+          efeito: { durMin: 25, difA: 5, difD: 0, flavor: "⚡ Contra-ataque mortal! O time explode na transição." } },
         { id: "t_tiki", nome: "Tiki-Taka", desc: "Posse sufocante e cadência de passe", custo: 3, raridade: "Ouro",
           efeito: { durMin: 12, difA: 3, difD: 2, flavor: "✨ Tiki-taka! Posse de bola e cadência no meio-campo." } }
     ]
@@ -5667,7 +5667,10 @@ const ClubEcosystem = {
     club.rodadasDiretoriaCritica = club.pacienciaDiretoria < 20 ? club.rodadasDiretoriaCritica + 1 : 0;
     // Carência: sem demissão nas 10 primeiras rodadas da temporada; na Lenda, na T1, só a partir da 14ª.
     // Lote 8 (P4): T1 tem carência de 14 rodadas (todas as dificuldades); as demais temporadas, 10.
-    const carencia = (league.temporada || 1) === 1 ? 14 : 10;
+    // Lote 9: D e Lenda não demitem em T1–T2 (carência de temporada inteira, 38). Passivo/gestor da A: T1 14, depois 10.
+    const lendaCarencia = ((club.difficulty && club.difficulty.multiplier) || 1) >= 1.3;
+    const divCarencia = Math.max(1, Math.min(4, (league.divisaoUser || 1)));
+    const carencia = ((divCarencia > 1 || lendaCarencia) && (league.temporada || 1) <= 2) ? 38 : ((league.temporada || 1) === 1 ? 14 : 10);
     // 4.5: caixa negativo não demite antes da T4 (a rede de segurança/SAF age antes disso).
     const caixaNaoDemite = club.orcamento < 0 && (league.temporada || 1) < 4;
     if (club.rodadasDiretoriaCritica >= 3 && (league.rodada || 0) > carencia && !caixaNaoDemite) {
@@ -6198,7 +6201,8 @@ class Club {
     const folha = this.elenco.reduce((s, p) => s + (p.salario || 0), 0);
     this.orcamento -= folha;
     // 3.2 (iii): manutenção de estádio/base cresce com o nível acima de 1 (teto 5).
-    this.orcamento -= this.manutencaoInfra();
+    // Lote 10: manutenção só sai de caixa positivo (não aprofunda um saldo já negativo).
+    this.orcamento -= Math.min(this.manutencaoInfra(), Math.max(0, this.orcamento));
     if (this.orcamento < 0) {
       if (typeof ui !== 'undefined') ui.showActionFeedback("Orçamento negativo! Venda jogadores ou reduza custos.", "error");
     }
@@ -6283,6 +6287,7 @@ class League {
     // Mesma convenção de Club.saveVersion: incremente ao mudar o formato e migre em _restoreFromRaw.
     this.saveVersion = 1;
     this.climaRodada = null; // G2: {rodada, condicao} — clima estável da rodada atual
+    this.seed = Math.floor(Math.random() * 2 ** 31); // Lote 10: semente própria desde a T1 (save antigo é sobrescrito pelo Object.assign)
   }
 
   inicializar() {
@@ -6493,7 +6498,7 @@ const CompetitionSystem = {
                 if ((home === user.nome && h > a) || (away === user.nome && a > h)) prize += 500000;
             } else {
                 winners.push(winner);
-                if (winner === user.nome) prize += kind === 'copa' ? [333000,500000,667000,1167000,2000000,4000000][c.etapa] : [1000000,2000000,5000000][c.etapa - 6];
+                if (winner === user.nome) prize += kind === 'copa' ? [250000,375000,500000,875000,1500000,3000000][c.etapa] : [750000,1500000,3750000][c.etapa - 6];
             }
         }
         c.etapa++;
@@ -6542,7 +6547,7 @@ const CompetitionSystem = {
         const home=this.find(app.league,userPair[0]), away=this.find(app.league,userPair[1]), userHome=home===app.club;
         ui.showScreen('screen-match'); ui.startMatchRender();
         MatchUI.init(home.nome,away.nome,kind==='copa'?'COPA NACIONAL':'TAÇA CONTINENTAL'+(!userHome?' · PRESSÃO VISITANTE':''),'MATA-MATA E RÁDIO AO VIVO',null);
-        Engine.activeMatch = new MatchSim(home,away,data=>ui.updateMatchData(data), (h,a,pen)=>{ scores[pairs.indexOf(userPair)]=result(userPair,h,a,pen); Engine.activeMatch=null; finish(); }, {regra:groups?null:'torneio',userHome,continental:kind==='continental',seed:(app.league.seed||1)+state.etapa*817,tempoMin:90});
+        Engine.activeMatch = new MatchSim(home,away,data=>ui.updateMatchData(data), (h,a,pen)=>{ scores[pairs.indexOf(userPair)]=result(userPair,h,a,pen); app._recuperarFolegoCopa(); Engine.activeMatch=null; finish(); }, {regra:groups?null:'torneio',userHome,continental:kind==='continental',seed:(app.league.seed||1)+state.etapa*817,tempoMin:90});
         Engine.activeMatch.start();
     }
 };
@@ -8625,11 +8630,11 @@ class MatchSim {
         const momentum = Math.max(0.75, Math.min(1.25, 1 + (side === 0 ? 1 : -1) * this._pressao / 400));
         const buffs = this._eUsuario(side) ? this._buffsAtivos() : [];
         const buffsRival = !this._eUsuario(side) ? this._buffsAtivos() : [];
-        const pressao = buffs.some(b => b.id === 't_pressao') ? 1.35 : 1;
+        const pressao = buffs.some(b => b.id === 't_pressao') ? 1.6 : 1;
         const cruzar = buffs.some(b => b.id === 't_chuveirinho');
         const tikiAtk = buffs.some(b => b.id === 't_tiki') ? 1.3 : 1;
         const tikiDef = buffsRival.some(b => b.id === 't_tiki') ? 0.7 : 1;
-        const muralhaRival = buffsRival.some(b => b.id === 't_muralha') ? 0.55 : 1;
+        const muralhaRival = buffsRival.some(b => b.id === 't_muralha') ? 0.32 : 1;
         const contra = buffs.some(b => b.id === 't_contra') ? 1.5 : 1;
         const impedimentoRival = buffsRival.some(b => b.id === 't_impedimento') ? 0.8 : 1;
         const atacantes = linha.filter(j => j.posicao === 'ATT');
@@ -8684,6 +8689,7 @@ class MatchSim {
             * (side === 0 ? casaMul : 1) * urgencia * volumeInt
             * perfilCriacao * perfilDefesaRival;
         const qualidade = Math.max(0.04, Math.min(0.48, 0.135 * Math.exp((p.atk - d.def) / 55) * clima
+            * muralhaRival // Lote 9 (D): Muralha também reduz a qualidade das chances do rival (o piso da criação saturava o efeito)
             * (side === 0 ? casaQ : 1)
             * (cruzar ? 0.8 + melhor / 160 : 1)
             * contra * perfilQualidade));
@@ -9568,11 +9574,11 @@ class MatchSim {
         // Cartas novas (G1) já vêm com difA/difD prontos e valem 1:1.
         const difA = e.difA != null ? e.difA : (e.atk || 0) * 0.6;
         const difD = e.difD != null ? e.difD : (e.def || 0) * 0.6;
-        const dur = card.id === 't_pressao' ? 10 : card.id === 't_cera' ? 8 : e.durMin || 6;
+        const dur = card.id === 't_pressao' ? 25 : card.id === 't_cera' ? 8 : e.durMin || 6;
         if (card.id === 't_pressao') {
             const team = this._userSide() === 0 ? this.home : this.away;
             const ids = this._emCampo[this._userSide()] || [];
-            team.elenco.filter(p => ids.includes(p.id)).forEach(p => { p.folego = Math.max(5, (p.folego ?? 100) - 6); });
+            team.elenco.filter(p => ids.includes(p.id)).forEach(p => { p.folego = Math.max(5, (p.folego ?? 100) - 2); });
         }
         if (card.id === 't_cera' && this._roll(this.arbitro === 'Rigoroso' ? 0.4 : 0.2)) {
             this._aplicar({ min: this.minuto, tipo: 'cartao', side: this._userSide() });
@@ -9757,7 +9763,7 @@ class MatchSim {
         const team = this._userSide() === 0 ? this.home : this.away;
         const escolhas = [
             { label: '🤝 Fair Play', hint: 'Respeito +3 · desperdiça o ataque' },
-            { label: '🔥 Implacável', hint: 'Finalizar · risco de briga e crítica' }
+            { label: '🔥 Implacável', hint: 'Finalizar · custa 4 de fôlego do XI, 4 de moral e risco de briga e cartões' }
         ];
         const responder = i => {
             if (this.abortado) return;
@@ -9770,6 +9776,9 @@ class MatchSim {
                 this._timer = setTimeout(() => this._tick(),this._gap());
             } else {
                 team.fans = valor(team.fans,-2); team.etica = valor(team.etica,-4);
+                // Lote 9 (C): Implacável tem custo real — o XI em campo gasta 4 de fôlego e o vestiário perde 4 de moral.
+                team.moral = valor(team.moral,-4);
+                { const idsC = this._emCampo[this._userSide()] || []; team.elenco.filter(p => idsC.includes(p.id)).forEach(p => { p.folego = Math.max(5, (p.folego ?? 100) - 4); }); }
                 this._emit('🔥 O técnico manda seguir! A imprensa desaprova a escolha.', 'warn');
                 if (this._roll(0.45)) {
                     this._aplicar({ tipo:'cartao', side:this._userSide(), min:this.minuto });
@@ -10818,8 +10827,14 @@ const Engine = {
         const rng = mulberry32((hashStr(String(seed)) >>> 0) || 1);
         // Elencos CLONADOS: a integração por minuto derruba fôlego virtual dos
         // clones e nunca toca nos atributos reais salvos dos clubes da IA.
+        // Lote 9 (B): simetria de fadiga — o clone da IA começa a partida com desgaste esperado
+        // (fôlego = 100 − U(6,16), média ~89, o mesmo regime do usuário no apito). Só no clone; o save não muda.
         const clonar = t => Object.assign({}, t, {
-            elenco: (t.elenco || []).map(p => Object.assign({}, p))
+            elenco: (t.elenco || []).map(p => {
+                const c = Object.assign({}, p);
+                if (!t.isUser) c.folego = Math.max(5, 100 - (6 + rng() * 10));
+                return c;
+            })
         });
         const hc = clonar(h), ac = clonar(a);
         const sim = new MatchSim(hc, ac, null, null, { seed, modo: 'instantaneo', estilo: hc.mentalidade === 'ofensiva' ? 'ofensivo' : 'equilibrado' });
@@ -13151,8 +13166,11 @@ class UI {
     const b = app.club.baseNivel || 1;
     if (stadiumStars) stadiumStars.innerText = '⭐'.repeat(Math.min(5, s));
     if (baseStars) baseStars.innerText = '⭐'.repeat(Math.min(5, b));
-    if (stadiumInfo) stadiumInfo.innerText = `Nível ${s} · Bilheteria: +${app.fmtMoney(app.stadiumRevenue())}/rodada (Custo: ${app.fmtMoneyShort(app.stadiumCost())})`;
-    if (baseInfo) baseInfo.innerText = `Nível ${b} · Chance de craques jovens na base (Custo: ${app.fmtMoneyShort(app.baseCost())})`;
+    // Lote 10: manutenção por rodada (R$ 45 mil por nível acima de 1, teto 5) mostrada ao jogador; sem campo novo.
+    const manutEstadio = Math.max(0, Math.min(5, Number(s) || 1) - 1) * 45000;
+    const manutBase = Math.max(0, Math.min(5, Number(b) || 1) - 1) * 45000;
+    if (stadiumInfo) stadiumInfo.innerText = `Nível ${s} · Bilheteria: +${app.fmtMoney(app.stadiumRevenue())}/rodada · Manutenção: −${app.fmtMoneyShort(manutEstadio)}/rodada (Custo: ${app.fmtMoneyShort(app.stadiumCost())})`;
+    if (baseInfo) baseInfo.innerText = `Nível ${b} · Chance de craques jovens na base · Manutenção: −${app.fmtMoneyShort(manutBase)}/rodada (Custo: ${app.fmtMoneyShort(app.baseCost())})`;
     if (stadiumBtn) { stadiumBtn.disabled = app.club.orcamento < app.stadiumCost(); }
     if (baseBtn) { baseBtn.disabled = app.club.orcamento < app.baseCost(); }
 
@@ -15583,6 +15601,16 @@ const app = {
             p.folego = Math.max(5, (p.folego == null ? 100 : p.folego) - drain);
         });
         if (typeof Engine !== 'undefined') Engine._ultimosUsados = null;
+    },
+    // Lote 9 (A): partida de copa/continental do usuário recupera fôlego como uma rodada
+    // (mesma fórmula proporcional: 75% do déficit + nível médico). Sem chave: copa não passa a rodada.
+    _recuperarFolegoCopa() {
+        if (!this.club || !Array.isArray(this.club.elenco)) return;
+        this.club.elenco.forEach(p => {
+            const f0 = p.folego == null ? 100 : p.folego;
+            const mx = p.folegoMax == null ? 100 : p.folegoMax;
+            p.folego = Math.min(mx, f0 + Math.max(0, mx - f0) * 0.75 + ClubEcosystem.nivel(this.club, 'medico') * 8);
+        });
     },
     recuperarFadiga() {
         if (!this.club) return;

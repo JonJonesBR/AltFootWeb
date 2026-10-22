@@ -220,6 +220,24 @@ console.log('--- 11. Fôlego e moral do time do usuário · detalhado ×' + NDET
     console.log('   moral   22 ×  70 : ' + agregado(bravo).linha);
 }
 
+// ---------- 13. Ética: Fair play × Implacável (dilema de vestiário) ----------
+console.log('--- 13. Ética · detalhado ×' + Math.max(NDET, 800));
+{
+    // Só o prompt de ética (opção 0 = Fair play; 1 = Implacável). O resto segue o padrão.
+    const ehEtica = q => !!(q.opts && q.opts[0] && /Fair/i.test(String(q.opts[0].label || '')));
+    const etica = k => q => (ehEtica(q) ? k : q.def);
+    const resumoEtica = rs => ({
+        pro: media(rs.map(r => r.h)), contra: media(rs.map(r => r.a)),
+        cartoes: media(rs.map(r => r.cartoes[0] + r.cartoes[1])),
+        folego: media(rs.map(r => r.folegoMedio))
+    });
+    const fair = resumoEtica(rodarDetalhado({ decisao: etica(0) }, Math.max(NDET, 800)));
+    const impl = resumoEtica(rodarDetalhado({ decisao: etica(1) }, Math.max(NDET, 800)));
+    console.log('   Fair play   : gols pró ' + fair.pro.toFixed(2) + ' · contra ' + fair.contra.toFixed(2) + ' · cartões ' + fair.cartoes.toFixed(2) + ' · fôlego XI ' + fair.folego.toFixed(1));
+    console.log('   Implacável  : gols pró ' + impl.pro.toFixed(2) + ' · contra ' + impl.contra.toFixed(2) + ' · cartões ' + impl.cartoes.toFixed(2) + ' · fôlego XI ' + impl.folego.toFixed(1));
+    console.log('   ganho líquido de gols (pró − contra), Implacável − Fair play: ' + ((impl.pro - impl.contra) - (fair.pro - fair.contra)).toFixed(3));
+}
+
 // ---------- 12. Reprodutibilidade (mesma seed = mesmo resultado) ----------
 {
     const a = runMatch({ seed: 4242 });

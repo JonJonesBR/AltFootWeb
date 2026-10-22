@@ -1399,8 +1399,8 @@ teste('4.1 passivo: poda de elenco com teto de folha, fora do XI e mínimo de 11
 });
 
 teste('4.2 copa/continental: prêmio cortado e imposto de 15% sobre caixa acima de R$ 20 M', () => {
-    ok(FONTE_HTML.indexOf('[333000,500000,667000,1167000,2000000,4000000][c.etapa]') >= 0, 'prêmio de copa não cortado');
-    ok(FONTE_HTML.indexOf('[1000000,2000000,5000000][c.etapa - 6]') >= 0, 'prêmio continental não cortado');
+    ok(FONTE_HTML.indexOf('[250000,375000,500000,875000,1500000,3000000][c.etapa]') >= 0, 'prêmio de copa não cortado');
+    ok(FONTE_HTML.indexOf('[750000,1500000,3750000][c.etapa - 6]') >= 0, 'prêmio continental não cortado');
     ok(FONTE_HTML.indexOf('Imposto sobre o caixa acima de R$ 20 M') >= 0 && FONTE_HTML.indexOf('(this.club.orcamento - 20000000) * 0.15') >= 0, 'sem imposto progressivo');
 });
 
@@ -1503,7 +1503,76 @@ teste('P2: a IA também recupera fôlego, sem contar em desafio', () => {
 
 teste('P4 diretoria: derrota −7; carência de 14 rodadas na T1 para todas as dificuldades', () => {
     ok(FONTE_HTML.indexOf('perdeu ? -7 : 1') >= 0, 'derrota da diretoria não é −7');
-    ok(FONTE_HTML.indexOf('const carencia = (league.temporada || 1) === 1 ? 14 : 10;') >= 0, 'carência da T1 não é 14');
+    ok(FONTE_HTML.indexOf('const carencia = ((divCarencia > 1 || lendaCarencia) && (league.temporada || 1) <= 2) ? 38 : ((league.temporada || 1) === 1 ? 14 : 10);') >= 0, 'carência de D/Lenda em T1–T2 não é 38, ou a da A não é 14/10');
+});
+
+console.log('-- Lote 9: copa recupera fôlego, IA simétrica, Implacável com custo, cartas e carência de D/Lenda');
+
+teste('A: partida de copa do usuário recupera fôlego (mesma fórmula 0,75 + médico) e a copa é chamada após o jogo', () => {
+    const { novoSandboxCarreira } = require('./carreira-lib.js');
+    const sb = novoSandboxCarreira();
+    const { app } = sb;
+    app.saveGame = () => {}; app.autosaveNow = () => {}; app._registrarSessao = () => {};
+    app.createNewClub('Teste A');
+    app.club.elenco.forEach(p => { p.folego = 40; p.folegoMax = 100; });
+    app._recuperarFolegoCopa();
+    ok(Math.abs(app.club.elenco[0].folego - 85) < 0.01, 'copa deveria recuperar 40 → 85, veio ' + app.club.elenco[0].folego);
+    ok(FONTE_HTML.indexOf('app._recuperarFolegoCopa(); Engine.activeMatch=null; finish();') >= 0, 'copa não chama a recuperação após o jogo do usuário');
+});
+
+teste('B: clone da IA começa a partida com desgaste (fôlego 100 − U(6,16)), sem tocar o usuário', () => {
+    ok(FONTE_HTML.indexOf('if (!t.isUser) c.folego = Math.max(5, 100 - (6 + rng() * 10));') >= 0, 'simetria de fadiga da IA ausente');
+});
+
+teste('C: Implacável tem custo real (−4 de fôlego no XI e −4 de moral) e o texto avisa', () => {
+    ok(FONTE_HTML.indexOf('team.moral = valor(team.moral,-4);') >= 0, 'Implacável sem perda de moral');
+    ok(FONTE_HTML.indexOf("hint: 'Finalizar · custa 4 de fôlego do XI, 4 de moral e risco de briga e cartões'") >= 0, 'texto da opção não avisa o custo');
+});
+
+teste('D: cartas Pressão, Contra e Muralha com duração de 25 min; Muralha reduz também a qualidade das chances rivais', () => {
+    ok(FONTE_HTML.indexOf("const dur = card.id === 't_pressao' ? 25") >= 0, 'duração da Pressão não é 25');
+    ok(FONTE_HTML.indexOf('efeito: { durMin: 25, difA: 5, difD: 0, flavor: "⚡ Contra') >= 0, 'duração do Contra não é 25');
+    ok(FONTE_HTML.indexOf('* muralhaRival // Lote 9 (D)') >= 0, 'Muralha não atua na qualidade');
+});
+
+teste('carência da diretoria: D e Lenda sem demissão em T1–T2; passivo/gestor da A mantêm 14 e 10', () => {
+    ok(FONTE_HTML.indexOf('const carencia = ((divCarencia > 1 || lendaCarencia) && (league.temporada || 1) <= 2) ? 38 :') >= 0, 'carência de D/Lenda não é 38 em T1–T2');
+});
+
+console.log('-- Lote 10: semente própria na T1, manutenção sem caixa negativo e medição de carreira');
+
+teste('League() tem semente numérica finita desde a T1; duas carreiras novas têm sementes diferentes', () => {
+    const s = novoSandbox();
+    const a = new s.League(), b = new s.League();
+    ok(Number.isFinite(a.seed) && typeof a.seed === 'number', 'League sem semente: ' + a.seed);
+    ok(a.seed !== b.seed, 'duas carreiras novas com a mesma semente');
+});
+
+teste('manutenção só sai de caixa positivo: caixa 100 mil com folha 50 mil e infra nível 5/5 fica em 0, não negativo', () => {
+    const s = novoSandbox();
+    const c = new s.Club('X', true);
+    c.estadioNivel = 5; c.baseNivel = 5; c.orcamento = 100000;
+    c.elenco = [{ salario: 50000, overall: 60 }];
+    c.pagarSalarios();
+    ok(c.orcamento === 0, 'caixa deveria ficar em 0, veio ' + c.orcamento);
+});
+
+teste('com caixa de 10 M, a rodada desconta folha e a manutenção inteira (360 mil no nível 5/5)', () => {
+    const s = novoSandbox();
+    const c = new s.Club('X', true);
+    c.estadioNivel = 5; c.baseNivel = 5; c.orcamento = 10000000;
+    c.elenco = [{ salario: 50000, overall: 60 }];
+    c.pagarSalarios();
+    ok(c.orcamento === 10000000 - 50000 - 360000, 'desconto errado: ' + c.orcamento);
+});
+
+teste('manutencaoInfra segue intacta (45 mil por nível acima de 1, teto 5)', () => {
+    const s = novoSandbox();
+    const c = new s.Club('X', true);
+    c.estadioNivel = 1; c.baseNivel = 1;
+    ok(c.manutencaoInfra() === 0, 'nível 1 deveria custar 0');
+    c.estadioNivel = 9; c.baseNivel = 9;
+    ok(c.manutencaoInfra() === 8 * 45000, 'teto 5 quebrado');
 });
 
 console.log('');

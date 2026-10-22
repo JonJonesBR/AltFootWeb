@@ -38,7 +38,10 @@ function simular({ pol, div, dif, seed, temps, index }) {
     const K = zero();
     let motivo = null;
     const origGate = app.stadiumRevenue;
-    app.stadiumRevenue = function () { const v = origGate.call(this); K.gate += v; return v; };
+    app.stadiumRevenue = function () { const v = origGate.call(this); if (!K._noGate) K.gate += v; return v; };
+    // Lote 10: o resumo de partida (buildMatchSummary) chama stadiumRevenue só para exibir — não conta de novo.
+    const origResumo = app.buildMatchSummary;
+    app.buildMatchSummary = function (...args) { K._noGate = true; try { return origResumo.apply(this, args); } finally { K._noGate = false; } };
     const origSettle = CompetitionSystem.settle;
     CompetitionSystem.settle = function (league, kind, scores, user) {
         const net = origSettle.call(this, league, kind, scores, user);
@@ -47,7 +50,12 @@ function simular({ pol, div, dif, seed, temps, index }) {
     const origPremio = ClubEcosystem.premio;
     ClubEcosystem.premio = function (club, v) { const net = origPremio.call(this, club, v); if (club && club.isUser && !K.emCopa) K.liga += net - 0; return net; };
     const origSal = Club.prototype.pagarSalarios;
-    Club.prototype.pagarSalarios = function () { const f = origSal.call(this); if (this.isUser) K.sal += f; return f; };
+    Club.prototype.pagarSalarios = function () {
+      // Lote 10: manutenção realmente debitada (limitada ao caixa positivo) = queda do caixa − folha.
+      const c0 = this.orcamento; const f = origSal.call(this);
+      if (this.isUser) { K.sal += f; K.maint += Math.max(0, (c0 - this.orcamento) - f); }
+      return f;
+    };
     const origAceitar = app.acceptOffer;
     app.acceptOffer = function (id) { const c0 = this.club.orcamento; const r = origAceitar.call(this, id); const d = this.club.orcamento - c0; if (d > 0) K.ofertas += d; return r; };
     // Clube e liga reais.
@@ -76,7 +84,7 @@ function simular({ pol, div, dif, seed, temps, index }) {
         if (app._resultadoPendente) { app.closeMatchResult(); sb.drenarTimers(); }
         // Desafios de copa/continental (UI chama CompetitionSystem.play quando vencidos).
         (process.env.SEM_COPA ? [] : ['copa', 'continental']).forEach(kind => {
-          try { if (CompetitionSystem.due(league, kind) && folegoMedioXI(club) >= 70) { K.emCopa = true; CompetitionSystem.play(kind); sb.drenarTimers(); K.emCopa = false; } }
+          try { if (CompetitionSystem.due(league, kind)) { K.emCopa = true; CompetitionSystem.play(kind); sb.drenarTimers(); K.emCopa = false; } }
           catch (e) { K.emCopa = false; process.stderr.write('ERRO_COPA ' + kind + ' ' + (e && e.message) + '\n'); }
         });
         // Política do gestor (decisões do usuário): ofertas, renovações, infraestrutura, draft.
@@ -99,7 +107,7 @@ function simular({ pol, div, dif, seed, temps, index }) {
       const gap = ai.length ? xi - (ai.reduce((s, v) => s + v, 0) / ai.length) : 0;
       rows.push({ t, div: league.divisaoUser || 1, pos, campeaoA, campeaoDiv, caixa0: Math.round(caixa0 / 1000), caixa1: Math.round(club.orcamento / 1000),
         minElenco, elenco: club.elenco.length, gap: +gap.toFixed(1), gate: Math.round(K.gate / 1000), copa: Math.round(K.copa / 1000),
-        conti: Math.round(K.conti / 1000), liga: Math.round(K.liga / 1000), ofertas: Math.round(K.ofertas / 1000), sal: Math.round(K.sal / 1000),
+        conti: Math.round(K.conti / 1000), liga: Math.round(K.liga / 1000), ofertas: Math.round(K.ofertas / 1000), sal: Math.round(K.sal / 1000), maint: Math.round(K.maint / 1000),
         demitido: !!club.demitido, falencia: !!club.falencia,
         folegoXI: Math.round(mediaFolego(top11(club))), folegoIA: Math.round(mediaFolegoIA(league, club)) });
       if (club.demitido || club.falencia) break;
@@ -113,7 +121,7 @@ function simular({ pol, div, dif, seed, temps, index }) {
     return { pol, div, dif, seed, temps, rows, demitidoEm, falenciaEm, motivo };
 }
 
-const zero = () => ({ gate: 0, copa: 0, conti: 0, liga: 0, ofertas: 0, sal: 0, emCopa: false });
+const zero = () => ({ gate: 0, copa: 0, conti: 0, liga: 0, ofertas: 0, sal: 0, maint: 0, emCopa: false, _noGate: false });
 function top11(c) { return (c.elenco || []).filter(p => !(p.machucado > 0)).slice().sort((a, b) => (b.overall || 0) - (a.overall || 0)).slice(0, 11); }
 function mediaFolego(arr) { return arr.length ? arr.reduce((s, p) => s + (p.folego ?? 100), 0) / arr.length : 0; }
 function mediaFolegoIA(league, club) { const todos = CLUBES_REF(league).filter(c => c !== club).flatMap(c => c.elenco || []); return mediaFolego(todos); }
@@ -124,7 +132,7 @@ function gestor(app, league, club, sb) {
   const { TransferMarket } = sb;
   const ordenado = () => club.elenco.slice().sort((a, b) => b.overall - a.overall);
   // Renovação de contratos vencendo (titulares do top 16), se o caixa cobre.
-  club.elenco.filter(p => (p.contratoRodadas || 0) <= 3).forEach(p => {
+  if (!process.env.SEM_RENOVA) club.elenco.filter(p => (p.contratoRodadas || 0) <= 3).forEach(p => {
     const q = TransferMarket.contrato(p, true);
     if (ordenado().indexOf(p) < 16 && club.orcamento >= q.preco + 50000) { app.renovarContrato(p.id); }
   });
@@ -134,9 +142,12 @@ function gestor(app, league, club, sb) {
     if (p && club.elenco.length > 14 && ordenado().indexOf(p) >= 11) app.acceptOffer(o.playerId);
   });
   // Infraestrutura: investe quando o caixa cobre 4× o custo (teto de nível 5 vale no jogo).
-  // Compra no mercado pela função real (buyPlayer): caixa > 3× o custo e elenco abaixo de 16.
-  if (club.elenco.length < 16 && (app.marketPlayers || []).length) {
-    const alvo = app.marketPlayers.slice().sort((a, b) => (b.overall || 0) - (a.overall || 0)).find(p => club.orcamento > 3 * TransferMarket.contrato(p, false).preco);
+  // Excedente: acima de 20 jogadores, vende o de menor OVR (função real club.vender, taxa como confirmSell).
+  while (club.elenco.length > 20) { const pior = club.elenco.slice().sort((x, y) => (x.overall || 0) - (y.overall || 0))[0]; const taxa = (pior.partidas || 0) === 0 ? 0.55 : 0.7; if (!club.vender(pior.id, taxa)) break; }
+  // Compra no mercado pela função real (buyPlayer): só quem melhora o XI, com caixa > 8× o custo e elenco abaixo de 16.
+  if (!process.env.SEM_COMPRA && club.elenco.length < 16 && (app.marketPlayers || []).length) {
+    const pior = Math.min(...top11(club).map(p => p.overall || 0));
+    const alvo = app.marketPlayers.slice().sort((a, b) => (b.overall || 0) - (a.overall || 0)).find(p => (p.overall || 0) > pior && club.orcamento > 8 * TransferMarket.contrato(p, false).preco);
     if (alvo) app.buyPlayer(alvo);
   }
   if (club.orcamento > 4 * app.stadiumCost() && club.estadioNivel < 5) { app._lastInfraAt = 0; app.upgradeInfra('estadio'); }
@@ -221,7 +232,7 @@ function imprimir(res) {
     const gap = m(linhas.filter(x => x.t >= 4).map(x => x.gap));
     console.log(`${k}`);
     console.log(`  N=${g.length} carreiras · caixa médio fim T1 ${cx(1)} M · T5 ${cx(5)} M · T10 ${cx(10)} M`);
-    console.log(`  receita/temp: copa+conti ${pctCC.toFixed(0)}% · gate ${(m(linhas.map(x => x.gate)) ).toFixed(0)}k · liga ${m(linhas.map(x => x.liga)).toFixed(0)}k · ofertas ${m(linhas.map(x => x.ofertas)).toFixed(0)}k · folha ${m(linhas.map(x => x.sal)).toFixed(0)}k`);
+    console.log(`  receita/temp: copa+conti ${pctCC.toFixed(0)}% · gate ${(m(linhas.map(x => x.gate)) ).toFixed(0)}k · liga ${m(linhas.map(x => x.liga)).toFixed(0)}k · ofertas ${m(linhas.map(x => x.ofertas)).toFixed(0)}k · folha ${m(linhas.map(x => x.sal)).toFixed(0)}k · manutenção ${m(linhas.map(x => x.maint || 0)).toFixed(0)}k`);
     console.log(`  demitido/falência: ${demit}/${g.length} carreiras · campeão da A: ${campA}/${linhas.length} temporadas (${(campA / Math.max(1, linhas.length) * 100).toFixed(0)}%)`);
     const motivos = g.filter(r => r.motivo).map(r => `${r.motivo.tipo} T${r.motivo.temporada} R${r.motivo.rodada} conf${r.motivo.paciencia} caixa${r.motivo.caixa}k`);
     console.log(`  fôlego médio XI ${m(linhas.map(x => x.folegoXI)).toFixed(0)} · fôlego médio IA ${m(linhas.map(x => x.folegoIA)).toFixed(0)} · motivos: ${motivos.slice(0, 4).join(' | ') || '-'}`);
