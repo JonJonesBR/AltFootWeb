@@ -16,22 +16,24 @@ concurrency:
   group: pages
   cancel-in-progress: true
 
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-  # Necessário para o passo final apagar deployments antigos (política de um só).
-  deployments: write
-
 jobs:
   deploy:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+      # Necessário para o passo final apagar deployments antigos (política de um só).
+      deployments: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Configurar Pages
         uses: actions/configure-pages@v5
       # Cópia explícita: só o que o jogador precisa baixar para jogar offline.
@@ -60,7 +62,7 @@ jobs:
           set -euo pipefail
           API="https://api.github.com/repos/${GITHUB_REPOSITORY}/deployments"
           cabecalhos=(-H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28")
-          ids=$(curl -fsS "${cabecalhos[@]}" "${API}?per_page=100" | jq -r '.[].id' | sort -n)
+          ids=$(curl -fsS "${cabecalhos[@]}" "${API}?environment=github-pages&per_page=100" | jq -r '.[].id' | sort -n)
           if [ -z "${ids}" ]; then
             echo "nenhum deployment encontrado"; exit 0
           fi
@@ -78,7 +80,7 @@ jobs:
             echo "  removido deployment ${id}"
             removidos=$((removidos + 1))
           done
-          restantes=$(curl -fsS "${cabecalhos[@]}" "${API}?per_page=100" | jq -r '.[].id' | wc -l | tr -d ' ')
+          restantes=$(curl -fsS "${cabecalhos[@]}" "${API}?environment=github-pages&per_page=100" | jq -r '.[].id' | wc -l | tr -d ' ')
           echo "deployments: ${total_antes} -> ${restantes} (removidos ${removidos})"
           if [ "${restantes}" -gt 1 ]; then
             echo "::error::sobrou mais de um deployment registrado"
