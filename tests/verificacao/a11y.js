@@ -111,4 +111,16 @@ rel.t('locução humana removida (decisão 2026-10-14)',
 rel.t('sem manifest/service worker referenciados',
     !codigo.includes('rel="manifest"') && !codigo.includes('serviceWorker'));
 
+// --- B152: botões novos da ajuda (alvo de toque ≥ 44px e rótulo acessível) ---
+const botaoVerCentral = (src.match(/<button onclick="app\.closeHowToPlay\(\); app\.openHelpModal\(\);"[^>]*>/) || [''])[0];
+rel.t('B152: o botão "Ver a Central de ajuda completa" existe no Manual', botaoVerCentral !== '');
+rel.t('B152: o botão da Central tem min-height de 44px', /min-height:\s*44px/.test(botaoVerCentral), botaoVerCentral);
+rel.t('B152: o botão da Central tem aria-label com o nome completo',
+    /aria-label="Ver a Central de ajuda completa"/.test(botaoVerCentral));
+const abaDiretoria = (src.match(/<button class="deck-filter-btn" data-tab="diretoria"[^>]*>([^<]*)<\/button>/) || []);
+rel.t('B152: a aba Diretoria usa .deck-filter-btn (44px pela regra CSS) e tem rótulo visível',
+    !!abaDiretoria[1] && abaDiretoria[1].trim().length > 0);
+rel.t('B152: o botão "Ajuda" do cabeçalho (openHelpModal) continua com rótulo visível',
+    /<button onclick="app\.openHelpModal\(\)"[\s\S]{0,400}?📖 Ajuda \(\?\)\s*<\/button>/.test(src));
+
 encerrar(rel);

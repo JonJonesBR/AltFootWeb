@@ -191,4 +191,66 @@ rel.t('B86: as fichas e o duelo encolhem para caber no painel da direita',
 rel.t('o selo da competição não cobre o relógio em telas pequenas',
     /#screen-match \.estadio-selo \{ display:none; \}/.test(css));
 
+// ---------------------------------------------------------------- B152: tutorial e ajuda completos
+// O Treino Guiado ensina cartas/Foco, SUB e velocidade; o contador "PASSO X DE N" bate com o nº
+// real de passos; a Central de ajuda cobre diretoria, draft, patrocínio e intervalo, e os números
+// escritos batem com o código (metaTemporada e o limite de rodadas do Clássico).
+const blocoPassos = (() => {
+    const i = js.indexOf('steps: [');
+    const f = js.indexOf('_clonarClube(origem)', i);
+    return i < 0 || f < 0 ? '' : js.slice(i, f);
+})();
+const idsPassos = [...blocoPassos.matchAll(/\bid:\s*'([a-z_]+)'/g)].map(m => m[1]);
+const contadores = [...blocoPassos.matchAll(/badge:\s*'PASSO (\d+) DE (\d+)'/g)].map(m => ({ n: +m[1], total: +m[2] }));
+rel.t('B152: o tutorial tem os passos novos (cartas_foco e substituicao_velocidade)',
+    idsPassos.includes('cartas_foco') && idsPassos.includes('substituicao_velocidade'), 'ids: ' + idsPassos.join(', '));
+rel.t('B152: o contador "PASSO X DE N" usa o nº real de passos',
+    idsPassos.length > 0 && contadores.length > 0 && contadores.every(c => c.total === idsPassos.length),
+    'passos: ' + idsPassos.length + ' · contadores: ' + contadores.map(c => c.total).join(','));
+rel.t('B152: os números dos passos são sequenciais e o último passo é a conclusão',
+    contadores.every((c, i) => c.n === i + 1) && idsPassos[idsPassos.length - 1] === 'conclusao');
+const textoDoPasso = id => {
+    const m = blocoPassos.match(new RegExp("id:\\s*'" + id + "'[\\s\\S]*?text:\\s*'([^']*)'"));
+    return m ? m[1] : '';
+};
+const passoFoco = textoDoPasso('cartas_foco');
+const passoSub = textoDoPasso('substituicao_velocidade');
+rel.t('B152: o passo de cartas explica o Foco, as cartas táticas e o custo de 25 a 45',
+    /Foco/.test(passoFoco) && /cartas táticas/.test(passoFoco) && /25 a 45/.test(passoFoco));
+rel.t('B152: o passo de SUB explica ⚤ SUB, a velocidade (1×/2×/4×/PULAR) e o prazo da decisão',
+    /⚤ SUB/.test(passoSub) && /1×/.test(passoSub) && /PULAR/.test(passoSub) && /8 s a 1×/.test(passoSub));
+rel.t('B152: os dois passos novos são só de leitura (noSpotlight, sem targetSel)',
+    ['cartas_foco', 'substituicao_velocidade'].every(id => {
+        const m = blocoPassos.match(new RegExp("id:\\s*'" + id + "'[\\s\\S]*?\\n        \\}"));
+        return !!m && /noSpotlight:\s*true/.test(m[0]) && !/targetSel/.test(m[0]);
+    }));
+rel.t('B152: a barra de progresso usa o nº de passos (steps.length), não um valor fixo',
+    /const total = this\.steps\.length;/.test(js));
+
+const blocoCentral = (() => {
+    const i = html.indexOf('id="modal-help-guide"');
+    const f = html.indexOf('id="ui-tutorial-overlay"', i);
+    return i < 0 || f < 0 ? '' : html.slice(i, f);
+})();
+rel.t('B152: a Central tem a aba Diretoria (botão, conteúdo e entrada no switchHelpTab)',
+    /data-tab="diretoria"/.test(blocoCentral) && /id="help-tab-content-diretoria"/.test(blocoCentral)
+    && js.includes("['fases', 'posicoes', 'focos', 'diretoria']"));
+rel.t('B152: a Central cobre diretoria, draft, patrocínio e intervalo',
+    /<strong>📋 Paciência da diretoria:<\/strong>/.test(blocoCentral)
+    && /<strong>🎯 Meta da temporada:<\/strong>/.test(blocoCentral)
+    && /<strong>🎁 Draft:<\/strong>/.test(blocoCentral)
+    && /<strong>💼 Patrocínio:<\/strong>/.test(blocoCentral)
+    && /<strong>⏸️ Intervalo:<\/strong>/.test(blocoCentral));
+rel.t('B152: a Central cobre Rodada do Dia, Clássico e dilema do vestiário',
+    /<strong>🌅 Rodada do Dia:<\/strong>/.test(blocoCentral)
+    && /<strong>🌆 Clássico da Semana:<\/strong>/.test(blocoCentral)
+    && /<strong>🚪 Dilemas do vestiário:<\/strong>/.test(blocoCentral));
+// Amarração com o código: se a meta ou o limite de rodadas mudar, a Central tem de mudar junto.
+rel.t('B152: a meta da Série A escrita na Central bate com metaTemporada (12 na T1, 8 depois)',
+    /primeiraTemp \? 12 : 8/.test(js) && /entre os 12 na 1ª temporada e entre os 8 depois/.test(blocoCentral));
+rel.t('B152: o limite de rodadas do Clássico escrito na Central bate com _desafioRodadaLivre',
+    /_desafioRodadaLivre\('classico', 5\)/.test(js) && /depois de 5 rodadas da liga/.test(blocoCentral));
+rel.t('B152: o modal "Manual do Treinador" leva à Central completa',
+    /app\.closeHowToPlay\(\); app\.openHelpModal\(\);/.test(html));
+
 encerrar(rel);

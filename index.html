@@ -4478,6 +4478,9 @@ button:focus-visible,summary:focus-visible,[role="button"]:focus-visible,[tabind
        </ul>
      </div>
 
+     <button onclick="app.closeHowToPlay(); app.openHelpModal();" class="btn-secondary" aria-label="Ver a Central de ajuda completa" style="width: 100%; min-height: 44px; font-size: 0.82rem; padding: 10px; margin-bottom: 8px;">
+       📚 VER A CENTRAL DE AJUDA COMPLETA
+     </button>
      <button onclick="app.closeHowToPlay()" class="btn-end-turn" style="width: 100%; font-size: 0.9rem; padding: 11px;">
        ENTENDI, VAMOS AO JOGO! ⚽
      </button>
@@ -4685,6 +4688,7 @@ button:focus-visible,summary:focus-visible,[role="button"]:focus-visible,[tabind
       <button class="deck-filter-btn active" data-tab="fases" onclick="app.switchHelpTab('fases')">📻 Partida</button>
       <button class="deck-filter-btn" data-tab="posicoes" onclick="app.switchHelpTab('posicoes')">🧩 Posições</button>
       <button class="deck-filter-btn" data-tab="focos" onclick="app.switchHelpTab('focos')">🎽 Táticas</button>
+      <button class="deck-filter-btn" data-tab="diretoria" onclick="app.switchHelpTab('diretoria')">🏛️ Diretoria</button>
     </div>
 
     <div id="help-tab-content-fases" class="glass-ui" style="text-align: left; font-size: 0.78rem; line-height: 1.45;">
@@ -4694,7 +4698,8 @@ button:focus-visible,summary:focus-visible,[role="button"]:focus-visible,[tabind
       <ul style="margin:0; padding-left: 18px;">
         <li><strong>🎯 Decisões do técnico:</strong> 2 a 4 momentos por partida com timer de 8 s a 1× (4 s a 2×, 2 s a 4× e PULAR) — se atrasar, o assistente escolhe a opção do meio.</li>
         <li><strong>⏩ Velocidade:</strong> botões 1×/2×/4× e PULAR para acelerar.</li>
-        <li><strong>⚤ SUB:</strong> o botão no rodapé troca o jogador mais cansado por um reserva da mesma posição.</li>
+        <li><strong>⚤ SUB:</strong> o botão no rodapé tira um jogador de campo (em geral o mais cansado) e põe um reserva do banco.</li>
+        <li><strong>⏸️ Intervalo:</strong> em partidas completas, no meio do jogo, escolha como o time volta: 🔥 pressionar (+15% de criação, gasta fôlego e expõe a defesa), ⚖️ manter o plano ou 🧱 segurar (−12% de criação, fecha o meio). Sem resposta a tempo, o time mantém o plano.</li>
         <li><strong>🃏 CARTAS:</strong> cartas táticas gastam Foco e mudam ataque/defesa por alguns minutos (Pressão, Cera, Chuveirinho…). O Foco recarrega sozinho e a cada decisão respondida a tempo.</li>
         <li><strong>⚡ Fôlego:</strong> cai durante o jogo; abaixo de 75 o rendimento em campo já é penalizado (abaixo de 40, bem pesado).</li>
         <li><strong>📜 Eventos:</strong> VAR anula gols, segundo amarelo expulsa, escanteio tem rara chance de gol direto, e o Torneio Relâmpago decide empate nos pênaltis.</li>
@@ -4727,6 +4732,19 @@ button:focus-visible,summary:focus-visible,[role="button"]:focus-visible,[tabind
         <li><strong>Retranca:</strong> +2.5 defesa, +0.3 meio, −2.5 ataque; criação própria ×0,85 e a do rival ×0,85. O meio-campo se desgasta mais.</li>
       </ul>
       <p style="margin:0;"><strong>Fatores de partida:</strong> mando de casa +1 (no clássico +0.5, torcida dividida), Craque da Rodada +6 de ataque, +2,5 de meio e +1 de defesa (em qualquer mando), moral do clube ≥ 85 dá +1 e &lt; 30 tira −3. Cada rival da IA tem formação e mentalidade próprias — leia o adversário no pré-jogo.</p>
+    </div>
+
+    <div id="help-tab-content-diretoria" class="glass-ui hidden" style="text-align: left; font-size: 0.78rem; line-height: 1.45;">
+      <h4 style="margin:0 0 6px; color:var(--primary);">🏛️ Diretoria, metas e dinheiro</h4>
+      <ul style="margin:0; padding-left: 18px;">
+        <li><strong>📋 Paciência da diretoria:</strong> começa em 70%. Vitória soma 7, derrota tira 7 e empate soma 1; com caixa negativo, cada rodada jogada tira mais 3. Três rodadas seguidas abaixo de 20%, passada a carência inicial, e a diretoria demite.</li>
+        <li><strong>🎯 Meta da temporada:</strong> Série A, terminar entre os 12 na 1ª temporada e entre os 8 depois; Série B, entre os 6; Séries C e D, entre os 4. Ao fim da temporada, cumprir a meta dá +15 de paciência; ficar mais de 4 posições além do alvo tira 25; qualquer outro resultado tira 8.</li>
+        <li><strong>🎁 Draft:</strong> depois de uma vitória, uma vez por temporada, você escolhe 1 entre 3 opções (jogador ou tática). Só aparece se algum jogador da oferta superar o pior titular, e dá para pular.</li>
+        <li><strong>💼 Patrocínio:</strong> um contrato por vez. O Banco Estadual paga R$ 40 mil por rodada, sem meta. Os três arrojados pagam R$ 12 a 18 mil por rodada e dão um bônus único: Energia Max (G4, +R$ 250 mil), SuperLoja Nacional (título, +R$ 500 mil) e Cervejaria do Povo (vencer 1 clássico, +R$ 150 mil). Trocar só na rodada 1 da temporada ou antes de qualquer meta do contrato atual começar.</li>
+        <li><strong>🌅 Rodada do Dia:</strong> 1 por dia real. Vencer dá R$ 100 mil e um jogador, mas só libera depois de jogar 1 rodada da liga desde o último prêmio.</li>
+        <li><strong>🌆 Clássico da Semana:</strong> 1 por semana. Vencer dá R$ 250 mil e um jogador, mas só libera depois de 5 rodadas da liga desde o último prêmio.</li>
+        <li><strong>🚪 Dilemas do vestiário:</strong> líderes barrados, atletas indisciplinados e polêmicas na imprensa geram dilemas com opções. Eles ficam guardados na tela do Clube até você decidir.</li>
+      </ul>
     </div>
 
           <div style="margin-top: 15px; display: flex; gap: 8px;">
@@ -13375,16 +13393,36 @@ const TutorialManager = {
             text: 'Escolha UM dos 3 craques para reforçar o time neste jogo. É emprestado (1 por dia real), então use com sabedoria.',
             targetSel: '.craque-card',
             expectedAction: 'escolher_craque',
-            badge: 'PASSO 1 DE 4'
+            badge: 'PASSO 1 DE 6'
+        },
+        {
+            // Passo só de leitura, sem spotlight: avança pelo CONTINUAR. 'leitura' nunca é
+            // enviado por notifyAction, então um clique na preparação não pula o passo.
+            id: 'cartas_foco',
+            title: '2️⃣ Cartas e Foco',
+            text: 'Durante a partida, o Foco do treinador começa em 70% e se recarrega aos poucos a cada lance. Ele paga as cartas táticas da sua mão, que mudam o jogo por alguns minutos simulados. Os custos vão de 25 a 45 de Foco (Cera custa 25, Contra-Ataque 45). Responder às decisões a tempo também dá Foco.',
+            expectedAction: 'leitura',
+            hasContinueFallback: true,
+            noSpotlight: true,
+            badge: 'PASSO 2 DE 6'
+        },
+        {
+            id: 'substituicao_velocidade',
+            title: '3️⃣ Substituição e velocidade',
+            text: 'Quem cansa perde OVR em campo: abaixo de 75 de fôlego já rende menos, e abaixo de 40 o desconto chega a 5. O botão ⚤ SUB tira um jogador cansado de campo e põe um reserva do banco. Os botões 1×, 2× e 4× aceleram a partida, e PULAR vai direto ao fim. O prazo das decisões acompanha a velocidade: 8 s a 1×, 4 s a 2×, 2 s a 4× e PULAR.',
+            expectedAction: 'leitura',
+            hasContinueFallback: true,
+            noSpotlight: true,
+            badge: 'PASSO 3 DE 6'
         },
         {
             id: 'decisao_tecnico',
-            title: '2️⃣ Decisões Durante a Partida',
+            title: '4️⃣ Decisões Durante a Partida',
             text: 'Toque em ENTRAR EM CAMPO para começar o jogo. Durante a partida surgem MOMENTOS DE DECISÃO com 3 opções: você tem 8 segundos, senão o assistente decide (opção do meio).',
             targetSel: '#match-decision',
             expectedAction: 'decisao',
             hasContinueFallback: true,
-            badge: 'PASSO 2 DE 4'
+            badge: 'PASSO 4 DE 6'
         },
         {
             id: 'conclusao',
@@ -14604,7 +14642,7 @@ const app = {
     },
     switchHelpTab(tab) {
         document.querySelectorAll('.deck-filter-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
-        ['fases', 'posicoes', 'focos'].forEach(t => {
+        ['fases', 'posicoes', 'focos', 'diretoria'].forEach(t => {
             const content = document.getElementById(`help-tab-content-${t}`);
             if (content) content.classList.toggle('hidden', t !== tab);
         });
