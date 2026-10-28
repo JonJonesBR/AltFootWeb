@@ -1609,6 +1609,168 @@ teste('SAF: aceitar zera caixa negativo e empréstimos, ativa 3 temporadas de 40
     ok(ClubEcosystem.premio(clube, 1000000) === 1000000, 'desconto continuou após o fim da SAF');
 });
 
+console.log('-- B146/B147: exploits de economia (Rodada do Dia, Clássico e patrocínio) com as funções reais');
+
+// Carreira nova com contrato de patrocínio (sem ele o jogo abre o modal antes de entrar em campo).
+function carreiraEconomia(nome) {
+    const { novoSandboxCarreira } = require('./carreira-lib.js');
+    const sb = novoSandboxCarreira();
+    const { app, PATROCINIOS } = sb;
+    app.saveGame = () => {}; app.autosaveNow = () => {}; app._registrarSessao = () => {};
+    app.createNewClub(nome);
+    app.club.orcamento = 5000000;
+    app.club.patrocinio = JSON.parse(JSON.stringify(PATROCINIOS.find(p => (p.metas || []).length)));
+    app.club.patrocinio.metas.forEach(m => { m.pago = false; m.progresso = 0; });
+    return sb;
+}
+// Dispara o desafio pelo caminho real (playDesafioDia/playClassicoSemana → confirmarPreparacao → fim da partida).
+// Vitória 2×0 simulada no motor; devolve 'bloqueado' ou o ganho de elenco (1 = jogador do prêmio).
+function dispararDesafio(sb, tipo) {
+    const { app, Engine } = sb;
+    const antes = app.club.elenco.length;
+    Engine.simulateFriendly = (lg, cl, adv, onTick, onFinish) => onFinish(2, 0, 0, [], null);
+    if (tipo === 'daily') app.playDesafioDia(); else app.playClassicoSemana();
+    if (!app._isDaily && !app._isClassico) return 'bloqueado';
+    app.confirmarPreparacao();
+    sb.drenarTimers();
+    return app.club.elenco.length - antes;
+}
+
+teste('B146(1): Rodada do Dia com chave de data nova e sem histórico está disponível e paga o prêmio', () => {
+    const sb = carreiraEconomia('Teste B146 a');
+    sb.app._dailyChallengeKey = () => 20261028;
+    ok(dispararDesafio(sb, 'daily') === 1, 'Rodada do Dia livre não pagou o prêmio');
+});
+
+teste('B146(2): depois do prêmio, a mesma data fica indisponível e não paga de novo', () => {
+    const sb = carreiraEconomia('Teste B146 b');
+    sb.app._dailyChallengeKey = () => 20261028;
+    ok(dispararDesafio(sb, 'daily') === 1, 'primeira vitória não pagou');
+    ok(sb.app.club.desafioRodadaAbs.daily === 1, 'rodada da vitória não foi guardada: ' + JSON.stringify(sb.app.club.desafioRodadaAbs));
+    ok(dispararDesafio(sb, 'daily') === 'bloqueado', 'mesma data reabriu a Rodada do Dia');
+});
+
+teste('B146(3): trocar a data sem jogar rodada da liga continua bloqueado e não paga prêmio', () => {
+    const sb = carreiraEconomia('Teste B146 c');
+    const { app } = sb;
+    app._dailyChallengeKey = () => 20261028;
+    dispararDesafio(sb, 'daily');
+    const orcAntes = app.club.orcamento, elencoAntes = app.club.elenco.length;
+    app._dailyChallengeKey = () => 20261029; // "relógio" avançou
+    ok(dispararDesafio(sb, 'daily') === 'bloqueado', 'troca de data sem rodada reabriu o desafio');
+    ok(app.club.elenco.length === elencoAntes && app.club.orcamento === orcAntes, 'prêmio concedido mesmo bloqueado');
+    ok(app._desafioRodadaLivre('daily', 1).falta === 1, 'falta de rodada incorreta');
+    ok(FONTE_HTML.indexOf("'Jogue mais uma rodada da liga para liberar este desafio.'") >= 0, 'mensagem da Rodada do Dia não está no jogo');
+});
+
+teste('B146(4): após avançar 1 rodada da liga, a Rodada do Dia libera e paga de novo', () => {
+    const sb = carreiraEconomia('Teste B146 d');
+    const { app } = sb;
+    app._dailyChallengeKey = () => 20261028;
+    dispararDesafio(sb, 'daily');
+    app._dailyChallengeKey = () => 20261029;
+    app.league.rodada += 1; // a rodada da liga é jogada (closeMatchResult incrementa a rodada)
+    ok(dispararDesafio(sb, 'daily') === 1, 'após 1 rodada o desafio não liberou');
+});
+
+teste('B146(4b): Clássico exige 5 rodadas da liga entre um prêmio e o próximo (4 bloqueia, 5 libera)', () => {
+    const sb = carreiraEconomia('Teste B146 e');
+    const { app } = sb;
+    app._classicoKey = () => '2026-W44';
+    ok(dispararDesafio(sb, 'classico') === 1, 'Clássico livre não pagou');
+    const n = app.club.desafioRodadaAbs.classico;
+    app._classicoKey = () => '2026-W45';
+    app.league.rodada += 4;
+    ok(dispararDesafio(sb, 'classico') === 'bloqueado', 'Clássico liberou com 4 rodadas');
+    ok(app._desafioRodadaLivre('classico', 5).falta === 1, 'deveria faltar 1 rodada, faltam ' + app._desafioRodadaLivre('classico', 5).falta + ' (n=' + n + ')');
+    app.league.rodada += 1;
+    ok(dispararDesafio(sb, 'classico') === 1, 'Clássico não liberou com 5 rodadas');
+});
+
+teste('B146(5): save antigo sem desafioRodadaAbs é livre; normalizeNewFields cria o objeto vazio', () => {
+    const sb = carreiraEconomia('Teste B146 f');
+    const { app } = sb;
+    app._dailyChallengeKey = () => 20261028;
+    delete app.club.desafioRodadaAbs;
+    ok(app._desafioRodadaLivre('daily', 1).livre === true, 'save antigo bloqueou o desafio');
+    app.normalizeNewFields(app.club);
+    ok(app.club.desafioRodadaAbs && typeof app.club.desafioRodadaAbs === 'object' && Object.keys(app.club.desafioRodadaAbs).length === 0, 'normalização não criou o campo vazio');
+    ok(dispararDesafio(sb, 'daily') === 1, 'save antigo não recebeu o desafio');
+});
+
+teste('B146(6): sem liga/rodada (tutorial) a guarda não bloqueia', () => {
+    const sb = carreiraEconomia('Teste B146 g');
+    const { app } = sb;
+    app.club.desafioRodadaAbs = { daily: 99, classico: 99 };
+    app.league = null;
+    ok(app._desafioRodadaLivre('daily', 1).livre === true && app._desafioRodadaLivre('classico', 5).livre === true, 'sem liga a guarda bloqueou');
+});
+
+teste('B147(1): escolher o patrocínio que já está ativo é no-op (metas e progresso preservados)', () => {
+    const sb = carreiraEconomia('Teste B147 a');
+    const { app, PATROCINIOS } = sb;
+    const modelo = PATROCINIOS.find(p => (p.metas || []).length);
+    app.club.patrocinio = JSON.parse(JSON.stringify(modelo));
+    app.club.patrocinio.metas.forEach(m => { m.pago = false; m.progresso = 2; });
+    const ref = app.club.patrocinio;
+    app.league.rodada = 6;
+    app.escolherPatrocinio(modelo.id);
+    ok(app.club.patrocinio === ref, 'contrato foi recriado');
+    ok(ref.metas.every(m => m.progresso === 2), 'progresso zerou no mesmo patrocínio');
+});
+
+teste('B147(2): trocar no meio da temporada com meta em andamento é recusado e o estado fica intacto', () => {
+    const sb = carreiraEconomia('Teste B147 b');
+    const { app, PATROCINIOS } = sb;
+    const atual = PATROCINIOS.find(p => (p.metas || []).length), outro = PATROCINIOS.find(p => p.id !== atual.id);
+    app.club.patrocinio = JSON.parse(JSON.stringify(atual));
+    app.club.patrocinio.metas.forEach(m => { m.pago = false; m.progresso = 1; });
+    app.league.rodada = 3;
+    const orc = app.club.orcamento, ref = app.club.patrocinio;
+    app.escolherPatrocinio(outro.id);
+    ok(app.club.patrocinio === ref && app.club.patrocinio.id === atual.id, 'troca com meta em andamento foi aceita');
+    ok(ref.metas.every(m => m.progresso === 1), 'progresso alterado pela recusa');
+    ok(app.club.orcamento === orc, 'houve cobrança na recusa');
+    ok(FONTE_HTML.indexOf("'Troque de patrocinador só no começo da temporada ou antes de avançar nas metas atuais.'") >= 0, 'mensagem de recusa ausente');
+});
+
+teste('B147(3): trocar na rodada 1 é permitido mesmo com progresso (começo da temporada)', () => {
+    const sb = carreiraEconomia('Teste B147 c');
+    const { app, PATROCINIOS } = sb;
+    const atual = PATROCINIOS.find(p => (p.metas || []).length), outro = PATROCINIOS.find(p => p.id !== atual.id);
+    app.club.patrocinio = JSON.parse(JSON.stringify(atual));
+    app.club.patrocinio.metas.forEach(m => { m.progresso = 1; });
+    app.league.rodada = 1;
+    app.escolherPatrocinio(outro.id);
+    ok(app.club.patrocinio.id === outro.id, 'troca na rodada 1 foi recusada');
+    ok(app.club.patrocinio.metas.every(m => m.progresso === 0 && m.pago === false), 'metas novas não nasceram zeradas');
+});
+
+teste('B147(4): trocar sem nenhum progresso nem meta paga é permitido no meio da temporada', () => {
+    const sb = carreiraEconomia('Teste B147 d');
+    const { app, PATROCINIOS } = sb;
+    const atual = PATROCINIOS.find(p => (p.metas || []).length), outro = PATROCINIOS.find(p => p.id !== atual.id);
+    app.club.patrocinio = JSON.parse(JSON.stringify(atual));
+    app.club.patrocinio.metas.forEach(m => { m.pago = false; m.progresso = 0; });
+    app.league.rodada = 5;
+    app.escolherPatrocinio(outro.id);
+    ok(app.club.patrocinio.id === outro.id, 'troca sem progresso foi recusada');
+});
+
+teste('B147(5): A→B→A com meta já paga não recolhe a meta de novo (troca bloqueada no meio da temporada)', () => {
+    const sb = carreiraEconomia('Teste B147 e');
+    const { app, PATROCINIOS } = sb;
+    const a = PATROCINIOS.find(p => (p.metas || []).length), b = PATROCINIOS.find(p => p.id !== a.id);
+    app.club.patrocinio = JSON.parse(JSON.stringify(a));
+    app.club.patrocinio.metas.forEach(m => { m.pago = true; m.progresso = 1; });
+    app.league.rodada = 4;
+    const orc = app.club.orcamento;
+    app.escolherPatrocinio(b.id);
+    app.escolherPatrocinio(a.id); // "volta" ao contrato A: é o mesmo patrocínio ativo, então no-op
+    ok(app.club.patrocinio.id === a.id && app.club.patrocinio.metas.every(m => m.pago === true), 'meta paga foi reaberta por A→B→A');
+    ok(app.club.orcamento === orc, 'meta recolhida de novo');
+});
+
 console.log('');
 console.log('=== ' + (total - falhas) + '/' + total + ' verificações passaram' + (falhas ? ' — ' + falhas + ' FALHAS' : '') + ' ===');
 process.exit(falhas ? 1 : 0);

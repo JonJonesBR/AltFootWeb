@@ -12426,7 +12426,7 @@ class UI {
     const dailyEl = document.getElementById('daily-challenge-card');
     if (dailyEl) {
         const hoje = app._dailyChallengeKey();
-        if ((app.club.lastDaily || 0) !== hoje) {
+        if ((app.club.lastDaily || 0) !== hoje && app._desafioRodadaLivre('daily', 1).livre) {
             const rival = app._dailyChallengeRival();
             const txt = document.getElementById('daily-rival-text');
             if (txt) {
@@ -12443,7 +12443,7 @@ class UI {
     // Clássico da Semana: visível enquanto a semana não for vencida (retenta se perder).
     const clEl = document.getElementById('classico-card');
     if (clEl) {
-        if ((app.club.lastClassicoWeek || '') !== app._classicoKey()) {
+        if ((app.club.lastClassicoWeek || '') !== app._classicoKey() && app._desafioRodadaLivre('classico', 5).livre) {
             const rival = app._classicoRival();
             const txt = document.getElementById('classico-rival-text');
             if (txt) {
@@ -15083,6 +15083,16 @@ const app = {
     escolherPatrocinio(id) {
         const modelo = (typeof PATROCINIOS !== 'undefined') ? PATROCINIOS.find(p => p.id === id) : null;
         if (!modelo || !this.club) return;
+        // B147: mesmo patrocínio = no-op (não recria metas nem zera progresso).
+        const atualPat = this.club.patrocinio;
+        if (atualPat && atualPat.id === modelo.id) { this.fecharPatrocinio(); return; }
+        // B147: trocar só no começo da temporada (rodada 1) ou sem meta do contrato atual já iniciada.
+        const rodadaAtual = (this.league && typeof this.league.rodada === 'number') ? this.league.rodada : 1;
+        const metasIniciadas = !!(atualPat && Array.isArray(atualPat.metas) && atualPat.metas.some(m => m.pago === true || (m.progresso || 0) > 0));
+        if (rodadaAtual > 1 && metasIniciadas) {
+            if (typeof ui !== 'undefined') ui.showActionFeedback('Troque de patrocinador só no começo da temporada ou antes de avançar nas metas atuais.', 'warning');
+            return;
+        }
         // Cópia profunda simples para o save (metas[].pago é por contrato).
         this.club.patrocinio = {
             id: modelo.id,
@@ -15561,6 +15571,8 @@ const app = {
         if (club.patrimonio == null) club.patrimonio = 0;
         if (club.lastDaily == null) club.lastDaily = 0;
         if (club.lastClassicoWeek == null) club.lastClassicoWeek = '';
+        // B146: rodada absoluta da última vitória premiada (Rodada do Dia / Clássico). Save antigo = livre.
+        if (club.desafioRodadaAbs == null || typeof club.desafioRodadaAbs !== 'object' || Array.isArray(club.desafioRodadaAbs)) club.desafioRodadaAbs = {};
         if (club.ascensaoNivel == null) club.ascensaoNivel = 0;
         if (club.conquistas == null || !Array.isArray(club.conquistas)) club.conquistas = [];
         if (club.partidasTotais == null) club.partidasTotais = 0;
@@ -16361,10 +16373,38 @@ const app = {
         return rival;
     },
 
+    // B146: a data sozinha é burlável (muda-se o relógio). Guarda pela rodada da liga: o desafio só
+    // volta após N rodadas jogadas desde a última vitória premiada. Campo `club.desafioRodadaAbs`
+    // (opcional; ausente = livre; sem liga/rodada = não bloqueia).
+    _rodadaAbsoluta() {
+        const lg = this.league;
+        if (!lg || typeof lg.rodada !== 'number') return null;
+        return ((lg.temporada || 1) - 1) * 100 + lg.rodada;
+    },
+
+    _desafioRodadaLivre(tipo, minimo) {
+        const ultimo = this.club && this.club.desafioRodadaAbs ? this.club.desafioRodadaAbs[tipo] : undefined;
+        const atual = this._rodadaAbsoluta();
+        if (typeof ultimo !== 'number' || atual === null) return { livre: true, falta: 0 };
+        const falta = Math.max(0, minimo - (atual - ultimo));
+        return { livre: falta === 0, falta };
+    },
+
+    _marcarDesafioRodada(tipo) {
+        const atual = this._rodadaAbsoluta();
+        if (!this.club || atual === null) return;
+        if (!this.club.desafioRodadaAbs || typeof this.club.desafioRodadaAbs !== 'object') this.club.desafioRodadaAbs = {};
+        this.club.desafioRodadaAbs[tipo] = atual;
+    },
+
     playDesafioDia() {
         if (typeof Engine !== 'undefined' && Engine.activeMatch) { if (typeof ui !== 'undefined') ui.showActionFeedback('Partida em andamento — termine antes de outro desafio.', 'warning'); return; }
         if (!this.club || (this.club.lastDaily || 0) === this._dailyChallengeKey()) {
             ui.showActionFeedback('Rodada do Dia já foi disputada hoje!', 'info');
+            return;
+        }
+        if (!this._desafioRodadaLivre('daily', 1).livre) {
+            ui.showActionFeedback('Jogue mais uma rodada da liga para liberar este desafio.', 'info');
             return;
         }
         this._isDaily = true;
@@ -16410,6 +16450,12 @@ const app = {
         if (!this.club) return;
         if (this.club.lastClassicoWeek === this._classicoKey()) {
             ui.showActionFeedback('Clássico da Semana já foi vencido esta semana!', 'info');
+            return;
+        }
+        const guardaCl = this._desafioRodadaLivre('classico', 5);
+        if (!guardaCl.livre) {
+            const f = guardaCl.falta;
+            ui.showActionFeedback('Jogue mais ' + f + ' ' + (f === 1 ? 'rodada' : 'rodadas') + ' da liga entre clássicos.', 'info');
             return;
         }
         if (!this._classicoRival()) {
@@ -17216,13 +17262,15 @@ const app = {
                 this.lastResult = { h, a, pen: pen || null, adv: adv ? adv.nome : '—' };
                 this._resultadoPendente = true;
                 // Rodada do Dia: vitória libera a recompensa (100k + jogador grátis), 1 tentativa por dia.
-                if (this._isDaily && h > a) {
+                if (this._isDaily && h > a && this._desafioRodadaLivre('daily', 1).livre) {
                     this.club.lastDaily = this._dailyChallengeKey();
+                    this._marcarDesafioRodada('daily');
                     this._darRecompensaDiaria();
                 }
                 // Clássico da Semana: vitória libera a recompensa única (1x por semana).
-                if (this._isClassico && h > a) {
+                if (this._isClassico && h > a && this._desafioRodadaLivre('classico', 5).livre) {
                     this.club.lastClassicoWeek = this._classicoKey();
+                    this._marcarDesafioRodada('classico');
                     this._darRecompensaClassico();
                 }
                 // Torneio Relâmpago: avança (ou elimina) na chave.
