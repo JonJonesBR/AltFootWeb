@@ -1398,10 +1398,10 @@ teste('4.1 passivo: poda de elenco com teto de folha, fora do XI e mínimo de 11
     ok(FONTE_HTML.indexOf('pos === 1 ? 6000000 : pos === 2 ? 4000000') >= 0, 'prêmio de liga da Série A não foi subido');
 });
 
-teste('4.2 copa/continental: prêmio cortado e imposto de 15% sobre caixa acima de R$ 20 M', () => {
+teste('4.2 copa/continental: prêmio cortado e imposto em faixas (B144)', () => {
     ok(FONTE_HTML.indexOf('[250000,375000,500000,875000,1500000,3000000][c.etapa]') >= 0, 'prêmio de copa não cortado');
     ok(FONTE_HTML.indexOf('[750000,1500000,3750000][c.etapa - 6]') >= 0, 'prêmio continental não cortado');
-    ok(FONTE_HTML.indexOf('Imposto sobre o caixa acima de R$ 20 M') >= 0 && FONTE_HTML.indexOf('(this.club.orcamento - 20000000) * 0.15') >= 0, 'sem imposto progressivo');
+    ok(FONTE_HTML.indexOf('Imposto sobre o caixa acima de R$ 15 M') >= 0 && FONTE_HTML.indexOf('Math.min(caixaImposto, 30000000) - 15000000) * 0.15') >= 0, 'sem imposto progressivo em faixas');
 });
 
 teste('4.3 dificuldade: no máximo um draft por temporada; propostas menos frequentes', () => {
@@ -1573,6 +1573,59 @@ teste('manutencaoInfra segue intacta (45 mil por nível acima de 1, teto 5)', ()
     ok(c.manutencaoInfra() === 0, 'nível 1 deveria custar 0');
     c.estadioNivel = 9; c.baseNivel = 9;
     ok(c.manutencaoInfra() === 8 * 45000, 'teto 5 quebrado');
+});
+
+console.log('-- B142/B143/B144: economia de caixa (manutenção, ascensão e imposto) com as funções reais');
+
+teste('B143: a bilheteria cai 10% por nível de ascensão, com piso 0,8; o valor guardado não muda', () => {
+    const { novoSandboxCarreira } = require('./carreira-lib.js');
+    const sb = novoSandboxCarreira();
+    const { app } = sb;
+    app.saveGame = () => {}; app.autosaveNow = () => {}; app._registrarSessao = () => {};
+    app.createNewClub('Teste Bilheteria');
+    const clube = app.club;
+    // Só a bilheteria base (estádio 1 = R$ 15 mil por rodada): sem patrocínio, sem mídia e sem camarote.
+    clube.estadioNivel = 1; clube.patrimonio = 0; clube.patrocinio = null; clube.fans = 50; clube.etica = 50;
+    const bilheteria = (n) => { clube.ascensaoNivel = n; return clube.stadiumRevenue(); };
+    ok(bilheteria(0) === 15000, 'sem ascensão deveria render 15 mil: ' + bilheteria(0));
+    ok(bilheteria(3) === 12000, 'nível 3 deveria render 12 mil (piso 0,8), veio ' + bilheteria(3));
+    ok(bilheteria(5) === 12000, 'nível 5 deveria render 12 mil (piso 0,8), veio ' + bilheteria(5));
+    ok(bilheteria(9) === 12000, 'nível 9 deveria render 12 mil (piso 0,8), veio ' + bilheteria(9));
+    ok(clube.ascensaoNivel === 9, 'o valor guardado de ascensão foi alterado: ' + clube.ascensaoNivel);
+});
+
+teste('B143: o rival sente a ascensão até 5 níveis (+15 em atk) e não passa disso; o valor guardado não muda', () => {
+    const s = novoSandbox();
+    const casa = makeTeam('Casa', 70, { isUser: true });
+    const sim = new s.MatchSim(casa, makeTeam('Fora', 70), null, null, { seed: 2, modo: 'detalhado', tempoMin: 90 });
+    const atkRival = (n) => { casa.ascensaoNivel = n; return sim._poder(sim.away, false).atk; };
+    const base = atkRival(0);
+    perto(atkRival(3) - base, 9, 1e-6, 'nível 3 deveria dar +9 ao rival');
+    perto(atkRival(5) - base, 15, 1e-6, 'nível 5 deveria dar +15 ao rival');
+    perto(atkRival(9) - base, 15, 1e-6, 'nível 9 deveria ficar no teto de +15');
+    ok(casa.ascensaoNivel === 9, 'o valor guardado foi alterado: ' + casa.ascensaoNivel);
+});
+
+teste('B144: imposto em faixas (15% de R$ 15 M a 30 M; 30% acima de R$ 30 M) no início da temporada', () => {
+    const { novoSandboxCarreira } = require('./carreira-lib.js');
+    // Caixa antes e depois do imposto: o imposto sai antes da poda (_podarElenco), que é o gancho medido.
+    const imposto = (caixa) => {
+        const sb = novoSandboxCarreira();
+        const { app } = sb;
+        app.saveGame = () => {}; app.autosaveNow = () => {}; app._registrarSessao = () => {};
+        app.createNewClub('Teste Imposto');
+        app.club.orcamento = caixa;
+        app.league.resumoTemporada = { temporada: app.league.temporada };
+        let depois = null;
+        app._podarElenco = () => { depois = app.club.orcamento; };
+        app.startNewSeason();
+        if (depois === null) throw new Error('startNewSeason não chegou ao imposto/poda');
+        return caixa - depois;
+    };
+    ok(imposto(10000000) === 0, '10 M não deveria pagar imposto: ' + imposto(10000000));
+    ok(imposto(20000000) === 750000, '20 M: 15% de 5 M = 750 mil, veio ' + imposto(20000000));
+    ok(imposto(40000000) === 5250000, '40 M: 15% de 15 M + 30% de 10 M = 5,25 M, veio ' + imposto(40000000));
+    ok(imposto(100000000) === 23250000, '100 M: 15% de 15 M + 30% de 70 M = 23,25 M, veio ' + imposto(100000000));
 });
 
 console.log('-- SAF: aceite da proposta (ClubEcosystem.aceitarSAF) com as funções reais');
