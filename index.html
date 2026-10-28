@@ -5536,15 +5536,36 @@ const LockerRoom = {
       league.adicionarNoticia('🚪 Um líder barrado cobra espaço. A insatisfação se espalha pelo vestiário.');
     }
     if (veteranoBanco && club.semVencer >= 3) club.moral = Math.max(0, club.moral - 3);
+    // Dilema sem resposta por PRAZO_DILEMA rodadas da liga: o vestiário resolve sozinho (opção padrão).
+    const decorridas = this.rodadasDesde(club, league);
+    if (decorridas !== null && decorridas >= this.PRAZO_DILEMA) {
+      // Padrão sem custo esportivo: multar (só a moral do atleta) / panos quentes. Nunca afasta ninguém sozinho.
+      this.resolver(club, league, club.dramaPendente.tipo === 'indisciplina' ? 0 : 1, true);
+    }
     if (club.dramaPendente || !club.elenco.length) return;
     const h = TransferMarket.hash(club.nome + ':' + league.temporada + ':' + league.rodada);
     if (h % 4 !== 0) return;
     const p = club.elenco[h % club.elenco.length];
     const entrevista = (h >>> 2) % 2 === 1;
-    club.dramaPendente = { tipo: entrevista ? 'entrevista' : 'indisciplina', playerId: p.id, rodada: league.rodada };
+    club.dramaPendente = { tipo: entrevista ? 'entrevista' : 'indisciplina', playerId: p.id, rodada: league.rodada, rodadaAbs: this.rodadaAbs(league) };
     league.adicionarNoticia('🚪 Novo dilema no Clube: ' + p.nome + (entrevista ? ' criticou as táticas na imprensa.' : ' foi visto em uma festa na véspera do jogo.'));
   },
-  resolver(club, league, escolha) {
+  // Prazo do dilema: rodadas da liga sem resposta (campo `dramaPendente.rodadaAbs`, opcional).
+  PRAZO_DILEMA: 6,
+  rodadaAbs(league) {
+    if (!league || typeof league.rodada !== 'number') return null;
+    return ((league.temporada || 1) - 1) * 100 + league.rodada;
+  },
+  rodadasDesde(club, league) {
+    const ev = club.dramaPendente;
+    const atual = this.rodadaAbs(league);
+    if (!ev || atual === null || !Number.isFinite(Number(ev.rodadaAbs))) return null;
+    return atual - Number(ev.rodadaAbs);
+  },
+  // Padrão do dilema sem resposta: a opção de menor efeito em moral/vestiário.
+  // Indisciplina: Afastar (−6 só no atleta; Multar −12; Perdoar −4 na moral coletiva e −3 nos colegas).
+  // Entrevista: Panos quentes (+6 e +2) em vez de Resposta firme (−15 e −5 se líder).
+  resolver(club, league, escolha, automatico) {
     const ev = club.dramaPendente;
     if (!ev || !Number.isInteger(escolha) || escolha < 0 || escolha > (ev.tipo === 'indisciplina' ? 2 : 1)) return { ok: false, mensagem: 'Dilema indisponível.' };
     const p = club.elenco.find(x => x.id === ev.playerId);
@@ -5581,7 +5602,8 @@ const LockerRoom = {
       mensagem = 'Panos quentes: satisfação +6, moral coletiva +2, diretoria −2.';
     }
     club.dramaPendente = null;
-    league.adicionarNoticia('🚪 ' + p.nome + ': ' + mensagem);
+    if (automatico) league.adicionarNoticia('🚪 Sem decisão do técnico, o vestiário resolveu sozinho: ' + mensagem.charAt(0).toLowerCase() + mensagem.slice(1));
+    else league.adicionarNoticia('🚪 ' + p.nome + ': ' + mensagem);
     return { ok: true, mensagem };
   }
 };
@@ -9848,10 +9870,20 @@ class MatchSim {
     // não punir quem só quer seguir; a pressão compra criação ao preço de fôlego e de
     // expor a defesa; segurar fecha o jogo (menos criação dos dois lados).
     _mostrarIntervalo() {
+        // Dica muda com o placar (só texto: sem números e sem recomendar). Efeitos dos botões não mudam.
+        const meuGol = this._userSide() === 0 ? (this.scoreH || 0) : (this.scoreA || 0);
+        const golRival = this._userSide() === 0 ? (this.scoreA || 0) : (this.scoreH || 0);
+        const saldo = meuGol - golRival;
+        const cenario = saldo < 0 ? 'perdendo' : (saldo === 0 ? 'empate' : (saldo === 1 ? 'curto' : 'larga'));
+        const dicas = {
+            pressao: { perdendo: 'Você precisa de gols: pressão cria mais, mas cansa o time.', empate: 'Empate pede o gol: pressão cria mais, mas expõe a defesa.', curto: 'Placar curto: pressão pode ampliar, mas expõe a defesa e cansa o time.', larga: 'Vantagem larga: pressão amplia, mas abre espaço para o contra-ataque.' },
+            manter: { perdendo: 'Perdendo, o plano atual pode não bastar, mas não custa fôlego nem risco.', empate: 'Sem mudanças: o time segue como está, sem custo extra.', curto: 'Sem mudanças: o time segue como está, sem custo extra.', larga: 'Sem mudanças: o time segue como está, sem custo extra.' },
+            segurar: { perdendo: 'Perdendo, segurar tira a criação do time e deixa o empate distante.', empate: 'Empate: segurar evita erro, mas tira criação do time.', curto: 'Placar curto: segurar protege, mas o rival cresce.', larga: 'Vantagem larga: segurar protege o placar e obriga o rival a arriscar.' }
+        };
         const opcoes = [
-            { label: '🔥 Aumentar a pressão', hint: '+15% criação, mas expõe a defesa e gasta fôlego' },
-            { label: '⚖️ Manter o plano', hint: 'sem mudanças: o time segue como está' },
-            { label: '🧱 Segurar o resultado', hint: '−12% criação e fecha o meio-campo' }
+            { label: '🔥 Aumentar a pressão', hint: dicas.pressao[cenario] },
+            { label: '⚖️ Manter o plano', hint: dicas.manter[cenario] },
+            { label: '🧱 Segurar o resultado', hint: dicas.segurar[cenario] }
         ];
         const aplicar = i => {
             if (this.abortado) return;
@@ -12659,6 +12691,15 @@ class UI {
         `;
         list.appendChild(el);
     });
+    // Estado vazio (B154): filtro sem cartas não deixa a lista em branco.
+    if (!list.children.length) {
+        const vazio = document.createElement('div');
+        vazio.style.cssText = 'font-size:0.78rem; color:var(--text-muted); text-align:center; padding:12px 4px;';
+        vazio.textContent = filter === 'TAC'
+            ? 'Nenhuma estratégia no deck ainda. Pacotes e draft trazem novas táticas.'
+            : (filter === 'ALL' ? 'Elenco vazio por enquanto. Contrate no mercado.' : 'Nenhum jogador nessa posição no elenco.');
+        list.appendChild(vazio);
+    }
   }
 
   // Nome curto do card (sobrenome) — evita truncar atrás dos botões.
@@ -12831,6 +12872,13 @@ class UI {
         el.onkeydown = ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); app.openMarketNegotiation(p.id); } };
         list.appendChild(el);
     });
+    // Estado vazio (B154): vitrine sem atletas mostra a mensagem em vez de tela em branco.
+    if (!list.children.length) {
+        const vazio = document.createElement('div');
+        vazio.style.cssText = 'font-size:0.78rem; color:var(--text-muted); text-align:center; padding:12px 4px;';
+        vazio.textContent = 'Nenhum atleta à venda na vitrine agora. A vitrine muda com o tempo.';
+        list.appendChild(vazio);
+    }
   }
 
   packTier(rar) {
@@ -13323,6 +13371,11 @@ class UI {
     const ev = c.dramaPendente, jogador = ev && c.elenco.find(p => p.id === ev.playerId);
     if (ev && jogador) {
       texto(locker, jogador.nome + (ev.tipo === 'indisciplina' ? ' foi a uma festa na véspera do jogo.' : ' criticou suas táticas em uma entrevista.'));
+      const decorridasDilema = LockerRoom.rodadasDesde(c, app.league);
+      if (decorridasDilema !== null) {
+        const restam = LockerRoom.PRAZO_DILEMA - decorridasDilema;
+        texto(locker, restam > 0 ? 'Responda em ' + restam + ' ' + plural(restam, 'rodada', 'rodadas') + '; sem resposta, o vestiário decide sozinho.' : 'O vestiário decide na próxima rodada.');
+      }
       const escolhas = ev.tipo === 'indisciplina' ? ['MULTAR 50% DO SALÁRIO', 'PERDOAR', 'AFASTAR DA PRÓXIMA RODADA'] : ['RESPONDER À ALTURA', 'COLOCAR PANOS QUENTES'];
       escolhas.forEach((txt, i) => botao(locker, txt, () => app.managementAction('drama', i), c.demitido));
     } else texto(locker, 'Sem dilemas pendentes. Líderes barrados espalham insatisfação; veteranos no banco pesam após três jogos sem vitória.');
@@ -15469,6 +15522,12 @@ const app = {
         if (cl && !cl.isUser && typeof cl.reporElencoBase === 'function') cl.reporElencoBase();
     });
 
+        // Dilema do vestiário sem rodada (save antigo): carimba a rodada atual; o prazo começa agora, sem resolver.
+    const rodadaAbsCarga = ((league.temporada || 1) - 1) * 100 + (league.rodada || 1);
+    [club, ...CompetitionSystem.all(league)].forEach(cl => {
+        const ev = cl && cl.dramaPendente;
+        if (ev && typeof ev === 'object' && !Number.isFinite(Number(ev.rodadaAbs))) ev.rodadaAbs = rodadaAbsCarga;
+    });
         // Importante: o clube do jogador deve ser a MESMA instância usada na
         // liga, senão os resultados não aparecem na tabela nem o oponente é encontrado.
     const leagueUser = CompetitionSystem.all(league).find(c => c && c.isUser);
@@ -15607,6 +15666,8 @@ const app = {
     normalizeNewFields(club) {
         if (!club) return;
         ClubEcosystem.normalize(club);
+        // Dilema do vestiário: shape guard. `rodadaAbs` ausente é carimbado em _restoreFromRaw (tem a liga).
+        if (club.dramaPendente != null && (typeof club.dramaPendente !== 'object' || Array.isArray(club.dramaPendente))) club.dramaPendente = null;
         // Migração por versão: saves antigos não tinham saveVersion → trate como 1.
         // Ao subir o formato, use faixas: if (club.saveVersion < 2) { ...; club.saveVersion = 2; }
         if (club.saveVersion == null) club.saveVersion = 1;
@@ -16931,12 +16992,17 @@ const app = {
             this.club.checkMissoes('pack');
             
             let reward;
+            let pacoteEmDinheiro = false;
             const pityGarantido = (this.club.packPity || 0) >= 7;
         if (pityGarantido) this.conquista('cacador', true);
             if (!pityGarantido && Math.random() < 0.25) {
-                const tData = GAME_DATA.taticas[Math.floor(Math.random() * GAME_DATA.taticas.length)];
-                reward = new TaticaCard(tData);
-                this.club.taticas.push(reward);
+                // Tática já possuída não sai de novo: sorteia entre as que faltam; com as 8, paga em dinheiro.
+                const possuidas = new Set((this.club.taticas || []).map(t => t.id));
+                const faltam = GAME_DATA.taticas.filter(t => !possuidas.has(t.id));
+                if (faltam.length) {
+                    reward = new TaticaCard(faltam[Math.floor(Math.random() * faltam.length)]);
+                    this.club.taticas.push(reward);
+                } else pacoteEmDinheiro = true;
             } else {
                 reward = new Player();
                 // Luck factor for packs
@@ -16955,6 +17021,14 @@ const app = {
                 this.club.checkMissoes('raridade', reward.overall);
             }
             
+            if (pacoteEmDinheiro) {
+                this.club.orcamento += 80000;
+                this.club.packPity = (this.club.packPity || 0) + 1;
+                ui.showActionFeedback('Você já tem todas as táticas: o pacote rendeu R$ 80 mil.', 'success');
+                ui.updateDashboard();
+                this.saveGame();
+                return;
+            }
             if (reward.isPlayer && (reward.overall || 0) >= 80) this.club.packPity = 0;
             else this.club.packPity = (this.club.packPity || 0) + 1;
 

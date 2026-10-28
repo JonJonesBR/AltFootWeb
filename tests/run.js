@@ -1959,6 +1959,146 @@ teste('B150(5): a ajuda descreve o bônus pelo OVR e pela posição, sem o núme
     ok(FONTE_HTML.indexOf('+6 de ataque, +2,5 de meio e +1 de defesa') < 0, 'ajuda ainda cita o bônus fixo +6/+2,5/+1');
 });
 
+// ------------------------------------------ B151/B154: tática repetida, dilema com prazo, dica e vazios
+console.log('-- B151/B154: tática sem repetição, dilema com prazo, dica do intervalo e estados vazios (2026-10-28)');
+
+function carreiraEconomiaDoc(nome) {
+    const { novoSandboxCarreira, elementoFalsoCarreira } = require('./carreira-lib.js');
+    const els = {};
+    const gravador = id => (els[id] = els[id] || { id, innerHTML: '', innerText: '', textContent: '', style: {},
+        classList: { add() {}, remove() {}, toggle() {}, contains: () => false }, setAttribute() {}, removeAttribute() {},
+        appendChild() {}, addEventListener() {}, querySelector: () => null, querySelectorAll: () => [], focus() {}, children: [] });
+    const sb = novoSandboxCarreira({ document: { getElementById: gravador, querySelectorAll: () => [], querySelector: () => null,
+        createElement: () => gravador('novo'), addEventListener() {}, removeEventListener() {}, body: elementoFalsoCarreira() } });
+    const { app } = sb;
+    app.saveGame = () => {}; app.autosaveNow = () => {}; app._registrarSessao = () => {};
+    app.createNewClub(nome);
+    app.club.orcamento = 5000000;
+    return { sb, els };
+}
+
+teste('B151(1a): com 7 táticas o pacote nunca repete e a tática sorteada é a que falta', () => {
+    const sb = carreiraEconomia('Teste B151 pacote a');
+    const { app, GAME_DATA, TaticaCard } = sb;
+    const faltante = GAME_DATA.taticas[7].id;
+    let ganhas = 0;
+    for (let i = 0; i < 400; i++) {
+        app.club.taticas = GAME_DATA.taticas.slice(0, 7).map(t => new TaticaCard(t));
+        app.club.packPity = 0; app._lastPackAt = 0; app.club.orcamento = 5000000;
+        const antes = app.club.taticas.length;
+        app.openPack();
+        if (app.club.taticas.length > antes) {
+            ganhas++;
+            ok(app.club.taticas[app.club.taticas.length - 1].id === faltante, 'tática repetida ou fora das que faltam');
+            const ids = app.club.taticas.map(t => t.id);
+            ok(new Set(ids).size === ids.length, 'tática duplicada no deck');
+        }
+    }
+    ok(ganhas > 0, 'nenhuma tática sorteada em 400 pacotes');
+});
+
+teste('B151(1b): com as 8 táticas o pacote paga R$ 80 mil (sem carta nova) e o deck continua com 8', () => {
+    const sb = carreiraEconomia('Teste B151 pacote b');
+    const { app, GAME_DATA, TaticaCard } = sb;
+    let dinheiro = 0;
+    for (let i = 0; i < 400; i++) {
+        app.club.taticas = GAME_DATA.taticas.map(t => new TaticaCard(t));
+        app.club.packPity = 0; app._lastPackAt = 0; app.club.orcamento = 5000000;
+        const antes = app.club.orcamento;
+        app.openPack();
+        ok(app.club.taticas.length === 8, 'deck com ' + app.club.taticas.length + ' táticas');
+        if (antes - app.club.orcamento === 70000) dinheiro++;
+    }
+    ok(dinheiro > 0, 'nenhum pacote pagou em dinheiro em 400 tentativas');
+});
+
+// Dilema do vestiário: força o dilema pendente com a rodada da liga e avança rodadas com o motor real.
+function dilemaPendente(app, LockerRoom, tipo) {
+    app.club.dramaPendente = { tipo, playerId: app.club.elenco[0].id, rodada: app.league.rodada, rodadaAbs: LockerRoom.rodadaAbs(app.league) };
+}
+
+teste('B151(2a): dilema sem resposta continua pendente antes de 6 rodadas da liga', () => {
+    const sb = carreiraEconomia('Teste B151 dilema a');
+    const { app, LockerRoom } = sb;
+    app.league.rodada = 3;
+    dilemaPendente(app, LockerRoom, 'indisciplina');
+    for (let i = 0; i < 5; i++) { app.league.rodada++; LockerRoom.afterRound(app.club, app.league, [], false); }
+    ok(app.club.dramaPendente && app.club.dramaPendente.tipo === 'indisciplina', 'dilema resolveu antes do prazo');
+    ok(!app.league.noticias.some(n => n.indexOf('resolveu sozinho') >= 0), 'notícia de resolução antes do prazo');
+});
+
+teste('B151(2b): após 6 rodadas sem resposta a indisciplina resolve com a opção padrão (multar, sem afastar ninguém), gera notícia e libera o próximo', () => {
+    const sb = carreiraEconomia('Teste B151 dilema b');
+    const { app, LockerRoom } = sb;
+    app.league.rodada = 3;
+    dilemaPendente(app, LockerRoom, 'indisciplina');
+    const p = app.club.elenco.find(x => x.id === app.club.dramaPendente.playerId);
+    const afastadoAntes = p.afastadoAte;
+    for (let i = 0; i < 6; i++) { app.league.rodada++; LockerRoom.afterRound(app.club, app.league, [], false); }
+    ok(app.league.noticias.some(n => n.indexOf('Sem decisão do técnico, o vestiário resolveu sozinho: multa de 50% do salário aplicada') >= 0), 'sem notícia de resolução automática por multa');
+    ok(p.afastadoAte === afastadoAntes, 'a resolução automática não pode afastar o atleta (custo esportivo)');
+    const atual = LockerRoom.rodadaAbs(app.league);
+    ok(app.club.dramaPendente === null || app.club.dramaPendente.rodadaAbs === atual, 'o dilema seguinte não foi liberado');
+});
+
+teste('B151(2c): entrevista sem resposta resolve com panos quentes (menor efeito em moral)', () => {
+    const sb = carreiraEconomia('Teste B151 dilema c');
+    const { app, LockerRoom } = sb;
+    app.league.rodada = 3;
+    dilemaPendente(app, LockerRoom, 'entrevista');
+    for (let i = 0; i < 6; i++) { app.league.rodada++; LockerRoom.afterRound(app.club, app.league, [], false); }
+    ok(app.league.noticias.some(n => n.indexOf('resolveu sozinho: panos quentes: satisfação +6') >= 0), 'padrão da entrevista não foi panos quentes');
+});
+
+teste('B151(2d): save antigo com dilema sem rodada é carimbado com a rodada atual, sem resolver de imediato', () => {
+    const sb = carreiraEconomia('Teste B151 dilema d');
+    const { app } = sb;
+    const idJogador = app.club.elenco[0].id;
+    const clubRaw = JSON.parse(JSON.stringify(app.club));
+    clubRaw.dramaPendente = { tipo: 'entrevista', playerId: idJogador, rodada: 2 };
+    const leagueRaw = JSON.parse(JSON.stringify(app.league));
+    leagueRaw.temporada = 2; leagueRaw.rodada = 7;
+    const userRaw = leagueRaw.clubes.find(c => c && c.isUser);
+    if (userRaw) userRaw.dramaPendente = { tipo: 'entrevista', playerId: idJogador, rodada: 2 };
+    const r = app._restoreFromRaw(clubRaw, leagueRaw, []);
+    ok(r && r.club && r.club.dramaPendente, 'dilema pendente sumiu no carregamento');
+    ok(r.club.dramaPendente.rodadaAbs === 107, 'rodada carimbada errada: ' + r.club.dramaPendente.rodadaAbs);
+    ok(!r.league.noticias.some(n => n.indexOf('resolveu sozinho') >= 0), 'o dilema antigo foi resolvido no carregamento');
+});
+
+teste('B151(3): a dica do intervalo muda com o placar e não traz número nem %', () => {
+    const sb = carreiraEconomia('Teste B151 intervalo');
+    const dicas = (gH, gA, lado) => {
+        let capturado = null;
+        sb.MatchUI.prompt = (desc, opcoes) => { capturado = opcoes; };
+        const fake = { modo: 'normal', speed: 1, abortado: false, minuto: 45, scoreH: gH, scoreA: gA, _userSide: () => lado, _emit() {} };
+        sb.MatchSim.prototype._mostrarIntervalo.call(fake);
+        return capturado.map(o => o.hint);
+    };
+    const perdendo = dicas(0, 2, 0), ganhando1 = dicas(1, 0, 0), empate = dicas(1, 1, 0), fora = dicas(0, 2, 1);
+    ok(perdendo[0] === 'Você precisa de gols: pressão cria mais, mas cansa o time.', 'dica perdendo: ' + perdendo[0]);
+    ok(ganhando1[2] === 'Placar curto: segurar protege, mas o rival cresce.', 'dica ganhando por 1: ' + ganhando1[2]);
+    ok(fora[2].indexOf('Vantagem larga') === 0, 'lado visitante não usa o próprio placar: ' + fora[2]);
+    ok(perdendo[0] !== empate[0] && empate[0] !== ganhando1[0], 'dica da pressão não muda com o placar');
+    [perdendo, ganhando1, empate, fora].forEach(hs => hs.forEach(h => ok(!/[0-9%]/.test(h), 'dica com número ou %: ' + h)));
+});
+
+teste('B154(1): museu sem ídolos e sem temporadas mostra a mensagem (openMuseu real)', () => {
+    const { sb, els } = carreiraEconomiaDoc('Teste B154 museu');
+    sb.app.club.albumIds = []; sb.app.club.historicoTemporadas = [];
+    sb.app.openMuseu();
+    ok(els['museu-historico'].innerHTML.indexOf('Nenhuma temporada encerrada ainda') >= 0, 'histórico vazio sem mensagem');
+    ok(els['museu-hall'].innerHTML.indexOf('Nenhum ídolo eternizado ainda') >= 0, 'hall vazio sem mensagem');
+});
+
+teste('B154(2): conquistas sem nenhuma conquista mostra a mensagem (_renderConquistasLista real)', () => {
+    const { sb, els } = carreiraEconomiaDoc('Teste B154 conquistas');
+    sb.app.club.conquistas = [];
+    sb.app._conquistasFiltro = 'todas';
+    sb.app._renderConquistasLista();
+    ok(els['conquistas-list'].innerHTML.indexOf('Nenhuma conquista nesta aba.') >= 0, 'lista de conquistas vazia sem mensagem');
+});
+
 console.log('');
 console.log('=== ' + (total - falhas) + '/' + total + ' verificações passaram' + (falhas ? ' — ' + falhas + ' FALHAS' : '') + ' ===');
 process.exit(falhas ? 1 : 0);
