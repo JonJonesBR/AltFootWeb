@@ -94,6 +94,13 @@ rel.t('os !important não cresceram (restantes são funcionais)', (css.match(/!i
 rel.t('o header usa o escudo vetorial (não o ⚽)', html.includes('id="ui-club-crest"')
     && /ui-club-crest[\s\S]{0,220}FUTCards\.crest/.test(js));
 rel.t('o radar do verso normaliza 99 no anel externo', js.includes('/99*40'));
+// radar SVG puro (sem Chart.js): a função real radarSVG gera o SVG da ficha e do verso
+const radarFonte = (js.match(/function radarSVG\([\s\S]*?\r?\n\}/) || [''])[0];
+let radarSvg = '';
+try { radarSvg = new Function(radarFonte + '\nreturn radarSVG({GK:80,DEF:70,MID:60,ATT:90,VEL:75,PAS:65,FIN:85});')(); } catch (e) { radarSvg = ''; }
+rel.t('o radar é SVG puro gerado por radarSVG (sem Chart.js)', radarSvg.startsWith('<svg') && !/Chart/.test(radarFonte) && !html.includes('<canvas id="player-radar-chart"') && !/new Chart\(/.test(js));
+rel.t('o radar tem ≥ 3 pontos com <title> e aria-label com os valores', ocorrencias(radarSvg, '<circle') >= 3 && ocorrencias(radarSvg, '<title>') >= 3 && /role="img" aria-label="Atributos: GK 80, DEF 70, MID 60, ATT 90/.test(radarSvg));
+rel.t('o radar preserva a normalização B60 (99 no anel de 40)', radarFonte.includes('/99*40') && js.includes('radarSVG(p.stats)'));
 rel.t('recompensas mantêm o tier coerente com a raridade',
     (js.match(/p\.tier = p\.raridade/g) || []).length >= 4);
 

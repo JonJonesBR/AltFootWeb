@@ -1575,6 +1575,40 @@ teste('manutencaoInfra segue intacta (45 mil por nível acima de 1, teto 5)', ()
     ok(c.manutencaoInfra() === 8 * 45000, 'teto 5 quebrado');
 });
 
+console.log('-- SAF: aceite da proposta (ClubEcosystem.aceitarSAF) com as funções reais');
+
+teste('SAF: aceitar zera caixa negativo e empréstimos, ativa 3 temporadas de 40% e o prazo acaba', () => {
+    const { novoSandboxCarreira } = require('./carreira-lib.js');
+    const sb = novoSandboxCarreira();
+    const { app, ClubEcosystem } = sb;
+    app.saveGame = () => {}; app.autosaveNow = () => {}; app._registrarSessao = () => {};
+    app.createNewClub('Teste SAF');
+    const clube = app.club;
+    clube.temporadaEconomica = 1;
+    clube.orcamento = -800000;
+    clube.emprestimos = [{ saldo: 300000, rodadas: 12, amortizacao: 25000 }, { saldo: 200000, rodadas: 8, amortizacao: 25000 }];
+    clube.rodadasNegativo = 3; // pré-requisito da oferta (afterRound liga ofertaSAF com 3+ rodadas negativas)
+    clube.ofertaSAF = true;
+    clube.safTemporadas = 0;
+    const r = ClubEcosystem.aceitarSAF(clube);
+    ok(r.ok === true, 'aceitarSAF recusou: ' + r.mensagem);
+    ok(clube.orcamento === 0, 'orçamento negativo não foi zerado: ' + clube.orcamento);
+    ok(clube.emprestimos.length === 0, 'empréstimos não foram limpos: ' + clube.emprestimos.length);
+    ok(clube.safTemporadas === 3, 'safTemporadas deveria ser 3, veio ' + clube.safTemporadas);
+    ok(clube.ofertaSAF === false, 'a proposta não foi consumida');
+    ok(ClubEcosystem.aceitarSAF(clube).ok === false, 'aceitou a SAF duas vezes');
+    const pago = ClubEcosystem.premio(clube, 1000000);
+    ok(pago === 600000, 'desconto de 40% não aplicado: recebeu ' + pago);
+    ok(clube.safDescontado === 400000, 'total cedido ao fundo errado: ' + clube.safDescontado);
+    // Prazo: cada virada de temporada após a inicial consome 1; em 3 viradas a SAF acaba.
+    ClubEcosystem.newSeason(clube, { temporada: 2 });
+    ok(clube.safTemporadas === 2, 'após T2 deveria restar 2, veio ' + clube.safTemporadas);
+    ClubEcosystem.newSeason(clube, { temporada: 3 });
+    ClubEcosystem.newSeason(clube, { temporada: 4 });
+    ok(clube.safTemporadas === 0, 'SAF não acabou após 3 temporadas: ' + clube.safTemporadas);
+    ok(ClubEcosystem.premio(clube, 1000000) === 1000000, 'desconto continuou após o fim da SAF');
+});
+
 console.log('');
 console.log('=== ' + (total - falhas) + '/' + total + ' verificações passaram' + (falhas ? ' — ' + falhas + ' FALHAS' : '') + ' ===');
 process.exit(falhas ? 1 : 0);

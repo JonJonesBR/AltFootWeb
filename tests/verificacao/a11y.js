@@ -18,6 +18,15 @@ rel.t('text-bigger aumenta a fonte base', /body\.text-bigger\s*\{[^}]*font-size/
 rel.t('high-contrast redefine --text-muted', /body\.high-contrast\s*\{[^}]*--text-muted/.test(estilo));
 rel.t('o JS ainda alterna as duas classes',
     src.includes("classList.toggle('text-bigger'") && src.includes("classList.toggle('high-contrast'"));
+// Fonte Maior: quase tudo usa rem, que ignora o body — a escala tem de valer no <html>.
+rel.t('html.text-bigger escala a fonte base em 118%', /html\.text-bigger\s*\{[^}]*font-size:\s*118%/.test(estilo));
+rel.t('o JS liga text-bigger também no documentElement',
+    /documentElement\.classList\.toggle\('text-bigger'/.test(codigo));
+// Botões de estado expõem aria-pressed (o texto ON/OFF sozinho não diz o estado ao leitor de tela).
+rel.t('botões de configuração têm aria-pressed e aria-label',
+    /setAttribute\('aria-pressed'/.test(codigo) && /setAttribute\('aria-label', nome/.test(codigo));
+rel.t('botões de velocidade marcam aria-pressed no mesmo ponto de .active',
+    /classList\.toggle\('active', on\);\s*b\.setAttribute\('aria-pressed', String\(on\)\)/.test(codigo));
 
 // --- Movimento reduzido ---
 rel.t('media query global de reduced-motion',
