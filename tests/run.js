@@ -1354,12 +1354,13 @@ teste('3.5 demissão: sem demissão até a rodada 10; depois da carência, a con
 teste('3.2 infraestrutura: manutenção cresce com o nível acima de 1 e para no nível 5', () => {
     const s = novoSandbox();
     const c = new s.Club('X', true);
+    c.fans = 50; c.etica = 50;
     c.estadioNivel = 1; c.baseNivel = 1;
     ok(c.manutencaoInfra() === 0, 'nível 1 não deveria pagar manutenção');
     c.estadioNivel = 3; c.baseNivel = 2;
-    ok(c.manutencaoInfra() === 3 * 45000, 'manutenção de nível 3/2 errada: ' + c.manutencaoInfra());
+    ok(c.manutencaoInfra() === 2 * 6000 + 25000, 'manutenção de nível 3/2 errada: ' + c.manutencaoInfra());
     c.estadioNivel = 9; c.baseNivel = 9;
-    ok(c.manutencaoInfra() === 8 * 45000, 'manutenção não parou no teto de nível 5: ' + c.manutencaoInfra());
+    ok(c.manutencaoInfra() === 4 * 6000 + 4 * 25000, 'manutenção não parou no teto de nível 5: ' + c.manutencaoInfra());
     ok(FONTE_HTML.indexOf('Nível máximo (5) atingido.') >= 0, 'compra de infraestrutura sem teto de nível 5');
 });
 
@@ -1557,22 +1558,45 @@ teste('manutenção só sai de caixa positivo: caixa 100 mil com folha 50 mil e 
     ok(c.orcamento === 0, 'caixa deveria ficar em 0, veio ' + c.orcamento);
 });
 
-teste('com caixa de 10 M, a rodada desconta folha e a manutenção inteira (360 mil no nível 5/5)', () => {
+teste('com caixa de 10 M, a rodada desconta folha e a manutenção inteira (124 mil no nível 5/5, B142)', () => {
     const s = novoSandbox();
     const c = new s.Club('X', true);
     c.estadioNivel = 5; c.baseNivel = 5; c.orcamento = 10000000;
     c.elenco = [{ salario: 50000, overall: 60 }];
     c.pagarSalarios();
-    ok(c.orcamento === 10000000 - 50000 - 360000, 'desconto errado: ' + c.orcamento);
+    ok(c.orcamento === 10000000 - 50000 - 124000, 'desconto errado: ' + c.orcamento);
 });
 
-teste('manutencaoInfra segue intacta (45 mil por nível acima de 1, teto 5)', () => {
+teste('B142: manutenção (estádio 60% do ganho por nível, base 25 mil, teto 5)', () => {
     const s = novoSandbox();
     const c = new s.Club('X', true);
     c.estadioNivel = 1; c.baseNivel = 1;
     ok(c.manutencaoInfra() === 0, 'nível 1 deveria custar 0');
     c.estadioNivel = 9; c.baseNivel = 9;
-    ok(c.manutencaoInfra() === 8 * 45000, 'teto 5 quebrado');
+    ok(c.manutencaoInfra() === 4 * 6000 + 4 * 25000, 'teto 5 quebrado: ' + c.manutencaoInfra());
+    // NaN de save antigo não pode contaminar o orçamento: vira o padrão (50) e o resultado continua finito.
+    const d = new s.Club('Y', true);
+    d.estadioNivel = 3; d.baseNivel = 2; d.fans = NaN; d.etica = NaN;
+    ok(Number.isFinite(d.manutencaoInfra()), 'manutenção com fans/etica NaN não é finita: ' + d.manutencaoInfra());
+    ok(d.manutencaoInfra() === 2 * 6000 + 25000, 'NaN em fans/etica deveria cair no padrão 50: ' + d.manutencaoInfra());
+});
+
+teste('B142: invariante — estádio rende mais bilheteria por temporada do que custa de manutenção (19 casas × ganho vs 38 rodadas × custo, por nível)', () => {
+    const { novoSandboxCarreira } = require('./carreira-lib.js');
+    const sb = novoSandboxCarreira();
+    const { app } = sb;
+    app.saveGame = () => {}; app.autosaveNow = () => {}; app._registrarSessao = () => {};
+    app.createNewClub('Teste Invariante B142');
+    const clube = app.club;
+    clube.isUser = true;
+    for (const fans of [0, 50, 100]) for (const etica of [0, 100]) for (const asc of [0, 3, 9]) {
+        clube.fans = fans; clube.etica = etica; clube.ascensaoNivel = asc;
+        clube.estadioNivel = 1; const r1 = clube.stadiumRevenue(), m1 = clube.manutencaoInfraPartes().estadio;
+        clube.estadioNivel = 5; const r5 = clube.stadiumRevenue(), m5 = clube.manutencaoInfraPartes().estadio;
+        const ganhoTemp = 19 * (r5 - r1) / 4; // ganho de bilheteria por nível, só em jogo em casa
+        const custoTemp = 38 * (m5 - m1) / 4; // manutenção do estádio por nível, em todas as rodadas
+        ok(ganhoTemp > custoTemp, `torcida ${fans} ética ${etica} ascensão ${asc}: ganho ${ganhoTemp} não supera custo ${custoTemp}`);
+    }
 });
 
 console.log('-- B142/B143/B144: economia de caixa (manutenção, ascensão e imposto) com as funções reais');

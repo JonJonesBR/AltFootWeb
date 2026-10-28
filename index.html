@@ -6005,11 +6005,20 @@ class Club {
     const garantido = ClubEcosystem.nivel(this, 'camarotes') * 20000;
     return Math.round((base * mult * ocupacao + patrocinio * midia) * fansMult * eticaMult + garantido);
   }
-  // Manutenção por rodada: R$ 45 mil por nível acima de 1 em estádio e base (cada um, teto 5).
-  manutencaoInfra() {
+  // B142: o estádio rende ~20 mil por jogo em casa por nível acima de 1 (19 jogos) e custa 6 mil por
+  // rodada (38 rodadas), os dois × torcida × ética × ascensão: cada nível rende ≥40% líquido por
+  // construção (razão 19×20/38×6 = 1,67). Base = R$ 25 mil por nível. Teto 5.
+  manutencaoInfraPartes() {
     const acima = (n) => Math.max(0, Math.min(5, Number(n) || 1) - 1);
-    return (acima(this.estadioNivel) + acima(this.baseNivel)) * 45000;
+    const f = this.fans == null ? 50 : Number(this.fans);
+    const e = this.etica == null ? 50 : Number(this.etica);
+    const fm = 0.5 + Math.max(0, Math.min(100, Number.isFinite(f) ? f : 50)) / 100;
+    const em = 0.9 + Math.max(0, Math.min(100, Number.isFinite(e) ? e : 50)) / 500;
+    const asc = (typeof app !== 'undefined' && app.club && this.isUser) ? (app.club.ascensaoNivel || 0) : 0;
+    const am = Math.max(ASC_PISO_BILHETERIA, 1 - asc * 0.1);
+    return { estadio: Math.round(acima(this.estadioNivel) * 6000 * fm * em * am), base: acima(this.baseNivel) * 25000 };
   }
+  manutencaoInfra() { const p = this.manutencaoInfraPartes(); return p.estadio + p.base; }
   stadiumCost() {
     return 200000 + (this.estadioNivel - 1) * 150000;
   }
@@ -13228,9 +13237,8 @@ class UI {
     const b = app.club.baseNivel || 1;
     if (stadiumStars) stadiumStars.innerText = '⭐'.repeat(Math.min(5, s));
     if (baseStars) baseStars.innerText = '⭐'.repeat(Math.min(5, b));
-    // Lote 10: manutenção por rodada (R$ 45 mil por nível acima de 1, teto 5) mostrada ao jogador; sem campo novo.
-    const manutEstadio = Math.max(0, Math.min(5, Number(s) || 1) - 1) * 45000;
-    const manutBase = Math.max(0, Math.min(5, Number(b) || 1) - 1) * 45000;
+    // B142: manutenção por rodada mostrada ao jogador vem da mesma função do motor (manutencaoInfraPartes); sem campo novo.
+    const mp = app.club.manutencaoInfraPartes(); const manutEstadio = mp.estadio; const manutBase = mp.base;
     if (stadiumInfo) stadiumInfo.innerText = `Nível ${s} · Bilheteria: +${app.fmtMoney(app.stadiumRevenue())}/rodada · Manutenção: −${app.fmtMoneyShort(manutEstadio)}/rodada (Custo: ${app.fmtMoneyShort(app.stadiumCost())})`;
     if (baseInfo) baseInfo.innerText = `Nível ${b} · Chance de craques jovens na base · Manutenção: −${app.fmtMoneyShort(manutBase)}/rodada (Custo: ${app.fmtMoneyShort(app.baseCost())})`;
     if (stadiumBtn) { stadiumBtn.disabled = app.club.orcamento < app.stadiumCost(); }
