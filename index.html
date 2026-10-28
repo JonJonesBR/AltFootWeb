@@ -4731,7 +4731,7 @@ button:focus-visible,summary:focus-visible,[role="button"]:focus-visible,[tabind
         <li><strong>Equilibrado:</strong> neutro; a força real do elenco e a tática decidem.</li>
         <li><strong>Retranca:</strong> +2.5 defesa, +0.3 meio, −2.5 ataque; criação própria ×0,85 e a do rival ×0,85. O meio-campo se desgasta mais.</li>
       </ul>
-      <p style="margin:0;"><strong>Fatores de partida:</strong> mando de casa +1 (no clássico +0.5, torcida dividida), Craque da Rodada +6 de ataque, +2,5 de meio e +1 de defesa (em qualquer mando), moral do clube ≥ 85 dá +1 e &lt; 30 tira −3. Cada rival da IA tem formação e mentalidade próprias — leia o adversário no pré-jogo.</p>
+      <p style="margin:0;"><strong>Fatores de partida:</strong> mando de casa +1 (no clássico +0.5, torcida dividida), Craque da Rodada reforça o time do usuário em qualquer mando; o bônus cresce com o OVR do craque e depende da posição dele (ex.: atacante reforça o ataque; zagueiro, a defesa), moral do clube ≥ 85 dá +1 e &lt; 30 tira −3. Cada rival da IA tem formação e mentalidade próprias — leia o adversário no pré-jogo.</p>
     </div>
 
     <div id="help-tab-content-diretoria" class="glass-ui hidden" style="text-align: left; font-size: 0.78rem; line-height: 1.45;">
@@ -8246,8 +8246,21 @@ function recuperarLesoesRodada(elenco) {
     });
 }
 
+// B150 (2026-10-28): Craque da Rodada escala pelo OVR e pela posição dele.
+// Fator = 1 + (OVR − 82,5) × 0,04 (78 → 0,82; 87 → 1,18). Cada linha da distribuição
+// soma ~9,5, como o antigo +6/+2,5/+1. Posição desconhecida = distribuição antiga.
+const CRAQUE_DISTRIBUICAO = { ATT: [7, 2, 0.5], MID: [4.5, 4, 1], DEF: [3, 2.5, 4], GK: [1.5, 2, 6] };
+const CRAQUE_DISTRIBUICAO_PADRAO = [6, 2.5, 1];
+// Função pura. Retorna { a, m, d } (ataque, meio, defesa) já multiplicados pelo fator.
+function bonusCraqueDaRodada(craque) {
+    const ovr = Number(craque && craque.overall);
+    const fator = 1 + ((Number.isFinite(ovr) ? ovr : 82.5) - 82.5) * 0.04;
+    const dist = CRAQUE_DISTRIBUICAO[craque && craque.posicao] || CRAQUE_DISTRIBUICAO_PADRAO;
+    return { a: dist[0] * fator, m: dist[1] * fator, d: dist[2] * fator };
+}
+
 // G4: química de elenco — bônus por sinergia entre quem está em campo.
-// Função pura (modelo escalarTitularesXI). Cap de +3 por linha; nunca supera o Craque (+6 atk).
+// Função pura (modelo escalarTitularesXI). Cap de +3 por linha; o Craque da Rodada dá de ~+3,7 a ~+8,3 de ataque (OVR e posição).
 // Retorna { atk, mid, def, chips:[{label, valor, linha}] }.
 function bonusQuimica(elencoEmCampo) {
     const el = (elencoEmCampo || []).filter(Boolean);
@@ -8619,7 +8632,7 @@ class MatchSim {
         if (this.continental && isHome && this._eUsuario(1)) { a += 0.4; m += 0.4; }
         // Mandos alternados: craque/estilo/buffs são do USUÁRIO, não do mandante.
         const isUser = this._eUsuario(isHome ? 0 : 1);
-        if (this.craque && isUser) { a += 6; m += 2.5; d += 1; }
+        if (this.craque && isUser) { const cq = bonusCraqueDaRodada(this.craque); a += cq.a; m += cq.m; d += cq.d; }
         if (isUser) {
             // Balanceamento 2026-10-06 (bancada tests/match-stats.js): com mando e
             // estilos medidos em 80 partidas cada, ofensivo (55% H) e retranca (49% H)
@@ -10230,13 +10243,13 @@ class MatchSim {
         // a pena de forma perceptível — ler o contexto passou a render +15pp de vitória
         // contra escolher contra ele (tests/match-stats.js §8).
         const contextos = isUserAttack ? {
-            frente: { texto: nomeAtk + ' ficou cara a cara. O goleiro adiantou e deixou os cantos abertos; não há companheiro livre para receber.', ajuste: [0.110, -0.032, -0.098] },
-            distancia: { texto: nomeAtk + ' recebe fora da área. O goleiro está encoberto pela defesa; há espaço para um chute forte, mas ninguém livre na área.', ajuste: [-0.078, 0.104, -0.019] },
-            ponta: { texto: nomeAtk + ' avança pela ponta sem ângulo para chutar. Um companheiro aparece livre na área e pede o cruzamento.', ajuste: [-0.039, -0.091, 0.117] }
+            frente: { texto: nomeAtk + ' ficou cara a cara com o goleiro, que saiu do gol. Não há companheiro livre para receber.', ajuste: [0.110, -0.032, -0.098] },
+            distancia: { texto: nomeAtk + ' recebe fora da área. A defesa está fechada à frente da grande área e o goleiro está encoberto pelos zagueiros.', ajuste: [-0.078, 0.104, -0.019] },
+            ponta: { texto: nomeAtk + ' avança pela ponta, sem ângulo para finalizar de perto. Há companheiros se movimentando dentro da área.', ajuste: [-0.039, -0.091, 0.117] }
         } : {
-            area: { texto: nomeAtk + ' recebe na área congestionada. A zaga está posicionada: fechar a linha do chute é mais seguro que abandonar a área.', ajuste: [-0.100, 0.020, 0.080] },
-            transicao: { texto: nomeAtk + ' conduz uma transição rápida. Sua defesa ainda recompõe: manter a linha evita abrir o corredor com uma saída precipitada.', ajuste: [0.080, -0.100, 0.020] },
-            corredor: { texto: nomeAtk + ' domina de costas no corredor lateral, longe da área. Há cobertura para pressionar antes que ele gire e encontre o passe.', ajuste: [0.020, 0.080, -0.100] }
+            area: { texto: nomeAtk + ' recebe na área congestionada. A zaga está posicionada e há marcadores em volta.', ajuste: [-0.100, 0.020, 0.080] },
+            transicao: { texto: nomeAtk + ' conduz uma transição rápida. Sua defesa ainda está recompondo a linha e há espaço no corredor.', ajuste: [0.080, -0.100, 0.020] },
+            corredor: { texto: nomeAtk + ' domina de costas no corredor lateral, longe da área. Um marcador está colado nele e ainda não há linha de passe livre.', ajuste: [0.020, 0.080, -0.100] }
         };
         const contextoId = Object.prototype.hasOwnProperty.call(contextos, ev.contexto) ? ev.contexto : this._pick(Object.keys(contextos));
         const contexto = contextos[contextoId];
@@ -10282,8 +10295,8 @@ class MatchSim {
                 const alvo = isUserAttack ? jp : orientado;
                 if (alvo) alvo.folego = Math.max(5, (alvo.folego == null ? 100 : alvo.folego) - custoFolego);
             }
-            // G1: decisão respondida antes do timer recarrega Foco (opção central = assistente, menos).
-            this._atualizarFoco(i === 1 ? 4 : 8);
+            // B149 (2026-10-28): Foco +8 só na melhor leitura do contexto; nas demais +3.
+            this._atualizarFoco(i === melhorIdx ? 8 : 3);
             if (typeof ui !== 'undefined' && ui.atualizarFocoUI) ui.atualizarFocoUI(this);
             // Feedback imediato da escolha do técnico (conecta o clique ao desfecho).
             const rotulo = (opts[i] && opts[i].label) ? opts[i].label.replace(/^[^\wÀ-ÿ]+/, '').trim() : '';

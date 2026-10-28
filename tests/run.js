@@ -1824,6 +1824,117 @@ teste('B147(5): A→B→A com meta já paga não recolhe a meta de novo (troca b
     ok(app.club.orcamento === orc, 'meta recolhida de novo');
 });
 
+console.log('-- B149/B150: decisão sem gabarito no texto, Foco pela melhor leitura e Craque por OVR/posição (2026-10-28)');
+
+// Ajuste (vetor de 3 opções) de um contexto, lido do próprio código-fonte (mesma leitura do 3.1).
+const ajusteDoCtx = (ctx) => {
+    const i = FONTE_HTML.indexOf(ctx + ': { texto:');
+    if (i < 0) throw new Error('contexto não achado: ' + ctx);
+    const m = /ajuste: \[([^\]]+)\]/.exec(FONTE_HTML.slice(i, i + 900));
+    return m[1].split(',').map(Number);
+};
+const CONTEXTOS_ATAQUE = ['frente', 'distancia', 'ponta'];
+const CONTEXTOS_DEFESA = ['area', 'transicao', 'corredor'];
+// Melhor leitura como o motor decide: maior ajuste no ataque, menor na defesa.
+const melhorDoCtx = (ctx) => {
+    const v = ajusteDoCtx(ctx), ataque = CONTEXTOS_ATAQUE.includes(ctx);
+    let b = 0;
+    v.forEach((x, i) => { if (ataque ? x > v[b] : x < v[b]) b = i; });
+    return b;
+};
+// Partida mínima com o usuário em casa, decisão disparada direto (relógio virtual, sem jogar a partida).
+const simDecisao = (sbX) => {
+    const home = makeTeam('Casa', 70, { isUser: true });
+    const away = makeTeam('Fora', 70, {});
+    return new sbX.MatchSim(home, away, null, () => {}, { seed: 7, modo: 'detalhado', minDurMs: 0, tempoMin: 90, estilo: 'equilibrado', craque: null, regra: null, condicao: 'normal', startMinute: 0, startScore: null, startRedUser: 0, derbi: false });
+};
+
+teste('B149(1): Foco ganha +8 só quando a escolha é a melhor leitura do contexto e +3 nas demais', () => {
+    const sbX = novoSandbox();
+    [...CONTEXTOS_ATAQUE, ...CONTEXTOS_DEFESA].forEach(ctx => {
+        const melhor = melhorDoCtx(ctx);
+        [0, 1, 2].forEach(pol => {
+            sbX.MatchUI._politicaDecisao = pol;
+            const sim = simDecisao(sbX);
+            sim._foco = 50;
+            // side 0 = usuário ataca; side 1 = rival ataca e o usuário defende.
+            sim._mostrarDecisao({ side: CONTEXTOS_ATAQUE.includes(ctx) ? 0 : 1, contexto: ctx });
+            const ganho = sim._foco - 50, esperado = pol === melhor ? 8 : 3;
+            ok(Math.abs(ganho - esperado) < 0.001, ctx + ' opção ' + pol + ': Foco +' + ganho.toFixed(2) + ' (esperado +' + esperado + ', melhor ' + melhor + ')');
+        });
+    });
+});
+
+teste('B149(2): textos de contexto descrevem a situação e não citam a opção certa (palavras-gabarito removidas)', () => {
+    const removidas = ['chute forte', 'pede o cruzamento', 'companheiro livre na área', 'há cobertura', 'cobertura para pressionar',
+        'fechar a linha do chute', 'abandonar a área', 'manter a linha evita', 'cantos abertos', 'recompõe'];
+    [...CONTEXTOS_ATAQUE, ...CONTEXTOS_DEFESA].forEach(ctx => {
+        const i = FONTE_HTML.indexOf(ctx + ': { texto:');
+        const trecho = FONTE_HTML.slice(i, FONTE_HTML.indexOf('ajuste:', i)).toLowerCase();
+        removidas.forEach(p => ok(trecho.indexOf(p) < 0, ctx + ' ainda contém "' + p + '"'));
+    });
+});
+
+teste('B149(3): as dicas das opções continuam sem número de chance (B51)', () => {
+    const sbX = novoSandbox();
+    sbX.MatchUI._politicaDecisao = 1;
+    simDecisao(sbX)._mostrarDecisao({ side: 0, contexto: 'frente' });
+    const ultimo = sbX.MatchUI.promptCalls[sbX.MatchUI.promptCalls.length - 1];
+    ok(ultimo && ultimo.hints.length === 3, 'prompt sem 3 opções');
+    ok(ultimo.hints.every(h => h && h.indexOf('%') < 0), 'alguma dica traz % : ' + ultimo.hints.join(' | '));
+});
+
+teste('B149(4): o feedback pós-lance continua revelando a melhor leitura (aprendizado)', () => {
+    const sbX = novoSandbox();
+    sbX.MatchUI._politicaDecisao = 0;
+    const sim = simDecisao(sbX);
+    sim._mostrarDecisao({ side: 0, contexto: 'distancia' });
+    const d = sim._decisoes && sim._decisoes[sim._decisoes.length - 1];
+    ok(d && d.melhorLabel === '💥 Forte', 'melhorLabel do registro pós-lance não é a melhor leitura: ' + (d && d.melhorLabel));
+});
+
+teste('B150(1): bônus do Craque escala pelo OVR (78 ×0,82; 87 ×1,18) e soma ~9,5 em cada posição', () => {
+    const sbX = novoSandbox();
+    ['ATT', 'MID', 'DEF', 'GK'].forEach(pos => {
+        const soma = (ovr) => { const c = sbX.bonusCraqueDaRodada({ overall: ovr, posicao: pos }); return c.a + c.m + c.d; };
+        perto(soma(82.5), 9.5, 0.001, pos + ' no OVR médio');
+        perto(soma(78), 9.5 * 0.82, 0.001, pos + ' OVR 78');
+        perto(soma(87), 9.5 * 1.18, 0.001, pos + ' OVR 87');
+    });
+});
+
+teste('B150(2): o bônus segue a posição (atacante → ataque; zagueiro/goleiro → defesa); posição desconhecida = 6/2,5/1', () => {
+    const sbX = novoSandbox();
+    const c = (pos) => sbX.bonusCraqueDaRodada({ overall: 82.5, posicao: pos });
+    perto(c('ATT').a, 7, 0.001, 'ATT ataque'); perto(c('ATT').d, 0.5, 0.001, 'ATT defesa');
+    perto(c('DEF').a, 3, 0.001, 'DEF ataque'); perto(c('DEF').d, 4, 0.001, 'DEF defesa');
+    perto(c('GK').d, 6, 0.001, 'GK defesa'); perto(c('GK').a, 1.5, 0.001, 'GK ataque');
+    const x = c('ZZ'), semPos = sbX.bonusCraqueDaRodada({ overall: 82.5 });
+    [x, semPos].forEach(q => { perto(q.a, 6, 0.001, 'desconhecida ataque'); perto(q.m, 2.5, 0.001, 'desconhecida meio'); perto(q.d, 1, 0.001, 'desconhecida defesa'); });
+});
+
+teste('B150(3): média dos candidatos (OVR 78 a 87) mantém o bônus médio em ~9,5 para cada posição', () => {
+    const sbX = novoSandbox();
+    ['ATT', 'MID', 'DEF', 'GK'].forEach(pos => {
+        let s = 0;
+        for (let o = 78; o <= 87; o++) { const c = sbX.bonusCraqueDaRodada({ overall: o, posicao: pos }); s += c.a + c.m + c.d; }
+        perto(s / 10, 9.5, 0.01, 'média de ' + pos);
+    });
+});
+
+teste('B150(4): bonusCraqueDaRodada não altera o craque e o motor aplica só ao usuário (sem estado novo)', () => {
+    const sbX = novoSandbox();
+    const craque = { nome: 'X', overall: 80, posicao: 'MID' }, antes = JSON.stringify(craque);
+    sbX.bonusCraqueDaRodada(craque);
+    ok(JSON.stringify(craque) === antes, 'a função mutou o craque');
+    ok(FONTE_HTML.indexOf('if (this.craque && isUser) { const cq = bonusCraqueDaRodada(this.craque);') >= 0, 'o bônus do motor não está restrito ao usuário');
+});
+
+teste('B150(5): a ajuda descreve o bônus pelo OVR e pela posição, sem o número fixo antigo', () => {
+    ok(FONTE_HTML.indexOf('o bônus cresce com o OVR do craque e depende da posição dele') >= 0, 'ajuda sem a descrição nova do craque');
+    ok(FONTE_HTML.indexOf('+6 de ataque, +2,5 de meio e +1 de defesa') < 0, 'ajuda ainda cita o bônus fixo +6/+2,5/+1');
+});
+
 console.log('');
 console.log('=== ' + (total - falhas) + '/' + total + ' verificações passaram' + (falhas ? ' — ' + falhas + ' FALHAS' : '') + ' ===');
 process.exit(falhas ? 1 : 0);

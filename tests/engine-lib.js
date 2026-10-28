@@ -82,7 +82,7 @@ function novoSandbox(opts = {}) {
         'document', 'MatchUI', 'TempoPagina', 'window',
         'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval',
         'ui', 'app',
-        corpo + '\n;return { MatchSim, Engine, escalarTitularesXI, bonusQuimica, CONDICOES_JOGO, mulberry32, hashStr'
+        corpo + '\n;return { MatchSim, Engine, escalarTitularesXI, bonusQuimica, bonusCraqueDaRodada, CONDICOES_JOGO, mulberry32, hashStr'
         + ', calcularXPParticipacao: (typeof calcularXPParticipacao === "function" ? calcularXPParticipacao : null)'
         + ', recuperarLesoesRodada: (typeof recuperarLesoesRodada === "function" ? recuperarLesoesRodada : null)'
         + ', fecharPartidaElenco: (typeof fecharPartidaElenco === "function" ? fecharPartidaElenco : null)'
