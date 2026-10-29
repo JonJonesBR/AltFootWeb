@@ -18155,6 +18155,10 @@ const app = {
             this.conquista('dinastia', (this.club.titulos || 0) >= 3);
             this.conquista('ascensao', (this.club.ascensaoNivel || 0) >= 3);
             this.conquista('invicto', (this.club.derrotas || 0) === 0);
+        } else if (userPos > 4 && (this.club.ascensaoNivel || 0) > 0) {
+            // Q3 (2026-10-28): fora do G4 a ascensão recua um degrau, para a dificuldade seguir o desempenho do clube.
+            this.club.ascensaoNivel = this.club.ascensaoNivel - 1;
+            this.league.adicionarNoticia(`📉 Ascensão recua para o nível ${this.club.ascensaoNivel}: fora do G4, os rivais aliviam a marcação.`);
         }
 
         // Rebaixamento (A, B e C): quem termina nas 4 últimas posições (userPos >= 17) cai, com venda/financeiro.

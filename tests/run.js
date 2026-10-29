@@ -2099,6 +2099,64 @@ teste('B154(2): conquistas sem nenhuma conquista mostra a mensagem (_renderConqu
     ok(els['conquistas-list'].innerHTML.indexOf('Nenhuma conquista nesta aba.') >= 0, 'lista de conquistas vazia sem mensagem');
 });
 
+console.log('-- Q3: ascensão recua fora do G4 (openSeasonEnd real, 2026-10-28)');
+
+// Fecho de temporada real com o usuário na posição `pos` da tabela (campeão e rivais são figurantes).
+function fecharTemporadaEm(pos, asc) {
+    const { novoSandboxCarreira } = require('./carreira-lib.js');
+    const sb = novoSandboxCarreira();
+    const { app } = sb;
+    app.saveGame = () => {}; app.autosaveNow = () => {}; app._registrarSessao = () => {};
+    app.createNewClub('Teste Q3 ' + pos + ' ' + asc);
+    app.club.ascensaoNivel = asc;
+    app.club.orcamento = 5000000;
+    app.league.divisaoUser = 1;
+    app.league.resumoTemporada = null;
+    const noticias = [];
+    app.league.adicionarNoticia = (t) => noticias.push(t);
+    app.league.getTabela = () => Array.from({ length: 20 }, (_, i) => i === pos - 1 ? app.club : { nome: 'Rival ' + (i + 1), pontos: 0 });
+    app.openSeasonEnd();
+    return { clube: app.club, noticias };
+}
+
+teste('Q3(1): 6º com ascensão 3 recua para 2 e avisa na notícia', () => {
+    const { clube, noticias } = fecharTemporadaEm(6, 3);
+    ok(clube.ascensaoNivel === 2, 'ascensão deveria recuar para 2, veio ' + clube.ascensaoNivel);
+    ok(noticias.some(n => n.indexOf('📉 Ascensão recua') === 0), 'notícia de recuo ausente: ' + JSON.stringify(noticias));
+});
+
+teste('Q3(2): 3º e 4º (dentro do G4) mantêm a ascensão 3', () => {
+    const terceiro = fecharTemporadaEm(3, 3);
+    ok(terceiro.clube.ascensaoNivel === 3, '3º recuou indevidamente: ' + terceiro.clube.ascensaoNivel);
+    const quarto = fecharTemporadaEm(4, 3);
+    ok(quarto.clube.ascensaoNivel === 3, '4º recuou indevidamente: ' + quarto.clube.ascensaoNivel);
+    ok(!terceiro.noticias.some(n => n.indexOf('📉') >= 0), 'notícia de recuo dentro do G4');
+});
+
+teste('Q3(3): 5º com ascensão 0 continua 0 (nunca negativa) e sem notícia de recuo', () => {
+    const { clube, noticias } = fecharTemporadaEm(5, 0);
+    ok(clube.ascensaoNivel === 0, 'ascensão ficou ' + clube.ascensaoNivel);
+    ok(!noticias.some(n => n.indexOf('📉') >= 0), 'notícia de recuo sem ascensão');
+});
+
+teste('Q3(4): 1º com ascensão 3 sobe para 4 (regra de título intacta)', () => {
+    const { clube, noticias } = fecharTemporadaEm(1, 3);
+    ok(clube.ascensaoNivel === 4, 'título deveria subir para 4, veio ' + clube.ascensaoNivel);
+    ok(noticias.some(n => n.indexOf('📈 Ascensão nível 4') === 0), 'notícia de subida ausente');
+});
+
+teste('Q3(5): valor guardado 9 recua para 8 e o teto de rival (ASC_TETO_RIVAL = 5) segue valendo', () => {
+    const { clube } = fecharTemporadaEm(6, 9);
+    ok(clube.ascensaoNivel === 8, 'valor acima do teto deveria recuar para 8, veio ' + clube.ascensaoNivel);
+    const s = novoSandbox();
+    const casa = makeTeam('Casa', 70, { isUser: true });
+    const sim = new s.MatchSim(casa, makeTeam('Fora', 70), null, null, { seed: 2, modo: 'detalhado', tempoMin: 90 });
+    const atkRival = (n) => { casa.ascensaoNivel = n; return sim._poder(sim.away, false).atk; };
+    const base = atkRival(0);
+    perto(atkRival(8) - base, 15, 1e-6, 'nível 8 deveria ficar no teto de +15 para o rival');
+    perto(atkRival(5) - base, 15, 1e-6, 'nível 5 deveria dar +15 ao rival');
+});
+
 console.log('');
 console.log('=== ' + (total - falhas) + '/' + total + ' verificações passaram' + (falhas ? ' — ' + falhas + ' FALHAS' : '') + ' ===');
 process.exit(falhas ? 1 : 0);
